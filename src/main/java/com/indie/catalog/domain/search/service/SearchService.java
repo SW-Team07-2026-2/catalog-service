@@ -5,7 +5,7 @@ import com.indie.catalog.domain.album.repository.TrackRepository;
 import com.indie.catalog.domain.search.dto.response.SearchHit;
 import com.indie.catalog.domain.search.dto.response.SearchResult;
 import com.indie.catalog.domain.search.repository.SearchIndex;
-import com.indie.catalog.global.common.exception.CommonErrorCode;
+import com.indie.catalog.domain.search.exception.SearchErrorCode;
 import com.indie.catalog.global.common.exception.GeneralException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,9 +31,8 @@ public class SearchService {
     @Transactional(readOnly = true)
     public SearchResult search(String rawQuery, int size) {
         String q = rawQuery == null ? "" : rawQuery.strip();
-        if (q.isEmpty() || q.length() > MAX_QUERY_LENGTH) {
-            throw new GeneralException(CommonErrorCode.INVALID_REQUEST, "검색어는 1~" + MAX_QUERY_LENGTH + "자입니다");
-        }
+        if (q.isEmpty()) throw new GeneralException(SearchErrorCode.SEARCH_QUERY_EMPTY);
+        if (q.length() > MAX_QUERY_LENGTH) throw new GeneralException(SearchErrorCode.SEARCH_QUERY_TOO_LONG);
         return new SearchResult(withAlbumIds(searchIndex.search(q, size)));
     }
 
