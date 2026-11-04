@@ -1,0 +1,105 @@
+spring:
+  application.name: catalog
+  config.import: optional:configtree:/etc/secrets/
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:5432/indie_db?currentSchema=catalog&ApplicationName=catalog
+    username: catalog_svc
+    password: ${db.password}                  # ← configtree 파일
+    hikari:
+      maximum-pool-size: 5                    # ★ DB 쪽 CONNECTION LIMIT 20 / replica 2
+      minimum-idle: 2
+      connection-timeout: 3000
+      max-lifetime: 1500000                   # 25분 — RDS 쪽보다 짧게
+      leak-detection-threshold: 20000
+
+  jpa:
+    open-in-view: false                       # ★ 커넥션 점유 방지
+    hibernate.ddl-auto: validate              # 🔴 none/update 아님 — Flyway 와 불일치를 잡는다 (로컬만 update)
+    properties:
+      hibernate:
+        default_schema: catalog
+        jdbc.batch_size: 50
+        order_inserts: true
+        query.in_clause_parameter_padding: true
+
+  flyway:
+    enabled: true
+    schemas: catalog
+    default-schema: catalog
+    baseline-on-migrate: false                # 🔴 true 는 기존 테이블을 조용히 건너뜁니다
+    validate-on-migrate: true
+
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVERS}
+    consumer:
+      group-id: catalog-service               # ★ replica 2 가 같은 그룹 → 파티션 분배
+      auto-offset-reset: earliest
+      enable-auto-commit: false               # ★ 수동 커밋
+      max-poll-records: 50
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: MANUAL
+      concurrency: 1
+      missing-topics-fatal: false             # 🔴 Kafka 장애가 기동을 막지 않게
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 1
+        max.block.ms: 3000                    # Kafka 장애 시 릴레이 스레드가 60초씩 묶이지 않게
+
+  data.redis:                                 # 캐시용 Redis (allkeys-lru) — 죽어도 DB 로 응답합니다
+    host: ${REDIS_CACHE_HOST}
+    port: 6379
+    timeout: 300ms
+    connect-timeout: 300ms
+
+server:
+  port: 8082
+  shutdown: graceful
+  tomcat.threads.max: 50
+
+management:
+  server.port: 8092
+  endpoints.web.exposure.include: health,info,prometheus
+  endpoint.health:
+    probes.enabled: true
+    group:
+      readiness.include: db                   # ★ Redis 는 넣지 않습니다 — 캐시가 죽어도 서비스는 됩니다
+      liveness.include: ping
+
+springdoc:
+  api-docs.enabled: false                     # 운영 노출 안 함 — local 에서만 켭니다
+  swagger-ui.enabled: false
+
+app:
+  internal:                                   # 들어오는 /internal/** 검증
+    expected-audience: catalog
+    allowed-issuers: [assistant]              # ✏️ 11/01 21A — 수집(ingest) 직접 호출은 닫음 · Gateway /ingest/** 경유만 (아래 ingest-issuer). TODO(결정대기): 어시스턴트의 iss 이름
+    clock-skew-seconds: 30
+    ingest-issuer: gateway                    # docs/22 S1 — Gateway /ingest/** 가 수집 서명을 확인하고 발급 (sub=ingest:{키} · body_sha256)
+    ingest-paths: [/internal/catalog/artists, /internal/catalog/albums, /internal/catalog/ingest/diff]
+  internal-token:                             # 나가는 호출 (Catalog → Payment)
+    issuer: catalog
+    ttl-seconds: 300
+  payment:
+    base-url: ${PAYMENT_BASE_URL:http://payment:8084}
+    connect-timeout-ms: 1000
+    read-timeout-ms: 3000                     # 11 §4 — 동기 호출 타임아웃 3초
+  order:
+    max-items: 20
+    max-qty: 10
+    pending-ttl-minutes: 15                   # 결제창에서 이탈한 주문 → 재고 복구
+    expiry-interval-ms: 60000
+  page:
+    size: 20
+    max-size: 50
+  cache:
+    artist-ttl-seconds: 600                   # catalog:cache:artist:{id} · 08 §3
+  outbox:
+    relay-interval-ms: 1000
+    batch-size: 100
