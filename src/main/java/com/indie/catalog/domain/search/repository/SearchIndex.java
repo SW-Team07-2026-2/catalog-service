@@ -3,7 +3,7 @@ package com.indie.catalog.domain.search.repository;
 import java.util.List;
 
 /**
- * 통합 검색 색인 포트 (search_doc) — 구현은 JdbcSearchIndex (pg_trgm).
+ * 통합 검색 색인 포트 (search_doc) — 구현은 SearchIndexAdapter (pg_trgm · SearchDocJpaRepository).
  * 쓰기는 원본(아티스트 · 앨범 · 트랙)과 같은 트랜잭션에서 합니다.
  */
 public interface SearchIndex {
