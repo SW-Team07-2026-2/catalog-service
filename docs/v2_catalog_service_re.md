@@ -1,8 +1,8 @@
 # catalog-service v2 리팩토링
 
-> **상태: 구현 완료 · 커밋 전 (2026-11-13).** catalog-service 저장소의 `refactor/catalog-v2` 브랜치(develop 에서 분기) 작업 트리에 있습니다. 커밋 · 푸시 · PR 은 하지 않았습니다.
-> 테스트 37건 통과 (건너뜀 0 · Docker 필요). 다른 저장소에서 바꾼 것은 `manifests` 의 Kafka 토픽 목록 1개 파일뿐입니다 (9장).
-> 2026-11-13(오후): 마이그레이션을 **V1(구조) · V2(값) 두 파일**로 합쳤고(6장), 관리자(Studio)용 내부 API 6개를 더했습니다(7.2). 브랜치 `refactor/flyway-v1-v2`, 테스트 41건 통과.
+> **상태: 운영 배포 완료 (2026-11-13).** main `aeebf70` 이 ArgoCD 로 배포되어 `api.indig.co.kr` 에서 v2 API 가 응답합니다. 운영 DB 의 `catalog` 스키마는 비우고 V1 · V2 로 다시 만들었습니다 — **지금 카탈로그 데이터는 0건입니다** (12장 ①).
+> 같은 날 마이그레이션을 **V1(구조) · V2(값) 두 파일**로 합쳤고(6장), 관리자(Studio)용 내부 API 6개를 더했습니다(7.2). 테스트 41건 통과 (건너뜀 0 · Docker 필요).
+> 전 서비스 공통의 남은 일은 `indie-msa/docs/v2_후속_작업.md`, 전체 API 는 `indie-msa/docs/v2_API_명세서.md`, 프론트 확인 사항은 `indie-msa/docs/v2_프론트_체크사항.md` 에 있습니다.
 > 마지막 장(12장)에 배포 전에 확인할 것과 아직 정하지 않은 것을 모았습니다.
 
 ## 0. 한눈에 보기
@@ -282,7 +282,9 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 
 - **내부 토큰 발급자는 경로로 나눕니다.** `/internal/admin/**` 는 `app.internal.admin-issuers`(`studio`)만, 수집 3경로는 Gateway 수집 토큰만 받습니다. 관리자 토큰으로 수집 API 를 부를 수 없습니다. 쓰이지 않던 `allowed-issuers: [assistant]` 는 지웠습니다.
 - 🔴 수집으로 들어온 상품을 관리자가 고치면, 수집기가 그 상품의 원본이 바뀐 것을 다음에 가져올 때 다시 덮어씁니다.
-- 🔴 운영에서는 catalog 의 NetworkPolicy 가 Studio(`app: studio`)를 아직 허용하지 않습니다. Studio 매니페스트를 만들 때 함께 엽니다 (KT 클라우드 준비 뒤).
+- 🔴 운영에서는 catalog 의 NetworkPolicy 가 Studio(`app: studio`)를 아직 허용하지 않습니다. Studio 매니페스트를 만들 때 함께 엽니다 (KT 클라우드 준비 뒤). `manifests` 의 `services/catalog/networkpolicy.yaml` 에 TODO 주석으로 남겼습니다.
+
+**이미지 URL (2026-11-13 결정).** 크롤링 데이터의 이미지(`thumbnail_url` · `profile_url` 등)는 **수집기가 S3 에 올리고 그 URL 을 넘깁니다.** catalog 는 URL 문자열만 저장하고 파일을 받거나 올리지 않습니다. 관리자 상품 등록(위 표)도 URL 을 받습니다.
 
 ### 7.3 수집 적재 본문 (snake_case)
 
@@ -358,14 +360,15 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 | **Gateway** | 없음 | `/api/cart` · `/api/cart/**` → catalog 라우트와 로그인 필수 규칙이 이미 있습니다 (member v2 때 추가). `/api/catalog/**` · 검색 폴백 · 수집 3경로(`/ingest/catalog/{artists,albums,diff}`)는 경로가 그대로라 손대지 않았습니다 |
 | **payment** | 없음 | 바꾸지 않는 것이 조건이었습니다. `prepare` 요청에서 쓰이지 않던 `albumIds` 만 catalog 쪽에서 보내지 않습니다 |
 | **concert** | 없음 | `artist.updated` 의 `artistId` · `name` · `genre` 를 그대로 읽습니다. 12장 ④ 참고 |
-| **manifests** | **1개 파일** | `platform/kafka/topics-job.yaml` — 운영은 토픽 자동 생성이 꺼져 있어 목록에 없으면 발행이 실패합니다. `physical_album.released` · `goods.released` · `order.confirmed` · `order.refunded` · `user.withdrawn` 을 추가하고(구독 토픽은 DLT 도) `stock.restocked` 를 뺐습니다. 커밋 전입니다 |
+| **manifests** | **2개 파일** | `platform/kafka/topics-job.yaml` — 운영은 토픽 자동 생성이 꺼져 있어 목록에 없으면 발행이 실패합니다. `physical_album.released` · `goods.released` · `order.confirmed` · `order.refunded` · `user.withdrawn` 을 추가하고(구독 토픽은 DLT 도) `stock.restocked` 를 뺐습니다 (main 배포됨). `services/catalog/networkpolicy.yaml` — 없는 라벨 `app: assistant` 허용 삭제 (11/13 · main 배포됨) |
 
 수정하지 않았지만 낡은 것 (손대지 않고 알려만 둡니다):
 
 - `backend/local/commerce-demo.sh` — 옛 흐름(위시리스트 · `stock.restocked` · `lps` · `productId` 주문) 기준이라 지금은 통과하지 않습니다. 4개 서비스와 토스 결제창이 떠 있어야 검증할 수 있어 고치지 않았습니다.
 - `backend/README.md` 의 catalog 테스트 수 · 설명, `docs/` 의 API 명세(15 등), `demo_ui/index.html` 의 개발자 메모, `scripts/render_*.py` 다이어그램의 `stock.restocked`.
 - Gateway `IngestRoute` 의 `TODO: /ingest/catalog/goods` — 굿즈는 아티스트 적재 본문 안에 들어가므로 이 경로는 필요 없어졌습니다.
-- ~~catalog `application.yml` 의 `app.internal.allowed-issuers: [assistant]`~~ → 11/13 오후에 지웠습니다 (`admin-issuers: [studio]` 로 교체 · 7.2). `manifests` 의 catalog NetworkPolicy 에 남아 있던 `app: assistant` 허용도 함께 지웁니다.
+- ~~catalog `application.yml` 의 `app.internal.allowed-issuers: [assistant]`~~ → 11/13 오후에 지웠습니다 (`admin-issuers: [studio]` 로 교체 · 7.2). `manifests` 의 catalog NetworkPolicy 에 남아 있던 `app: assistant` 허용도 지웠습니다.
+- ~~`backend/README.md` 의 로컬 `ddl-auto` 설명~~ → 11/13 고쳤습니다 (로컬도 Flyway).
 
 ## 10. 테스트
 
@@ -381,7 +384,9 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 
 테스트가 잡아서 고친 버그: 장바구니 수량을 바꾼 직후 응답에 이전 수량이 내려가던 문제 (upsert 쿼리가 영속성 컨텍스트를 건너뛰어 옛 엔티티가 읽힘 → 해당 행을 떼어내도록 수정).
 
-검증하지 못한 것: 실제 Kafka 를 거친 발행 · 구독(컨슈머는 서비스 메서드 호출까지만 확인), 실제 Payment · 토스 연동, 운영 배포. 관리자 API 는 서비스 메서드까지만 확인했습니다 (Studio 를 띄워 HTTP 로 부르는 것은 하지 않았습니다).
+운영 배포(11/13)에서 확인한 것: Flyway 이력 1 · 2, 테이블 14개(`flyway_schema_history` 포함) 주인 `catalog_svc`, `GET /api/catalog/artists` · `/goods` · `/physical-albums` 200(빈 목록), `GET /api/cart`(토큰 없음) 401, 기동 로그 ERROR 0건.
+
+검증하지 못한 것: 실제 Kafka 를 거친 발행 · 구독(컨슈머는 서비스 메서드 호출까지만 확인), 실제 Payment · 토스 연동, 운영에서의 주문 · 장바구니(데이터가 없음). 관리자 API 는 서비스 메서드까지만 확인했습니다 (Studio 를 띄워 HTTP 로 부르는 것은 하지 않았습니다).
 
 ## 11. 삭제한 것
 
@@ -395,9 +400,9 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 
 **배포 전 확인**
 
-1. **스키마를 비우고 다시 올리므로 catalog 의 데이터가 모두 지워집니다.** 수집을 다시 돌려야 하고, id 가 1부터 다시 매겨집니다. member 의 팔로우 · 보유 음반 · 행동 메트릭과 concert 가 복제해 둔 아티스트 id 는 옛 id 를 가리키게 됩니다. 다른 서비스의 데이터도 함께 비울지 정해야 합니다.
+1. ✅ **11/13 운영 스키마를 비우고 다시 올렸습니다.** 운영 catalog 는 원래 데이터가 0건이었고, member · concert · payment 도 함께 비워 옛 id 를 가리키는 데이터는 없습니다. 🔴 **지금 아티스트가 0명입니다.** 가입 화면의 밴드 고르기를 `GET /api/catalog/artists` 로 바꾸면 목록이 비어 가입을 끝낼 수 없습니다 (가입은 아티스트 1개 이상 필수 · 지금 프론트는 고정 목록을 씀). 수집기가 생기기 전까지 아티스트를 넣는 방법은 수집 적재 API(서명 필요)뿐입니다 (`docs/v2_후속_작업.md`).
 2. **로컬 DB 는 `catalog` 스키마를 한 번 비우고** 띄워야 합니다. 로컬도 Flyway 로 돌기 때문에 예전에 `ddl-auto` 로 만든 테이블이 남아 있으면 V1 이 실패합니다.
-3. **`manifests` 의 토픽 목록 변경을 catalog 보다 먼저(또는 함께) 배포**해야 합니다. 토픽이 없으면 outbox 에 이벤트가 쌓이기만 합니다.
+3. ✅ `manifests` 의 토픽 목록 변경은 catalog 보다 먼저 main 에 배포되어 있었습니다.
 4. `backend/local/commerce-demo.sh` 는 새 흐름으로 다시 써야 합니다.
 
 **정하지 않은 것 (제가 기본값으로 둔 것)**
