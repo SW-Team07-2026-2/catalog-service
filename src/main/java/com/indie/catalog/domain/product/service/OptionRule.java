@@ -7,13 +7,13 @@ import com.indie.catalog.domain.product.exception.ProductErrorCode;
 import com.indie.catalog.global.common.exception.GeneralException;
 
 /**
- * 옵션 값 규칙 — 상품과 옵션이 다른 테이블이라 DB CHECK 로 걸 수 없어 여기서 막습니다 (V5 주석).
+ * 옵션 값 규칙 — 상품과 옵션이 다른 테이블이라 DB CHECK 로 걸 수 없어 여기서 막습니다 (V1__catalog_schema.sql 주석).
  * <pre>
  * LP            vinyl_color 필수 (BLACK · COLOR) · size 없음
  * CD · 카세트    둘 다 없음 (옵션 이름만 — "기본" 등)
  * 굿즈           size 필수 (사이즈가 없는 품목은 FREE) · vinyl_color 없음
  * </pre>
- * 옵션이 들어오는 길은 수집 적재(ProductService.upsertOptions) 하나입니다.
+ * 옵션이 들어오는 길은 ProductService.upsertOptions 하나입니다 (수집 적재 · 관리자 등록이 모두 거칩니다).
  */
 public final class OptionRule {
 

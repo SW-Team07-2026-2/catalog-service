@@ -2,6 +2,7 @@
 
 > **상태: 구현 완료 · 커밋 전 (2026-11-13).** catalog-service 저장소의 `refactor/catalog-v2` 브랜치(develop 에서 분기) 작업 트리에 있습니다. 커밋 · 푸시 · PR 은 하지 않았습니다.
 > 테스트 37건 통과 (건너뜀 0 · Docker 필요). 다른 저장소에서 바꾼 것은 `manifests` 의 Kafka 토픽 목록 1개 파일뿐입니다 (9장).
+> 2026-11-13(오후): 마이그레이션을 **V1(구조) · V2(값) 두 파일**로 합쳤고(6장), 관리자(Studio)용 내부 API 6개를 더했습니다(7.2). 브랜치 `refactor/flyway-v1-v2`, 테스트 41건 통과.
 > 마지막 장(12장)에 배포 전에 확인할 것과 아직 정하지 않은 것을 모았습니다.
 
 ## 0. 한눈에 보기
@@ -15,7 +16,7 @@
 - **`search_doc` · `band_member` · `lp` 테이블은 삭제했습니다.** 검색은 아티스트 · 앨범 · 트랙을 직접 조회합니다.
 - **주문 상태에 `REFUNDED` 가 생겼습니다.** 환불 여부는 Payment 가 판정하고(`payment.cancelled` 의 `refunded`) catalog 는 그 값만 봅니다.
 - 쿼리는 QueryDSL(컴파일 검증)과 JPQL 로 옮겼습니다. JDBC · native query 는 운영 코드에 남아 있지 않습니다.
-- 스키마는 새로 만듭니다. **V5 한 파일이 기존 테이블을 모두 지우고 다시 만들며, 데이터는 옮기지 않습니다.**
+- 마이그레이션 파일은 `V1__catalog_schema.sql`(구조) · `V2__catalog_values.sql`(값 목록 CHECK) 두 개입니다. **기존 DB 는 `catalog` 스키마를 비우고 다시 올리며, 데이터는 옮기지 않습니다.**
 
 ## 1. 배경과 범위
 
@@ -214,14 +215,20 @@ Payment 는 바꾸지 않았습니다. Payment 가 내는 `payment.cancelled` �
 - 옵션은 (상품, 이름)이 같으면 갱신, 새 이름이면 새 옵션입니다. `qty` 는 입고 수량(절대값)이고 null 이면 수량을 건드리지 않습니다.
 - 이벤트는 실제로 값이 바뀐 경우에만 나갑니다 (8장).
 
-## 6. 마이그레이션 (V5)
+## 6. 마이그레이션 (V1 구조 · V2 값)
 
-`V5__catalog_v2.sql` 한 파일입니다. V1 ~ V4 는 그대로 두었습니다 (운영에 적용된 이력).
+파일은 두 개만 둡니다 (2026-11-13 결정 · 모든 서비스 공통). 예전 V1 ~ V5 를 합친 것이고, 합치기 전후의 컬럼 · 제약 · 인덱스가 같은지 대조했습니다.
 
-1. 기존 테이블을 모두 지웁니다: `search_doc` · `order_item` · `purchase_order` · `stock` · `product` · `goods` · `lp` · `track` · `album` · `band_member` · `artist` · `label` · `outbox` (`CASCADE`).
-2. 2 ~ 3장의 테이블 · 인덱스 · 제약을 새로 만듭니다.
+| 파일 | 들어 있는 것 |
+|---|---|
+| `V1__catalog_schema.sql` | 테이블 13개, PK · FK · UNIQUE, 인덱스(트라이그램 · GIN 포함), 구조 CHECK(가격 · 수량 ≥ 0, `ck_product_option_kind`) |
+| `V2__catalog_values.sql` | 값 목록 CHECK 14개 — 장르(`ck_artist_genres` · `ck_album_genres` · `ck_track_genres`), `ck_album_type`, `ck_track_tempo` · `_moods` · `_emotions` · `_styles`, `ck_product_type`, `ck_physical_album_format`, `ck_goods_category`, `ck_product_option_vinyl_color` · `_size`, `ck_order_status` |
 
-데이터는 옮기지 않습니다. 선행 조건은 V1 과 같습니다 — `pg_trgm` 확장이 `public` 스키마에 있어야 합니다 (운영 `db-init.sql` · 로컬 `init-schema.sql` 에 이미 있음).
+- 값 목록을 넣거나 빼면 V2 와 Java enum 을 함께 고칩니다. `CatalogSchemaTest` 가 둘을 대조합니다.
+- **장르 목록은 concert 도 씁니다** (2026-11-13 결정). `Genre` 를 바꾸면 concert 의 `V2__concert_values.sql` 과 concert 의 `Genre` 도 함께 고칩니다.
+- 🔴 **적용된 파일을 고치면 Flyway 체크섬 검증에 걸려 서비스가 뜨지 않습니다.** 실데이터가 없는 지금은 파일을 고친 뒤 `catalog` 스키마를 비우고 다시 올립니다. 실데이터가 생긴 뒤에는 V3 이후 파일을 이어 붙여야 합니다 (12장).
+- 기존 DB 에 올릴 때: 서비스를 내린 뒤 `DROP SCHEMA catalog CASCADE` → `terraform/scripts/db-init.sh` → 서비스 기동. 선행 조건은 `pg_trgm` 확장이 `public` 스키마에 있는 것입니다 (운영 `db-init.sql` · 로컬 `init-schema.sql` 에 이미 있음).
+- 로컬 프로파일도 Flyway + `validate` 로 돕니다 (`ddl-auto: update` 를 뺐습니다).
 
 ## 7. API 변경표
 
@@ -255,6 +262,27 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 |---|---|
 | `GET /internal/catalog/products` (`InternalProductController`) | **삭제** — 챗봇은 공개 `GET /api/catalog/products` 를 씁니다 (docs/32) |
 | `POST /internal/catalog/artists` · `/albums` · `/ingest/diff` | 경로 유지 · 본문 변경 (7.3) |
+| `POST /internal/admin/catalog/products` | **신규(11/13)** 관리자 상품 등록 |
+| `PATCH /internal/admin/catalog/products/{id}` | **신규(11/13)** 상품 수정 (보낸 값만) |
+| `PUT /internal/admin/catalog/products/{id}/options` | **신규(11/13)** 옵션 추가 · 수정 |
+| `POST /internal/admin/catalog/options/{optionId}/stock` | **신규(11/13)** 재고 조정 |
+| `GET /internal/admin/catalog/users/{userId}/orders` | **신규(11/13)** 회원 주문 목록 (CS) |
+| `POST /internal/admin/catalog/orders/{id}/cancel` | **신규(11/13)** 주문 취소 대행 (CS) |
+
+**관리자(Studio) API** — Studio 가 Gateway 를 거치지 않고 직접 부릅니다 (Studio 문서 6.5 · 6.6). 본문은 camelCase 입니다.
+
+| API | 요청 | 응답 · 규칙 |
+|---|---|---|
+| 상품 등록 | `{ productType, name, thumbnailUrl?, purchaseUrl?, options: [{ name, vinylColor?, size?, price, qty? }] }` + 굿즈는 `artistId` · `category`, 피지컬 앨범은 `albumId` · `format` · `releasedAt?` | 상품 상세(C8 과 같은 모양). `source` 는 `studio`. 옵션 규칙은 수집과 같습니다(4.2). 굿즈는 `goods.released`, 피지컬 앨범은 발매일이 최근이거나 없을 때 `physical_album.released` 를 냅니다 |
+| 상품 수정 | `{ name?, thumbnailUrl?, purchaseUrl?, category?(굿즈), releasedAt?(피지컬) }` | 보낸 값만 바꿉니다. 매체 · 연결된 앨범 · 아티스트는 바꾸지 않습니다 |
+| 옵션 | `{ options: [{ id?, name, vinylColor?, size?, price }] }` | `id` 가 있으면 그 옵션을 고치고 이름도 바꿉니다. 없으면 이름으로 찾아 고치거나 새로 만듭니다(재고 0). 요청에 없는 옵션은 그대로 둡니다 |
+| 재고 조정 | `{ delta, reason }` | `{ optionId, qty, updatedAt }`. 입고 +, 회수 · 파손 −. 주문 차감과 같은 조건부 UPDATE 라 0 아래로 내려가지 않습니다 (모자라면 409 `OUT_OF_STOCK`) |
+| 회원 주문 목록 | `?cursor=&size=` | 내 주문 목록(C10)과 같은 모양 |
+| 주문 취소 대행 | `{ reason }` (Studio 작업 기록용 · catalog 는 읽지 않음) | 주문 상세. 회원 본인 취소(C12)와 같은 흐름이고 Payment 에 남는 사유만 `ADMIN_CANCEL` 입니다 |
+
+- **내부 토큰 발급자는 경로로 나눕니다.** `/internal/admin/**` 는 `app.internal.admin-issuers`(`studio`)만, 수집 3경로는 Gateway 수집 토큰만 받습니다. 관리자 토큰으로 수집 API 를 부를 수 없습니다. 쓰이지 않던 `allowed-issuers: [assistant]` 는 지웠습니다.
+- 🔴 수집으로 들어온 상품을 관리자가 고치면, 수집기가 그 상품의 원본이 바뀐 것을 다음에 가져올 때 다시 덮어씁니다.
+- 🔴 운영에서는 catalog 의 NetworkPolicy 가 Studio(`app: studio`)를 아직 허용하지 않습니다. Studio 매니페스트를 만들 때 함께 엽니다 (KT 클라우드 준비 뒤).
 
 ### 7.3 수집 적재 본문 (snake_case)
 
@@ -337,23 +365,23 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 - `backend/local/commerce-demo.sh` — 옛 흐름(위시리스트 · `stock.restocked` · `lps` · `productId` 주문) 기준이라 지금은 통과하지 않습니다. 4개 서비스와 토스 결제창이 떠 있어야 검증할 수 있어 고치지 않았습니다.
 - `backend/README.md` 의 catalog 테스트 수 · 설명, `docs/` 의 API 명세(15 등), `demo_ui/index.html` 의 개발자 메모, `scripts/render_*.py` 다이어그램의 `stock.restocked`.
 - Gateway `IngestRoute` 의 `TODO: /ingest/catalog/goods` — 굿즈는 아티스트 적재 본문 안에 들어가므로 이 경로는 필요 없어졌습니다.
-- catalog `application.yml` 의 `app.internal.allowed-issuers: [assistant]` — 내부 상품 API 를 지워서 이 발급자가 부를 엔드포인트가 없습니다. 보안 설정이라 그대로 두었습니다.
+- ~~catalog `application.yml` 의 `app.internal.allowed-issuers: [assistant]`~~ → 11/13 오후에 지웠습니다 (`admin-issuers: [studio]` 로 교체 · 7.2). `manifests` 의 catalog NetworkPolicy 에 남아 있던 `app: assistant` 허용도 함께 지웁니다.
 
 ## 10. 테스트
 
-`./gradlew test` — 37건 통과 · 건너뜀 0 (2026-11-13). **Docker 가 꺼져 있으면 DB 테스트 20건이 실패가 아니라 건너뜀으로 끝나므로** 결과에서 건너뜀 수를 확인해야 합니다.
+`./gradlew test` — 41건 통과 · 건너뜀 0 (2026-11-13). **Docker 가 꺼져 있으면 DB 테스트 20건이 실패가 아니라 건너뜀으로 끝나므로** 결과에서 건너뜀 수를 확인해야 합니다.
 
 | 테스트 | 건수 | 확인하는 것 |
 |---|---|---|
-| `CatalogSchemaTest` | 10 | Flyway V1 ~ V5 + `ddl-auto: validate` 로 엔티티 ↔ 스키마 일치 · CHECK 값 목록 = Java enum · enum 배열 저장/조회 · 장르 필터 · 검색(트라이그램 · `%` 는 글자 그대로) · 재고 5개에 동시 주문 20건 → 5건만 성공 · 장바구니 upsert · outbox SKIP LOCKED · 주문 상태 전이 |
-| `CatalogFlowTest` | 9 | 수집 → 조회 → 장바구니 → 주문 · 환불. 이벤트 payload 필드, 값이 안 바뀌면 이벤트 없음, 트랙 id 유지, 옵션 규칙 위반 거절, 재고 부족 · 결제 준비 실패 시 재고 복구, 취소 뒤 환불 정정(재고 이중 복구 없음), 만료 · 탈퇴 |
+| `CatalogSchemaTest` | 11 | Flyway 이력이 V1 · V2 둘인지 · `ddl-auto: validate` 로 엔티티 ↔ 스키마 일치 · CHECK 값 목록 = Java enum · enum 배열 저장/조회 · 장르 필터 · 검색(트라이그램 · `%` 는 글자 그대로) · 재고 5개에 동시 주문 20건 → 5건만 성공 · 장바구니 upsert · outbox SKIP LOCKED · 주문 상태 전이 |
+| `CatalogFlowTest` | 11 | 관리자 상품 등록 · 수정 · 옵션(이름 변경) · 재고 조정과 주문 취소 대행(11/13). 수집 → 조회 → 장바구니 → 주문 · 환불. 이벤트 payload 필드, 값이 안 바뀌면 이벤트 없음, 트랙 id 유지, 옵션 규칙 위반 거절, 재고 부족 · 결제 준비 실패 시 재고 복구, 취소 뒤 환불 정정(재고 이중 복구 없음), 만료 · 탈퇴 |
 | `CatalogApiTest` | 1 | 앱 전체 기동 + HTTP — enum 파라미터 · JSON 필드 · 장바구니 · 주문 요청 모양 · 캐시(Redis) 없이 조회 · Payment 불통 시 503 과 재고 복구 |
 | `OptionRuleTest` | 3 | LP · CD/카세트 · 굿즈 옵션 규칙 |
-| `SearchServiceTest` · `InternalTokenFilterTest` | 1 · 13 | 기존 테스트 (변경 없음) |
+| `SearchServiceTest` · `InternalTokenFilterTest` | 1 · 14 | 검색 / 내부 토큰 — 관리자(`studio`) 토큰은 `/internal/admin/**` 만 열고 수집 API 는 못 엽니다(11/13) |
 
 테스트가 잡아서 고친 버그: 장바구니 수량을 바꾼 직후 응답에 이전 수량이 내려가던 문제 (upsert 쿼리가 영속성 컨텍스트를 건너뛰어 옛 엔티티가 읽힘 → 해당 행을 떼어내도록 수정).
 
-검증하지 못한 것: 실제 Kafka 를 거친 발행 · 구독(컨슈머는 서비스 메서드 호출까지만 확인), 실제 Payment · 토스 연동, 로컬 프로파일(`ddl-auto: update`) 기동, 운영 배포.
+검증하지 못한 것: 실제 Kafka 를 거친 발행 · 구독(컨슈머는 서비스 메서드 호출까지만 확인), 실제 Payment · 토스 연동, 운영 배포. 관리자 API 는 서비스 메서드까지만 확인했습니다 (Studio 를 띄워 HTTP 로 부르는 것은 하지 않았습니다).
 
 ## 11. 삭제한 것
 
@@ -367,8 +395,8 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 
 **배포 전 확인**
 
-1. **V5 는 catalog 의 데이터를 모두 지웁니다.** 수집을 다시 돌려야 하고, id 가 1부터 다시 매겨집니다. member 의 팔로우 · 보유 음반 · 행동 메트릭과 concert 가 복제해 둔 아티스트 id 는 옛 id 를 가리키게 됩니다. 다른 서비스의 데이터도 함께 비울지 정해야 합니다.
-2. **로컬 DB 는 `catalog` 스키마를 한 번 비우고** 띄워야 합니다. 로컬은 `ddl-auto: update` 라 옛 테이블을 지우지 않습니다.
+1. **스키마를 비우고 다시 올리므로 catalog 의 데이터가 모두 지워집니다.** 수집을 다시 돌려야 하고, id 가 1부터 다시 매겨집니다. member 의 팔로우 · 보유 음반 · 행동 메트릭과 concert 가 복제해 둔 아티스트 id 는 옛 id 를 가리키게 됩니다. 다른 서비스의 데이터도 함께 비울지 정해야 합니다.
+2. **로컬 DB 는 `catalog` 스키마를 한 번 비우고** 띄워야 합니다. 로컬도 Flyway 로 돌기 때문에 예전에 `ddl-auto` 로 만든 테이블이 남아 있으면 V1 이 실패합니다.
 3. **`manifests` 의 토픽 목록 변경을 catalog 보다 먼저(또는 함께) 배포**해야 합니다. 토픽이 없으면 outbox 에 이벤트가 쌓이기만 합니다.
 4. `backend/local/commerce-demo.sh` 는 새 흐름으로 다시 써야 합니다.
 
@@ -377,8 +405,9 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 - ① 발매 알림 기간 30일 (`app.event.release-window-days`).
 - ② `goods.released` 는 굿즈가 새로 등록되면 항상 나갑니다 (굿즈에는 발매일이 없음). 처음 대량 수집할 때 팔로워에게 알림이 몰릴 수 있습니다.
 - ③ 장바구니 상한은 주문 상한을 그대로 씁니다 (옵션 20가지 · 옵션당 10개).
-- ④ concert 의 장르 표기 — `artist.updated.genre` 가 이제 enum 코드(`INDIE_ROCK`)입니다. concert 는 공연 수집 때 받은 자유 문자열과 이 값을 같은 컬럼(`artist_genre`)에 넣으므로 표기가 섞일 수 있습니다.
-- ⑤ `app.internal.allowed-issuers: [assistant]` 를 비울지 (9장).
+- ④ ~~concert 의 장르 표기~~ → 11/13 결정: concert 의 장르도 catalog 의 `Genre` 목록을 씁니다 (6장).
+- ⑤ ~~`app.internal.allowed-issuers: [assistant]` 를 비울지~~ → 11/13 지웠습니다 (7.2).
+- ⑦ 마이그레이션 두 파일 규칙은 실데이터가 생기면 쓸 수 없습니다 (스키마를 비울 수 없음). 그 시점부터 V3 이후 파일을 허용할지 정해야 합니다.
 - ⑥ 유사도 계산(docs/33)에 트랙 메타데이터를 어떻게 쓸지.
 
 ## 부록 A. 관계

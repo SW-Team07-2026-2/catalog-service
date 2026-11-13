@@ -8,8 +8,8 @@ import java.util.List;
 public record CatalogProperties(Internal internal, InternalToken internalToken, Payment payment, Order order,
                                 Page page, Cache cache, Outbox outbox, Event event) {
 
-    /** ingestIssuer · ingestPaths — Gateway 수집 토큰을 받는 곳 (docs/22 S1) */
-    public record Internal(String expectedAudience, List<String> allowedIssuers, long clockSkewSeconds,
+    /** adminIssuers — /internal/admin/** 를 부를 수 있는 발급자(studio). ingestIssuer · ingestPaths — Gateway 수집 토큰을 받는 곳 (docs/22 S1) */
+    public record Internal(String expectedAudience, List<String> adminIssuers, long clockSkewSeconds,
                            String ingestIssuer, List<String> ingestPaths) {}
 
     public record InternalToken(String issuer, long ttlSeconds) {}

@@ -27,11 +27,15 @@ class InternalTokenFilterTest {
     private static final String SECRET = "0123456789abcdef0123456789abcdef-local";
 
     private final InternalTokenFilter filter = new InternalTokenFilter(SECRET,
-            new CatalogProperties.Internal("catalog", List.of("assistant"), 30, "gateway",
+            new CatalogProperties.Internal("catalog", List.of("studio"), 30, "gateway",
                     List.of("/internal/catalog/artists", "/internal/catalog/albums", "/internal/catalog/ingest/diff")), Clock.systemUTC(), new ObjectMapper());
 
     private MockHttpServletResponse call(String token) throws Exception {
-        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/internal/x");
+        return call(token, "/internal/admin/catalog/products");
+    }
+
+    private MockHttpServletResponse call(String token, String path) throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", path);
         if (token != null) request.addHeader(InternalTokenFilter.HEADER, token);
         MockHttpServletResponse response = new MockHttpServletResponse();
         filter.doFilter(request, response, new MockFilterChain());
@@ -47,22 +51,30 @@ class InternalTokenFilterTest {
 
     @Test
     void validTokenPasses() throws Exception {
-        assertThat(call(token(SECRET, "assistant", "catalog", 300)).getStatus()).isEqualTo(200);
+        assertThat(call(token(SECRET, "studio", "catalog", 300)).getStatus()).isEqualTo(200);
     }
 
     @Test
     void wrongSignatureIs401() throws Exception {
-        assertThat(call(token("another-secret-another-secret-another", "assistant", "catalog", 300)).getStatus()).isEqualTo(401);
+        assertThat(call(token("another-secret-another-secret-another", "studio", "catalog", 300)).getStatus()).isEqualTo(401);
     }
 
     @Test
     void wrongAudienceIs401() throws Exception {
-        assertThat(call(token(SECRET, "assistant", "payment", 300)).getStatus()).isEqualTo(401);
+        assertThat(call(token(SECRET, "studio", "payment", 300)).getStatus()).isEqualTo(401);
     }
 
     @Test
     void unknownIssuerIs401() throws Exception {
         assertThat(call(token(SECRET, "gateway", "catalog", 300)).getStatus()).isEqualTo(401);
+    }
+
+    /** ★ 관리자(studio) 토큰은 /internal/admin/** 만 — 수집 API 를 부를 수 없습니다 */
+    @Test
+    void adminTokenOpensOnlyAdminPaths() throws Exception {
+        assertThat(call(token(SECRET, "studio", "catalog", 300), "/internal/admin/catalog/options/3/stock").getStatus()).isEqualTo(200);
+        assertThat(call(token(SECRET, "studio", "catalog", 300), "/internal/catalog/artists").getStatus()).isEqualTo(401);
+        assertThat(call(token(SECRET, "assistant", "catalog", 300), "/internal/admin/catalog/products").getStatus()).isEqualTo(401);
     }
 
     /** 21A — 수집기가 공유 시크릿으로 직접 부르던 경로는 닫힘. 수집은 Gateway /ingest/** 가 발급한 iss=gateway 토큰만 */
@@ -73,7 +85,7 @@ class InternalTokenFilterTest {
 
     @Test
     void expiredBeyondSkewIs401() throws Exception {
-        MockHttpServletResponse response = call(token(SECRET, "assistant", "catalog", -60));
+        MockHttpServletResponse response = call(token(SECRET, "studio", "catalog", -60));
         assertThat(response.getStatus()).isEqualTo(401);
         assertThat(response.getContentAsString()).contains("INTERNAL_TOKEN_EXPIRED");
     }
@@ -82,7 +94,7 @@ class InternalTokenFilterTest {
     @Test
     void tokenWithoutExpIsInvalid() throws Exception {
         SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256),
-                new JWTClaimsSet.Builder().issuer("assistant").audience("catalog").build());
+                new JWTClaimsSet.Builder().issuer("studio").audience("catalog").build());
         jwt.sign(new MACSigner(SECRET.getBytes(StandardCharsets.UTF_8)));
         MockHttpServletResponse response = call(jwt.serialize());
         assertThat(response.getStatus()).isEqualTo(401);

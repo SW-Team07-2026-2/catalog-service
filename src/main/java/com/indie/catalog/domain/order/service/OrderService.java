@@ -127,10 +127,21 @@ public class OrderService {
      * 못 받은 경우엔 CANCELLED 로 남지만, 뒤따라오는 payment.cancelled(refunded=true) 가 REFUNDED 로 바로잡습니다.
      */
     public OrderDetail cancel(long userId, long orderId) {
-        PurchaseOrderEntity order = orderRepository.findByIdAndUserId(orderId, userId).orElseThrow(() -> new GeneralException(CommonErrorCode.NOT_FOUND));
+        return cancel(orderRepository.findByIdAndUserId(orderId, userId).orElseThrow(() -> new GeneralException(CommonErrorCode.NOT_FOUND)),
+                "USER_CANCEL");
+    }
+
+    /** 관리자(Studio CS)의 취소 대행 — 회원 본인의 취소(C12)와 같은 흐름이고 Payment 에 남는 사유만 다릅니다 */
+    public OrderDetail cancelByAdmin(long orderId) {
+        return cancel(orderRepository.findById(orderId).orElseThrow(() -> new GeneralException(CommonErrorCode.NOT_FOUND)),
+                "ADMIN_CANCEL");
+    }
+
+    private OrderDetail cancel(PurchaseOrderEntity order, String reason) {
+        long orderId = order.getId();
         if (order.getStatus() == Status.PENDING || order.getStatus() == Status.CONFIRMED) {
             try {
-                paymentClient.cancel(orderId, "USER_CANCEL", true);
+                paymentClient.cancel(orderId, reason, true);
             } catch (PaymentClient.Unavailable e) {
                 log.warn("payment_cancel_failed orderId={} error={}", orderId, e.getMessage());
                 throw new GeneralException(OrderErrorCode.PAYMENT_UNAVAILABLE, "주문을 취소하지 못했습니다. 잠시 후 다시 시도해주세요");
@@ -138,7 +149,7 @@ public class OrderService {
             if (order.getStatus() == Status.CONFIRMED) refundLocally(orderId);
             else cancelLocally(orderId);
         }
-        return get(userId, orderId);
+        return get(order.getUserId(), orderId);
     }
 
     /** payment.completed — 주문 확정 + order.confirmed + 산 옵션을 장바구니에서 뺍니다. 중복 이벤트면 0행이라 아무것도 하지 않습니다 */

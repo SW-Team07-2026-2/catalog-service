@@ -42,6 +42,11 @@ public class ProductOptionEntity {
         this.createdAt = now;
     }
 
+    /** 관리자가 옵션 이름을 바꿀 때 — 수집은 이름이 식별자라 쓰지 않습니다 */
+    public void rename(String name) {
+        this.name = name;
+    }
+
     /** 값을 덮어쓰고 바뀐 게 있으면 true */
     public boolean apply(VinylColor vinylColor, OptionSize size, Integer price) {
         boolean changed = this.vinylColor != vinylColor || this.size != size || !Objects.equals(this.price, price);

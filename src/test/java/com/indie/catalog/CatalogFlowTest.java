@@ -41,6 +41,10 @@ import com.indie.catalog.domain.product.dto.response.GoodsItem;
 import com.indie.catalog.domain.product.dto.response.OptionView;
 import com.indie.catalog.domain.product.dto.response.PhysicalAlbumItem;
 import com.indie.catalog.domain.product.dto.response.ProductDetail;
+import com.indie.catalog.domain.product.dto.request.AdminOption;
+import com.indie.catalog.domain.product.dto.request.AdminProductCreate;
+import com.indie.catalog.domain.product.dto.request.AdminProductUpdate;
+import com.indie.catalog.domain.product.service.AdminProductService;
 import com.indie.catalog.domain.product.entity.GoodsCategory;
 import com.indie.catalog.domain.product.entity.OptionSize;
 import com.indie.catalog.domain.product.entity.PhysicalFormat;
@@ -81,6 +85,7 @@ class CatalogFlowTest extends PostgresTest {
     @Autowired ProductService productService;
     @Autowired CartService cartService;
     @Autowired OrderService orderService;
+    @Autowired AdminProductService admin;
     @Autowired FakePayment payment;
     @Autowired ObjectMapper objectMapper;
     @Autowired JdbcTemplate jdbc;
@@ -436,6 +441,73 @@ class CatalogFlowTest extends PostgresTest {
         orderService.expirePending(10);
         assertThat(orderService.get(503L, paid).status()).isEqualTo("PENDING");                  // payment.completed 가 곧 확정
         assertThat(stock(shop.lpOption)).isEqualTo(4);
+    }
+
+    // ── 관리자(Studio) ───────────────────────────────────────────────────────────────────────────
+
+    /** 관리자가 넣은 상품도 수집과 같은 규칙 · 같은 이벤트 — 등록 → 수정 → 옵션 추가 · 이름 변경 → 재고 조정 */
+    @Test
+    void adminRegistersProductsOptionsAndStock() {
+        Shop shop = shop();
+        int goodsEvents = events("goods.released").size();
+        int physicalEvents = events("physical_album.released").size();
+
+        ProductDetail goods = admin.create(new AdminProductCreate(ProductEntity.Type.GOODS, " 로고 키링 ", null, "https://shop/keyring",
+                shop.artistId, GoodsCategory.KEYRING, null, null, null, List.of(new AdminOption(null, "FREE", null, OptionSize.FREE, 8000, 10))));
+        ProductDetail cd = admin.create(new AdminProductCreate(ProductEntity.Type.PHYSICAL_ALBUM, "슬로우 다이브 CD", null, null,
+                null, null, shop.albumId, PhysicalFormat.CD, LocalDate.now(), List.of(new AdminOption(null, "기본", null, null, 18000, null))));
+
+        assertThat(goods.name()).isEqualTo("로고 키링");
+        assertThat(goods.options()).extracting(OptionView::qty).containsExactly(10);
+        assertThat(cd.thumbnailUrl()).isEqualTo("https://img/album.jpg");                          // 없으면 앨범 이미지
+        assertThat(cd.options()).extracting(OptionView::qty).containsExactly(0);
+        assertThat(jdbc.queryForList("SELECT DISTINCT source FROM product WHERE id IN (?, ?)", String.class, goods.id(), cd.id()))
+                .containsExactly("studio");
+        assertThat(events("goods.released")).hasSize(goodsEvents + 1);
+        assertThat(events("physical_album.released")).hasSize(physicalEvents + 1);
+        assertCode(() -> admin.create(new AdminProductCreate(ProductEntity.Type.GOODS, "키링", null, null, shop.artistId, null, null, null, null,
+                List.of(new AdminOption(null, "FREE", null, OptionSize.FREE, 8000, 1)))), CommonErrorCode.INVALID_REQUEST);   // category 없음
+        assertCode(() -> admin.create(new AdminProductCreate(ProductEntity.Type.PHYSICAL_ALBUM, "LP", null, null, null, null, shop.albumId,
+                PhysicalFormat.LP, null, List.of(new AdminOption(null, "블랙", null, null, 42000, 1)))), ProductErrorCode.INVALID_OPTION);   // LP 는 vinylColor 필수
+
+        ProductDetail renamed = admin.update(goods.id(), new AdminProductUpdate("로고 키링 (실버)", null, null, GoodsCategory.ETC, null));
+        assertThat(renamed.name()).isEqualTo("로고 키링 (실버)");
+        assertThat(renamed.purchaseUrl()).isEqualTo("https://shop/keyring");                       // 안 보낸 값은 그대로
+        assertThat(renamed.category()).isEqualTo(GoodsCategory.ETC);
+        assertCode(() -> admin.update(goods.id(), new AdminProductUpdate(null, null, null, null, LocalDate.now())), CommonErrorCode.INVALID_REQUEST);
+
+        long freeId = goods.options().get(0).id();
+        ProductDetail withOptions = admin.options(goods.id(), List.of(new AdminOption(freeId, "기본", null, OptionSize.FREE, 9000, null),
+                new AdminOption(null, "L", null, OptionSize.L, 9500, null)));
+        assertThat(withOptions.options()).extracting(OptionView::id, OptionView::name, OptionView::price, OptionView::qty)
+                .containsExactly(org.assertj.core.api.Assertions.tuple(freeId, "기본", 9000, 10),   // 같은 옵션 · 수량은 그대로
+                        org.assertj.core.api.Assertions.tuple(withOptions.options().get(1).id(), "L", 9500, 0));
+        assertCode(() -> admin.options(goods.id(), List.of(new AdminOption(freeId, "L", null, OptionSize.L, 9000, null))), CommonErrorCode.INVALID_REQUEST);
+        assertCode(() -> admin.options(cd.id(), List.of(new AdminOption(freeId, "기본", null, null, 18000, null))), ProductErrorCode.OPTION_NOT_FOUND);   // 남의 상품 옵션
+
+        assertThat(admin.adjustStock(freeId, 5, "입고", "7").qty()).isEqualTo(15);
+        assertThat(admin.adjustStock(freeId, -15, "파손", "7").qty()).isZero();
+        assertCode(() -> admin.adjustStock(freeId, -1, "회수", "7"), ProductErrorCode.OUT_OF_STOCK);
+        assertCode(() -> admin.adjustStock(freeId, 0, "오타", "7"), CommonErrorCode.INVALID_REQUEST);
+        assertCode(() -> admin.adjustStock(999_999L, 1, "입고", "7"), ProductErrorCode.OPTION_NOT_FOUND);
+    }
+
+    /** CS 관리자의 취소 대행 — 회원 본인 취소와 같은 흐름 (결제 후면 환불 · 재고 복구), Payment 에 남는 사유만 다릅니다 */
+    @Test
+    void adminCancelsOrderOnBehalfOfMember() {
+        Shop shop = shop();
+        OrderCreated created = orderService.create(USER, List.of(new Line(shop.lpOption, 2)), HOME);
+        orderService.confirm(created.orderId());
+
+        assertThat(orderService.list(USER, null, 20).items()).extracting("orderId").containsExactly(created.orderId());
+        OrderDetail refunded = orderService.cancelByAdmin(created.orderId());
+        orderService.cancelByAdmin(created.orderId());                                           // 다시 눌러도 그대로
+
+        assertThat(refunded.status()).isEqualTo("REFUNDED");
+        assertThat(payment.cancels).containsExactly(created.orderId() + ":ADMIN_CANCEL:true");
+        assertThat(stock(shop.lpOption)).isEqualTo(5);
+        assertThat(events("order.refunded")).hasSize(1);
+        assertCode(() -> orderService.cancelByAdmin(999_999L), CommonErrorCode.NOT_FOUND);
     }
 
     // ── 준비 ────────────────────────────────────────────────────────────────────────────────────

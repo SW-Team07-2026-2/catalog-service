@@ -49,7 +49,7 @@ import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** V5 스키마 · 엔티티 · 저장소 쿼리 (기동 자체가 Flyway V1 ~ V5 + ddl-auto: validate 검증입니다) */
+/** 스키마 · 엔티티 · 저장소 쿼리 (기동 자체가 Flyway V1 · V2 + ddl-auto: validate 검증입니다) */
 class CatalogSchemaTest extends PostgresTest {
 
     @Autowired ArtistRepository artistRepository;
@@ -62,6 +62,14 @@ class CatalogSchemaTest extends PostgresTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired EntityManager em;
     @Autowired TransactionTemplate tx;
+
+    /** 마이그레이션은 V1(구조) · V2(값) 두 파일 */
+    @Test
+    void migrationsAreSchemaThenValues() {
+        assertThat(jdbc.queryForList("SELECT version || ' ' || description FROM flyway_schema_history "
+                + "WHERE success AND version IS NOT NULL ORDER BY installed_rank", String.class))
+                .containsExactly("1 catalog schema", "2 catalog values");
+    }
 
     @Test
     void oldTablesAreGoneAndV2TablesExist() {
