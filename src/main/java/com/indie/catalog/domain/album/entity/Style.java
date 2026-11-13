@@ -1,0 +1,7 @@
+package com.indie.catalog.domain.album.entity;
+
+/** 스타일 — 악기 · 제작 방식 */
+public enum Style {
+    LOFI, ACOUSTIC, GUITAR_DRIVEN, DISTORTED, SYNTH_DRIVEN, PIANO_DRIVEN, ELECTRONIC_BEAT, ORCHESTRAL,
+    MINIMAL, VOCAL_FOCUSED, INSTRUMENTAL, LIVE_FEEL, RETRO, EXPERIMENTAL
+}

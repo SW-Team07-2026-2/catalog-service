@@ -5,24 +5,22 @@ import com.indie.catalog.domain.product.entity.StockEntity;
 import java.util.List;
 import java.util.Optional;
 
-/** 재고 저장소 포트 — 구현은 StockJpaRepository */
+/** 재고 저장소 포트 — 구현은 StockRepositoryAdapter. 키는 옵션 id */
 public interface StockRepository {
 
-    Optional<StockEntity> findById(Long productId);
-
-    List<StockEntity> findAllById(Iterable<Long> productIds);
+    List<StockEntity> findAllById(Iterable<Long> optionIds);
 
     StockEntity save(StockEntity stock);
 
     /**
-     * ★ 주문 차감 — 락 없이 원자적. 1 = 성공 · 0 = 품절 (11 §5).
-     * 같은 행에 대한 동시 차감은 DB 가 직렬화해야 합니다 (구현: 조건부 UPDATE qty >= n).
+     * ★ 주문 차감 — 원자적. 1 = 성공 · 0 = 품절 (11 §5).
+     * 같은 행에 대한 동시 차감은 DB 의 행 락이 직렬화합니다 (조건부 UPDATE qty >= n) — Redis 락도 대기열도 필요 없습니다.
      */
-    int decrement(long productId, int qty);
+    int decrement(long optionId, int qty);
 
-    /** 보상 복구 — 🔴 재입고 이벤트를 내지 않습니다 (주문 실패 · 취소 · 만료마다 알림이 가면 스팸) */
-    int restore(long productId, int qty);
+    /** 보상 복구 — 주문 취소 · 만료 · 환불 */
+    int restore(long optionId, int qty);
 
-    /** 입고(upsert) 시 이전 수량을 확인하고 덮어쓰는 동안 주문 차감과 엇갈리지 않게 잠급니다 */
-    Optional<StockEntity> findForUpdate(Long productId);
+    /** 입고(수집) 때 수량을 덮어쓰는 동안 주문 차감과 엇갈리지 않게 잠급니다 */
+    Optional<StockEntity> findForUpdate(Long optionId);
 }
