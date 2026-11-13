@@ -8,7 +8,7 @@ import jakarta.persistence.Table;
 import java.io.Serializable;
 import java.util.Objects;
 
-/** order_item — price 는 주문 시점 가격 고정 (상품 가격이 바뀌어도 주문 금액은 그대로) */
+/** order_item — 주문한 옵션과 수량. price 는 주문 시점 가격 고정 (옵션 가격이 바뀌어도 주문 금액은 그대로) */
 @Entity
 @Table(name = "order_item")
 @IdClass(OrderItemEntity.Key.class)
@@ -18,7 +18,7 @@ public class OrderItemEntity {
     private Long orderId;
 
     @Id
-    private Long productId;
+    private Long optionId;
 
     private Integer qty;
 
@@ -26,32 +26,32 @@ public class OrderItemEntity {
 
     protected OrderItemEntity() {}
 
-    public OrderItemEntity(Long orderId, Long productId, Integer qty, Integer price) {
+    public OrderItemEntity(Long orderId, Long optionId, Integer qty, Integer price) {
         this.orderId = orderId;
-        this.productId = productId;
+        this.optionId = optionId;
         this.qty = qty;
         this.price = price;
     }
 
     public Long getOrderId() { return orderId; }
-    public Long getProductId() { return productId; }
+    public Long getOptionId() { return optionId; }
     public Integer getQty() { return qty; }
     public Integer getPrice() { return price; }
 
     public static class Key implements Serializable {
         private Long orderId;
-        private Long productId;
+        private Long optionId;
 
         public Key() {}
 
         @Override
         public boolean equals(Object o) {
-            return o instanceof Key k && Objects.equals(orderId, k.orderId) && Objects.equals(productId, k.productId);
+            return o instanceof Key k && Objects.equals(orderId, k.orderId) && Objects.equals(optionId, k.optionId);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(orderId, productId);
+            return Objects.hash(orderId, optionId);
         }
     }
 }

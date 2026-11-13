@@ -1,5 +1,7 @@
 package com.indie.catalog.domain.product.dto.response;
 
-/** 판매하지 않는 굿즈는 productId · price 가 null */
-public record GoodsItem(long id, long artistId, String artistName, String name, String category,
-                        Long productId, Integer price, String thumbnailUrl) {}
+import com.indie.catalog.domain.product.entity.GoodsCategory;
+
+/** 굿즈 목록 항목 — id 는 상품 id. minPrice 는 옵션 중 가장 낮은 가격 (옵션이 아직 없으면 null) · 재고는 상품 상세(C8)로 */
+public record GoodsItem(long id, long artistId, String artistName, String name, GoodsCategory category,
+                        String thumbnailUrl, Integer minPrice) {}

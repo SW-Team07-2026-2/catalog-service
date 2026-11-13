@@ -1,54 +1,43 @@
 package com.indie.catalog.domain.product.entity;
 
+import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.PrimaryKeyJoinColumn;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 
+import java.time.OffsetDateTime;
 import java.util.Objects;
 
-/** goods — 아티스트 굿즈. 판매 정보는 product(GOODS, goods.id) */
+/** goods — 아티스트 굿즈 (아티스트에 바로 매핑). 색상은 상품 이름에 넣고 선택지는 사이즈(product_option)만 둡니다 */
 @Entity
-@Table(name = "goods", uniqueConstraints = @UniqueConstraint(name = "uq_goods_source", columnNames = {"source", "external_id"}))
-public class GoodsEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+@Table(name = "goods")
+@DiscriminatorValue("GOODS")
+@PrimaryKeyJoinColumn(name = "id")
+public class GoodsEntity extends ProductEntity {
 
     private Long artistId;
-
-    private String name;
-
-    private String category;
-
-    private String source;
-
-    private String externalId;
-
-    private String sourceHash;
+    @Enumerated(EnumType.STRING)
+    private GoodsCategory category;
 
     protected GoodsEntity() {}
 
     public GoodsEntity(String source, String externalId) {
-        this.source = source;
-        this.externalId = externalId;
+        super(source, externalId);
     }
 
-    public boolean apply(Long artistId, String name, String category, String sourceHash) {
-        boolean changed = !Objects.equals(this.artistId, artistId) || !Objects.equals(this.name, name)
-                || !Objects.equals(this.category, category);
+    @Override
+    public Type getProductType() { return Type.GOODS; }
+
+    public boolean apply(Long artistId, GoodsCategory category, String name, String thumbnailUrl, String purchaseUrl,
+                         String sourceHash, OffsetDateTime now) {
+        boolean changed = !Objects.equals(this.artistId, artistId) || this.category != category;
         this.artistId = artistId;
-        this.name = name;
         this.category = category;
-        this.sourceHash = sourceHash;
-        return changed;
+        return applyCommon(name, thumbnailUrl, purchaseUrl, sourceHash, changed, now);
     }
 
-    public Long getId() { return id; }
     public Long getArtistId() { return artistId; }
-    public String getName() { return name; }
-    public String getCategory() { return category; }
+    public GoodsCategory getCategory() { return category; }
 }

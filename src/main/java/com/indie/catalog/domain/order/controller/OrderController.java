@@ -31,11 +31,11 @@ public class OrderController {
         this.pageSize = pageSize;
     }
 
-    /** 🔴 요청에 금액 필드가 없습니다 — 있어도 무시됩니다 (서버가 product.price 로 계산) */
+    /** 🔴 요청에 금액 필드가 없습니다 — 있어도 무시됩니다 (서버가 옵션 가격으로 계산) */
     @PostMapping("/api/catalog/orders")
     public ApiResponse<OrderCreated> create(@CurrentUser Long userId, @Valid @RequestBody OrderCreateRequest request) {
         return ApiResponse.onSuccess(orderService.create(userId, request.items().stream()
-                .map(i -> new OrderService.Line(i.productId(), i.qty())).toList(), request.shipping().toSnapshot()));
+                .map(i -> new OrderService.Line(i.optionId(), i.qty())).toList(), request.shipping().toSnapshot()));
     }
 
     @GetMapping("/api/catalog/orders")

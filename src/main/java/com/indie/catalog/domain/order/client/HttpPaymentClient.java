@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
-import java.util.List;
 
 /** Catalog → Payment 내부 호출 (X-Internal-Token · iss=catalog · aud=payment). 타임아웃 3초 */
 @Component
@@ -33,14 +32,14 @@ public class HttpPaymentClient implements PaymentClient {
     }
 
     @Override
-    public Prepared prepare(long orderId, long userId, int amount, List<Long> albumIds) {
+    public Prepared prepare(long orderId, long userId, int amount) {
         try {
             ApiResponse<Prepared> res = rest.post().uri("/internal/payments/prepare")
                     .headers(h -> {
                         h.set(InternalTokenFilter.HEADER, tokens.issue("payment"));
                         correlationId(h);
                     })
-                    .body(new PrepareRequest(ORDER_TYPE, String.valueOf(orderId), userId, amount, albumIds))
+                    .body(new PrepareRequest(ORDER_TYPE, String.valueOf(orderId), userId, amount))
                     .retrieve()
                     .body(new ParameterizedTypeReference<ApiResponse<Prepared>>() {});
             if (res == null || res.result() == null) throw new RestClientException("empty prepare response");
@@ -78,7 +77,7 @@ public class HttpPaymentClient implements PaymentClient {
         if (id != null) h.set(CorrelationIdFilter.HEADER, id);
     }
 
-    record PrepareRequest(String orderType, String orderRef, long userId, int amount, List<Long> albumIds) {}
+    record PrepareRequest(String orderType, String orderRef, long userId, int amount) {}
 
     record CancelRequest(String orderType, String orderRef, String reason, boolean refundApproved) {}
 

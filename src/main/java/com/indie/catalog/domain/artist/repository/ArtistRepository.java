@@ -1,15 +1,14 @@
 package com.indie.catalog.domain.artist.repository;
 
 import com.indie.catalog.domain.artist.entity.ArtistEntity;
+import com.indie.catalog.domain.artist.entity.Genre;
 import com.indie.catalog.global.common.util.SourceHash;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-/** 아티스트 저장소 포트 — 구현은 ArtistJpaRepository. (source, external_id) 가 수집 멱등 upsert 기준 */
+/** 아티스트 저장소 포트 — 구현은 ArtistRepositoryAdapter. (source, external_id) 가 수집 멱등 upsert 기준 */
 public interface ArtistRepository {
 
     Optional<ArtistEntity> findById(Long id);
@@ -18,8 +17,8 @@ public interface ArtistRepository {
 
     Optional<ArtistEntity> findBySourceAndExternalId(String source, String externalId);
 
-    /** 이름 부분 일치(대소문자 무시) · 장르 일치 — 둘 다 선택. 정렬은 pageable 이 정합니다 */
-    Page<ArtistEntity> search(String nameContains, String genre, Pageable pageable);
+    /** 이름 부분 일치(대소문자 무시) · 장르 포함 — 둘 다 선택(null). 이름순 */
+    List<ArtistEntity> search(String nameContains, Genre genre, long offset, int limit);
 
     List<SourceHash> findHashes(String source, Collection<String> externalIds);
 

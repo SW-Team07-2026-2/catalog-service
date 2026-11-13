@@ -1,7 +1,6 @@
 package com.indie.catalog.domain.order.client;
 
 import java.time.OffsetDateTime;
-import java.util.List;
 
 /**
  * Payment 호출 포트 — 구현은 HttpPaymentClient (내부 토큰 · 타임아웃 3초).
@@ -10,11 +9,10 @@ import java.util.List;
 public interface PaymentClient {
 
     /**
-     * 결제 준비 — 🔴 금액은 서버가 product.price 로 계산한 값입니다. Payment 는 이 금액을 그대로 믿고,
+     * 결제 준비 — 🔴 금액은 서버가 옵션 가격으로 계산한 값입니다. Payment 는 이 금액을 그대로 믿고,
      * 프론트가 보낸 confirm 금액을 이 값과 대조합니다. 금액 검증의 책임은 Catalog 에 있습니다 (13 §1-①).
-     * albumIds 는 Member 의 컬렉션 자동 추가용 — Payment 는 내용을 모른 채 payment.completed 에 그대로 싣습니다.
      */
-    Prepared prepare(long orderId, long userId, int amount, List<Long> albumIds);
+    Prepared prepare(long orderId, long userId, int amount);
 
     /**
      * 결제 취소 — refundApproved=false 면 승인 전(PENDING)만 무효화합니다 (만료 처리용: 방금 결제된 건을 환불하지 않게).

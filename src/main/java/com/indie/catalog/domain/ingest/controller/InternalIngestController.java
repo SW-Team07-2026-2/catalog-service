@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 내부 I4 · I5 · I15 — 수집 CronJob · 시드 스크립트 전용 (X-Internal-Token · Gateway 라우트 없음 → 외부에서는 404).
- * 🔴 X-User-Id 를 보지 않습니다. 운영자 입력(FR-ING-07)도 이 경로로 넣어야 이벤트 · 검색 색인이 함께 갱신됩니다.
+ * 🔴 X-User-Id 를 보지 않습니다. 운영자 입력(FR-ING-07)도 이 경로로 넣어야 이벤트 발행 · 캐시 삭제가 함께 됩니다.
  */
 @RestController
 public class InternalIngestController {

@@ -103,3 +103,5 @@ app:
   outbox:
     relay-interval-ms: 1000
     batch-size: 100
+  event:
+    release-window-days: 30                   # 발매일이 최근 30일 안일 때만 album.released · physical_album.released (member v2 8장)
