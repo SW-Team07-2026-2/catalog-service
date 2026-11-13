@@ -16,7 +16,8 @@ import java.time.OffsetDateTime;
 @Table(name = "purchase_order")
 public class PurchaseOrderEntity {
 
-    public enum Status { PENDING, CONFIRMED, CANCELLED }
+    /** CANCELLED = 결제 전 취소 · 만료 · 결제 실패 · REFUNDED = 결제된 주문을 환불 (payment.cancelled 의 refunded) */
+    public enum Status { PENDING, CONFIRMED, CANCELLED, REFUNDED }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

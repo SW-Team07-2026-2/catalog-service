@@ -2,6 +2,7 @@ package com.indie.catalog.domain.artist.controller;
 
 import com.indie.catalog.domain.artist.dto.response.ArtistDetail;
 import com.indie.catalog.domain.artist.dto.response.ArtistItem;
+import com.indie.catalog.domain.artist.entity.Genre;
 import com.indie.catalog.domain.artist.service.ArtistService;
 import com.indie.catalog.global.common.response.ApiResponse;
 import com.indie.catalog.global.common.response.PageResult;
@@ -30,7 +31,7 @@ public class ArtistController {
     /** ?ids=1,2,3 이 있으면 일괄 조회 (팔로우 목록 화면), 없으면 q · genre 필터 목록 */
     @GetMapping("/api/catalog/artists")
     public ApiResponse<PageResult<ArtistItem>> list(@RequestParam(required = false) String q,
-                                                     @RequestParam(required = false) String genre,
+                                                     @RequestParam(required = false) Genre genre,
                                                      @RequestParam(required = false) List<Long> ids,
                                                      @RequestParam(defaultValue = "0") @PositiveOrZero int page,
                                                      @RequestParam(required = false) Integer size) {

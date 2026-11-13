@@ -1,66 +1,70 @@
 package com.indie.catalog.domain.product.entity;
 
+import jakarta.persistence.DiscriminatorColumn;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Inheritance;
+import jakarta.persistence.InheritanceType;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
+import java.time.OffsetDateTime;
 import java.util.Objects;
 
 /**
- * product — 판매 단위. LP · CD · GOODS 를 하나로 묶습니다 (위시리스트 · 주문이 가리키는 대상).
- * 우리가 주 판매처이고, purchase_url 은 실제 판매처를 크롤링해 온 구매처 링크 1개입니다 (재고 · 가격 비교는 하지 않음).
+ * product — 상품 부모. physical_album · goods 가 상속하고 id 를 공유합니다 (JOINED).
+ * 가격 · 재고는 여기에 없습니다 — 판매 단위는 product_option 이고, 주문 · 장바구니는 옵션을 가리킵니다.
+ * purchase_url 은 실제 판매처를 크롤링해 온 링크 1개입니다.
  */
 @Entity
-@Table(name = "product", uniqueConstraints = @UniqueConstraint(name = "uq_product_ref", columnNames = {"product_type", "ref_id"}))
-public class ProductEntity {
+@Table(name = "product", uniqueConstraints = @UniqueConstraint(name = "uq_product_source", columnNames = {"source", "external_id"}))
+@Inheritance(strategy = InheritanceType.JOINED)
+@DiscriminatorColumn(name = "product_type", length = 16)
+public abstract class ProductEntity {
 
-    public enum Type { LP, CD, GOODS }
+    public enum Type { PHYSICAL_ALBUM, GOODS }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Enumerated(EnumType.STRING)
-    private Type productType;
-
-    private Long refId;                 // lp.id | album.id | goods.id
-
     private String name;
-
-    private Integer price;
-
     private String thumbnailUrl;
-
     private String purchaseUrl;
+    private String source;
+    private String externalId;
+    private String sourceHash;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 
     protected ProductEntity() {}
 
-    public ProductEntity(Type productType, Long refId) {
-        this.productType = productType;
-        this.refId = refId;
+    protected ProductEntity(String source, String externalId) {
+        this.source = source;
+        this.externalId = externalId;
     }
 
-    /** 가격 · 이름 · 링크를 덮어쓰고 바뀐 게 있으면 true (재고 수량은 stock 쪽) */
-    public boolean apply(String name, Integer price, String thumbnailUrl, String purchaseUrl) {
-        boolean changed = !Objects.equals(this.name, name) || !Objects.equals(this.price, price)
-                || !Objects.equals(this.thumbnailUrl, thumbnailUrl) || !Objects.equals(this.purchaseUrl, purchaseUrl);
+    public abstract Type getProductType();
+
+    /** 공통 값을 덮어쓰고 바뀐 게 있으면 true. 자식의 apply 가 자기 값과 함께 부릅니다 */
+    protected boolean applyCommon(String name, String thumbnailUrl, String purchaseUrl, String sourceHash,
+                                  boolean childChanged, OffsetDateTime now) {
+        boolean changed = childChanged || !Objects.equals(this.name, name) || !Objects.equals(this.thumbnailUrl, thumbnailUrl)
+                || !Objects.equals(this.purchaseUrl, purchaseUrl);
         this.name = name;
-        this.price = price;
         this.thumbnailUrl = thumbnailUrl;
         this.purchaseUrl = purchaseUrl;
+        this.sourceHash = sourceHash;
+        if (this.createdAt == null) this.createdAt = now;
+        if (changed || this.updatedAt == null) this.updatedAt = now;
         return changed;
     }
 
     public Long getId() { return id; }
-    public Type getProductType() { return productType; }
-    public Long getRefId() { return refId; }
     public String getName() { return name; }
-    public Integer getPrice() { return price; }
     public String getThumbnailUrl() { return thumbnailUrl; }
     public String getPurchaseUrl() { return purchaseUrl; }
+    public String getSourceHash() { return sourceHash; }
+    public OffsetDateTime getCreatedAt() { return createdAt; }
 }

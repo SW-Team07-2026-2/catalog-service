@@ -20,7 +20,7 @@ import java.util.Optional;
 public class RedisArtistCache implements ArtistCache {
 
     private static final Logger log = LoggerFactory.getLogger(RedisArtistCache.class);
-    private static final String PREFIX = "catalog:cache:artist:";
+    private static final String PREFIX = "catalog:cache:artist:v2:";   // v2 — 응답 모양이 바뀌어 옛 값과 섞이지 않게
 
     private final RedisTemplate<String, ArtistDetail> artistRedis;
     private final Duration ttl;

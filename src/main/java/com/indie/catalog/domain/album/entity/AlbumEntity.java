@@ -1,5 +1,6 @@
 package com.indie.catalog.domain.album.entity;
 
+import com.indie.catalog.domain.artist.entity.Genre;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -8,6 +9,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -15,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+/** album — 아티스트와 트랙 사이. 한 앨범은 한 아티스트, 한 트랙은 한 앨범에 속합니다 */
 @Entity
 @Table(name = "album", uniqueConstraints = @UniqueConstraint(name = "uq_album_source", columnNames = {"source", "external_id"}))
 public class AlbumEntity {
@@ -24,24 +28,18 @@ public class AlbumEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     private Long artistId;
-
     private String title;
-
     @Enumerated(EnumType.STRING)
     private Type type;
-
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    private List<Genre> genres = List.of();
     private LocalDate releasedAt;
-
     private String thumbnailUrl;
-
     private String source;
-
     private String externalId;
-
     private String sourceHash;
-
     private OffsetDateTime updatedAt;
 
     protected AlbumEntity() {}
@@ -52,17 +50,19 @@ public class AlbumEntity {
     }
 
     /** 값을 덮어쓰고 바뀐 필드 이름을 돌려줍니다 — album.updated 의 changedFields */
-    public List<String> apply(Long artistId, String title, Type type, LocalDate releasedAt, String thumbnailUrl,
-                              String sourceHash, OffsetDateTime now) {
+    public List<String> apply(Long artistId, String title, Type type, List<Genre> genres, LocalDate releasedAt,
+                              String thumbnailUrl, String sourceHash, OffsetDateTime now) {
         List<String> changed = new ArrayList<>();
         if (!Objects.equals(this.artistId, artistId)) changed.add("artistId");
         if (!Objects.equals(this.title, title)) changed.add("title");
         if (this.type != type) changed.add("type");
+        if (!this.genres.equals(genres)) changed.add("genres");
         if (!Objects.equals(this.releasedAt, releasedAt)) changed.add("releasedAt");
         if (!Objects.equals(this.thumbnailUrl, thumbnailUrl)) changed.add("thumbnailUrl");
         this.artistId = artistId;
         this.title = title;
         this.type = type;
+        this.genres = List.copyOf(genres);
         this.releasedAt = releasedAt;
         this.thumbnailUrl = thumbnailUrl;
         this.sourceHash = sourceHash;
@@ -74,6 +74,7 @@ public class AlbumEntity {
     public Long getArtistId() { return artistId; }
     public String getTitle() { return title; }
     public Type getType() { return type; }
+    public List<Genre> getGenres() { return genres; }
     public LocalDate getReleasedAt() { return releasedAt; }
     public String getThumbnailUrl() { return thumbnailUrl; }
     public String getSourceHash() { return sourceHash; }

@@ -1,11 +1,12 @@
 package com.indie.catalog.domain.artist.dto.response;
 
 import com.indie.catalog.domain.album.dto.response.AlbumItem;
-import com.indie.catalog.domain.album.dto.response.LpItem;
+import com.indie.catalog.domain.artist.entity.Genre;
 import com.indie.catalog.domain.product.dto.response.GoodsItem;
+import com.indie.catalog.domain.product.dto.response.PhysicalAlbumItem;
 
 import java.util.List;
 
-public record ArtistDetail(long id, String name, String genre, String label, Integer debutYear, String profileUrl,
-                           List<MemberItem> members, List<AlbumItem> albums,
-                           List<LpItem> lps, List<GoodsItem> goods) {}
+/** label 은 소속사 이름 (없으면 null) */
+public record ArtistDetail(long id, String name, List<Genre> genres, String label, Integer debutYear, String profileUrl,
+                           List<AlbumItem> albums, List<PhysicalAlbumItem> physicalAlbums, List<GoodsItem> goods) {}

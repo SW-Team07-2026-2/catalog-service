@@ -1,7 +1,5 @@
 package com.indie.catalog.global.common.response;
 
-import org.springframework.data.domain.Slice;
-
 import java.util.List;
 import java.util.function.Function;
 
@@ -11,8 +9,10 @@ import java.util.function.Function;
  */
 public record PageResult<T>(List<T> items, int page, int size, boolean hasNext) {
 
-    public static <E, T> PageResult<T> of(Slice<E> slice, Function<List<E>, List<T>> mapper) {
-        return new PageResult<>(mapper.apply(slice.getContent()), slice.getNumber(), slice.getSize(), slice.hasNext());
+    /** fetched 는 size + 1 건까지 조회한 결과 — 넘치면 다음 페이지가 있습니다 (count 쿼리 없음) */
+    public static <E, T> PageResult<T> of(List<E> fetched, int page, int size, Function<List<E>, List<T>> mapper) {
+        boolean hasNext = fetched.size() > size;
+        return new PageResult<>(mapper.apply(hasNext ? fetched.subList(0, size) : fetched), page, size, hasNext);
     }
 
     /** ?ids= 일괄 조회 — 한 페이지로 끝납니다 */

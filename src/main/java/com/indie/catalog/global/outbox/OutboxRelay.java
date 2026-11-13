@@ -68,7 +68,7 @@ public class OutboxRelay {
     @Scheduled(cron = "0 0 4 * * SUN")
     @Transactional
     public void purge() {
-        int deleted = repository.deletePublishedOlderThanWeek();
+        int deleted = repository.deletePublishedBefore(OffsetDateTime.now(clock).minusDays(7));
         log.info("outbox_purged count={}", deleted);
     }
 }

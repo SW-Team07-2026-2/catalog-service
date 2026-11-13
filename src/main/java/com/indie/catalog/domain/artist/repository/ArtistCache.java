@@ -5,7 +5,7 @@ import com.indie.catalog.domain.artist.dto.response.ArtistDetail;
 import java.util.Optional;
 
 /**
- * 아티스트 상세 캐시 포트 — catalog:cache:artist:{id} · TTL 10분 · 수정 시 삭제 (08 §3). 구현은 RedisArtistCache.
+ * 아티스트 상세 캐시 포트 — catalog:cache:artist:v2:{id} · TTL 10분 · 수정 시 삭제 (08 §3). 구현은 RedisArtistCache.
  * 🔴 구현은 모든 실패를 삼켜야 합니다 — 캐시가 죽어도 DB 로 응답합니다 (fail-open). 재고는 담지 않습니다.
  */
 public interface ArtistCache {
