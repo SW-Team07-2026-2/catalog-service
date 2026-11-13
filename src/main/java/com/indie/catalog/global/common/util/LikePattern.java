@@ -2,7 +2,7 @@ package com.indie.catalog.global.common.util;
 
 /**
  * 부분 일치 검색 패턴 — lower(컬럼) like :pattern escape '\' 에 넣는 값을 만듭니다.
- * 컬럼 쪽을 lower() 로 감싸는 이유: V5 의 트라이그램 인덱스가 lower(이름) 식 인덱스입니다.
+ * 컬럼 쪽을 lower() 로 감싸는 이유: V1 의 트라이그램 인덱스가 lower(이름) 식 인덱스입니다.
  */
 public final class LikePattern {
 

@@ -256,7 +256,7 @@ public class IngestService {
 
     private static List<ProductService.OptionInput> inputs(List<OptionUpsert> options) {
         return options.stream()
-                .map(o -> new ProductService.OptionInput(o.name().strip(), o.vinylColor(), o.size(), o.price(), o.qty()))
+                .map(o -> new ProductService.OptionInput(null, o.name().strip(), o.vinylColor(), o.size(), o.price(), o.qty()))
                 .toList();
     }
 

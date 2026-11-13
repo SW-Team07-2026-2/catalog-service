@@ -39,6 +39,7 @@ import java.util.HexFormat;
  * ④ exp(+30초) 지남 → 401 INTERNAL_TOKEN_EXPIRED
  * ⑤ iss=gateway (수집 · docs/22 S1 · S2) — 수집 API 에서만 · sub=ingest:* · 본문 1 MiB 초과 413 PAYLOAD_TOO_LARGE ·
  *   본문 해시가 다르면 400 BODY_DIGEST_MISMATCH
+ * ⑥ 그 밖의 발급자는 admin-issuers(studio)만, /internal/admin/** 에서만 — 관리자 토큰으로 수집 API 를 부를 수 없습니다
  * </pre>
  * 🔴 이 필터 없이 배포되면 클러스터 안의 누구든 카탈로그 · 재고를 덮어쓸 수 있습니다.
  * 🔴 X-User-Id 를 신뢰하지 않습니다 — 내부 API 의 사용자 식별은 요청 본문 값으로 합니다.
@@ -46,6 +47,7 @@ import java.util.HexFormat;
 public class InternalTokenFilter extends OncePerRequestFilter {
 
     public static final String HEADER = "X-Internal-Token";
+    private static final String ADMIN_PREFIX = "/internal/admin/";
     private static final int MAX_INGEST_BODY = 1024 * 1024;   // Gateway 수집 경로 한도와 같음
     private static final Logger log = LoggerFactory.getLogger(InternalTokenFilter.class);
 
@@ -84,7 +86,7 @@ public class InternalTokenFilter extends OncePerRequestFilter {
             ingest(request, response, chain, claims);
             return;
         }
-        if (!props.allowedIssuers().contains(claims.getIssuer())) {
+        if (!request.getRequestURI().startsWith(ADMIN_PREFIX) || !props.adminIssuers().contains(claims.getIssuer())) {
             reject(request, response, CommonErrorCode.INTERNAL_TOKEN_INVALID, "issuer");
             return;
         }

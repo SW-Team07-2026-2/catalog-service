@@ -17,6 +17,7 @@ import com.indie.catalog.domain.product.entity.ProductEntity;
 import com.indie.catalog.domain.product.entity.ProductOptionEntity;
 import com.indie.catalog.domain.product.entity.StockEntity;
 import com.indie.catalog.domain.product.entity.VinylColor;
+import com.indie.catalog.domain.product.exception.ProductErrorCode;
 import com.indie.catalog.domain.product.repository.GoodsRepository;
 import com.indie.catalog.domain.product.repository.PhysicalAlbumRepository;
 import com.indie.catalog.domain.product.repository.ProductOptionRepository;
@@ -35,9 +36,11 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -120,7 +123,8 @@ public class ProductService {
     }
 
     /**
-     * 옵션 입고 — 수집 적재(IngestService)만 부릅니다. (product_id, 옵션 이름) 이 같으면 갱신, 새 이름이면 새 옵션.
+     * 옵션 입고 — 수집 적재(IngestService)와 관리자 등록(AdminProductService)이 부릅니다. (product_id, 옵션 이름) 이 같으면 갱신, 새 이름이면 새 옵션.
+     * 관리자는 옵션 id 를 줄 수 있습니다 — 그 옵션을 고치고 이름도 바꿉니다 (다른 상품의 옵션이면 404 · 이미 있는 이름이면 400).
      * 요청에 없는 옵션은 그대로 둡니다 (주문 · 보유 음반이 가리킬 수 있어 지우지 않습니다).
      * qty 는 입고 수량(절대값) — null 이면 수량은 건드리지 않습니다. 새 옵션의 재고 행은 항상 만듭니다 (옵션과 1:1).
      *
@@ -136,10 +140,31 @@ public class ProductService {
         }
         boolean changed = false;
         List<ProductOptionEntity> created = new ArrayList<>();
+        Map<Long, ProductOptionEntity> byId = byName.values().stream()
+                .collect(Collectors.toMap(ProductOptionEntity::getId, Function.identity()));
+        Set<String> freed = new HashSet<>();
         for (OptionInput input : inputs) {
             OptionRule.check(format, input.name(), input.vinylColor(), input.size());
             ProductOptionEntity option = byName.get(input.name());
+            if (input.id() != null) {
+                ProductOptionEntity target = byId.get(input.id());
+                if (target == null) throw new GeneralException(ProductErrorCode.OPTION_NOT_FOUND);
+                if (option != null && option != target) {
+                    throw new GeneralException(CommonErrorCode.INVALID_REQUEST, "옵션 이름 '" + input.name() + "' 이 이미 있습니다");
+                }
+                if (option == null) {
+                    freed.add(target.getName());
+                    byName.remove(target.getName());
+                    target.rename(input.name());
+                    byName.put(input.name(), target);
+                    changed = true;
+                }
+                option = target;
+            }
             boolean isNew = option == null;
+            if (isNew && freed.contains(input.name())) {   // INSERT 가 이름 변경(UPDATE)보다 먼저 나가 UNIQUE 에 걸립니다
+                throw new GeneralException(CommonErrorCode.INVALID_REQUEST, "같은 요청에서 바꾼 옵션 이름 '" + input.name() + "' 은 다시 쓸 수 없습니다");
+            }
             if (isNew) option = new ProductOptionEntity(productId, input.name(), now);
             changed |= option.apply(input.vinylColor(), input.size(), input.price()) || isNew;
             option = optionRepository.save(option);
@@ -234,7 +259,8 @@ public class ProductService {
 
     public record Sellable(ProductOptionEntity option, ProductEntity product) {}
 
-    public record OptionInput(String name, VinylColor vinylColor, OptionSize size, int price, Integer qty) {}
+    /** id — 관리자가 기존 옵션을 가리킬 때만 (수집은 null · 이름이 식별자) */
+    public record OptionInput(Long id, String name, VinylColor vinylColor, OptionSize size, int price, Integer qty) {}
 
     /** created — 이번에 새로 생긴 옵션 (피지컬 앨범 발매 알림에 싣습니다) */
     public record OptionsResult(boolean changed, List<ProductOptionEntity> created) {}

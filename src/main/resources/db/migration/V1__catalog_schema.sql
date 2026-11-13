@@ -1,6 +1,12 @@
--- catalog 스키마 — ERD v6 기준 + 수집 멱등키(source · external_id · source_hash) + 상품 구매처 링크(purchase_url)
--- 🔴 선행 DBA 작업: CREATE EXTENSION pg_trgm (public 스키마 · 수퍼유저) — 없으면 아래 GIN 인덱스에서 실패합니다
--- 스키마 간 FK 없음 — order.user_id 는 member.users 를 가리키지만 FK 를 걸지 않습니다
+-- catalog 스키마 (구조) — 테이블 · 키 · 인덱스. 값 목록(CHECK)은 V2__catalog_values.sql 에 있습니다.
+--   · product 를 부모로 physical_album(LP · CD · 카세트) · goods 가 상속 (id 공유)
+--   · 판매 단위는 product_option — 가격 · 재고 · 장바구니 · 주문이 모두 옵션을 가리킵니다
+--   · 검색은 artist · album · track 을 직접 조회 (lower(이름) 트라이그램 인덱스)
+--   · 장르 · 트랙 메타데이터는 enum 배열 컬럼 — 값 목록은 V2 의 CHECK 로 고정
+-- 🔴 선행 DBA 작업: CREATE EXTENSION pg_trgm (public 스키마)
+-- 스키마 간 FK 없음 — user_id 는 member.users 를 가리키지만 FK 를 걸지 않습니다
+-- 🔴 마이그레이션은 이 파일(V1 구조)과 V2(값) 두 개만 둡니다 — 구조를 바꾸면 이 파일을 고치고 DB 스키마를 비운 뒤 다시 올립니다.
+--    적용된 뒤에 파일만 고치면 Flyway 체크섬 검증에 걸려 서비스가 뜨지 않습니다.
 
 CREATE TABLE label (
     id   BIGSERIAL PRIMARY KEY,
@@ -9,34 +15,28 @@ CREATE TABLE label (
 );
 
 CREATE TABLE artist (
-    id             BIGSERIAL PRIMARY KEY,
-    name           VARCHAR(100) NOT NULL,
-    genre          VARCHAR(50),
-    label_id       BIGINT REFERENCES label(id),
-    follower_count INTEGER      NOT NULL DEFAULT 0,      -- TODO(결정대기): 갱신 경로 없음 (member.activity 를 구독하지 않음)
-    debut_year     INTEGER,
-    profile_url    VARCHAR(512),
-    source         VARCHAR(32)  NOT NULL,                -- 수집 출처 (spotify · lpick · manual …)
-    external_id    VARCHAR(128) NOT NULL,                -- 출처 안의 식별자
-    source_hash    VARCHAR(128),                         -- 본문 정규화 해시 (FR-ING-11) · I15 증분 판정
-    updated_at     TIMESTAMPTZ  NOT NULL,
-    CONSTRAINT uq_artist_source UNIQUE (source, external_id)   -- ★ 멱등 upsert 기준
+    id          BIGSERIAL PRIMARY KEY,
+    label_id    BIGINT REFERENCES label(id),
+    name        VARCHAR(100) NOT NULL,
+    genres      VARCHAR(32)[] NOT NULL DEFAULT '{}',
+    debut_year  INTEGER,
+    profile_url VARCHAR(512),
+    source      VARCHAR(32)  NOT NULL,                   -- 수집 출처
+    external_id VARCHAR(128) NOT NULL,                   -- 출처 안의 식별자
+    source_hash VARCHAR(128),                            -- 본문 정규화 해시 · 증분 판정
+    updated_at  TIMESTAMPTZ  NOT NULL,
+    CONSTRAINT uq_artist_source UNIQUE (source, external_id)    -- ★ 멱등 upsert 기준
 );
-CREATE INDEX idx_artist_name ON artist(name);
-
-CREATE TABLE band_member (
-    id        BIGSERIAL PRIMARY KEY,
-    artist_id BIGINT       NOT NULL REFERENCES artist(id),
-    name      VARCHAR(100) NOT NULL,
-    role      VARCHAR(50)
-);
-CREATE INDEX idx_band_member_artist ON band_member(artist_id);
+CREATE INDEX idx_artist_name ON artist(name, id);                                        -- 목록 이름순
+CREATE INDEX idx_artist_name_trgm ON artist USING gin (lower(name) public.gin_trgm_ops); -- 이름 부분 일치 (목록 q · 검색)
+CREATE INDEX idx_artist_genres ON artist USING gin (genres);                             -- 장르 필터
 
 CREATE TABLE album (
     id            BIGSERIAL PRIMARY KEY,
     artist_id     BIGINT       NOT NULL REFERENCES artist(id),
     title         VARCHAR(200) NOT NULL,
-    type          VARCHAR(16)  NOT NULL,                 -- ALBUM | EP | SINGLE
+    type          VARCHAR(16)  NOT NULL,
+    genres        VARCHAR(32)[] NOT NULL DEFAULT '{}',
     released_at   DATE,
     thumbnail_url VARCHAR(512),
     source        VARCHAR(32)  NOT NULL,
@@ -45,91 +45,114 @@ CREATE TABLE album (
     updated_at    TIMESTAMPTZ  NOT NULL,
     CONSTRAINT uq_album_source UNIQUE (source, external_id)
 );
-CREATE INDEX idx_album_artist ON album(artist_id);
-CREATE INDEX idx_album_released ON album(released_at DESC);
+CREATE INDEX idx_album_artist ON album(artist_id, released_at DESC, id DESC);            -- 아티스트 상세
+CREATE INDEX idx_album_released ON album(released_at DESC NULLS LAST, id DESC);          -- 신보순 목록
+CREATE INDEX idx_album_title_trgm ON album USING gin (lower(title) public.gin_trgm_ops);
 
 CREATE TABLE track (
     id       BIGSERIAL PRIMARY KEY,
     album_id BIGINT       NOT NULL REFERENCES album(id),
     track_no INTEGER      NOT NULL,
     title    VARCHAR(200) NOT NULL,
-    CONSTRAINT uq_track_no UNIQUE (album_id, track_no)
+    genres   VARCHAR(32)[] NOT NULL DEFAULT '{}',
+    tempo    VARCHAR(16),                                -- 구간 · 모르면 NULL
+    moods    VARCHAR(32)[] NOT NULL DEFAULT '{}',        -- 분위기 — 소리가 주는 공기
+    emotions VARCHAR(32)[] NOT NULL DEFAULT '{}',        -- 감정 — 화자가 느끼는 마음
+    styles   VARCHAR(32)[] NOT NULL DEFAULT '{}',        -- 스타일 — 악기 · 제작 방식
+    CONSTRAINT uq_track_no UNIQUE (album_id, track_no)   -- 수집 갱신 기준 (트랙 id 를 유지)
 );
+CREATE INDEX idx_track_title_trgm ON track USING gin (lower(title) public.gin_trgm_ops);
 
-CREATE TABLE lp (
-    id          BIGSERIAL PRIMARY KEY,
-    album_id    BIGINT       NOT NULL REFERENCES album(id),
-    press_type  VARCHAR(50),                             -- 컬러반 · 한정반 …
-    released_at DATE,
-    source      VARCHAR(32)  NOT NULL,
-    external_id VARCHAR(128) NOT NULL,
-    source_hash VARCHAR(128),
-    CONSTRAINT uq_lp_source UNIQUE (source, external_id)
-);
-CREATE INDEX idx_lp_album ON lp(album_id);
-CREATE INDEX idx_lp_released ON lp(released_at DESC);
-
-CREATE TABLE goods (
-    id          BIGSERIAL PRIMARY KEY,
-    artist_id   BIGINT       NOT NULL REFERENCES artist(id),
-    name        VARCHAR(200) NOT NULL,
-    category    VARCHAR(32),                             -- TSHIRT · POSTER …
-    source      VARCHAR(32)  NOT NULL,
-    external_id VARCHAR(128) NOT NULL,
-    source_hash VARCHAR(128),
-    CONSTRAINT uq_goods_source UNIQUE (source, external_id)
-);
-CREATE INDEX idx_goods_artist ON goods(artist_id);
-
--- ★ 판매 단위 — LP · CD · GOODS 를 하나로. 우리가 주 판매처, purchase_url 은 실제 판매처(크롤링) 링크 1개
+-- ★ 상품 부모 — physical_album · goods 가 id 를 공유합니다. 가격 · 재고는 product_option 에
 CREATE TABLE product (
     id            BIGSERIAL PRIMARY KEY,
-    product_type  VARCHAR(16)  NOT NULL,                 -- LP | CD | GOODS
-    ref_id        BIGINT       NOT NULL,                 -- lp.id | album.id | goods.id
+    product_type  VARCHAR(16)  NOT NULL,
     name          VARCHAR(255) NOT NULL,
-    price         INTEGER      NOT NULL CHECK (price >= 0),
     thumbnail_url VARCHAR(512),
-    purchase_url  VARCHAR(1024),
-    CONSTRAINT uq_product_ref UNIQUE (product_type, ref_id)
+    purchase_url  VARCHAR(1024),                         -- 실제 판매처(크롤링) 링크
+    source        VARCHAR(32)  NOT NULL,
+    external_id   VARCHAR(128) NOT NULL,
+    source_hash   VARCHAR(128),
+    created_at    TIMESTAMPTZ  NOT NULL,
+    updated_at    TIMESTAMPTZ  NOT NULL,
+    CONSTRAINT uq_product_source UNIQUE (source, external_id)
 );
 
--- ★ 재고 — 좌석과 달리 수량이라 락 없이 조건부 UPDATE (qty >= n) 로 원자적 차감
+-- 한 앨범에 같은 포맷이 여러 개일 수 있습니다 (초판 · 재판 · N차 — 이름으로 구분)
+CREATE TABLE physical_album (
+    id          BIGINT PRIMARY KEY REFERENCES product(id),
+    album_id    BIGINT      NOT NULL REFERENCES album(id),
+    format      VARCHAR(16) NOT NULL,
+    released_at DATE
+);
+CREATE INDEX idx_physical_album_album ON physical_album(album_id);
+CREATE INDEX idx_physical_album_released ON physical_album(released_at DESC NULLS LAST, id DESC);
+
+CREATE TABLE goods (
+    id        BIGINT PRIMARY KEY REFERENCES product(id),
+    artist_id BIGINT      NOT NULL REFERENCES artist(id),
+    category  VARCHAR(16) NOT NULL
+);
+CREATE INDEX idx_goods_artist ON goods(artist_id, id DESC);
+
+-- 🔴 "vinyl_color 는 LP 옵션에만 · size 는 굿즈 옵션에만" 은 테이블이 달라 CHECK 로 못 겁니다 — 적재 서비스(OptionRule)가 막습니다
+CREATE TABLE product_option (
+    id          BIGSERIAL PRIMARY KEY,
+    product_id  BIGINT       NOT NULL REFERENCES product(id),
+    name        VARCHAR(100) NOT NULL,                   -- 블랙반 · 투명 레드 컬러반 · 기본 · L …
+    vinyl_color VARCHAR(16),
+    size        VARCHAR(8),
+    price       INTEGER      NOT NULL,
+    created_at  TIMESTAMPTZ  NOT NULL,
+    CONSTRAINT uq_product_option_name UNIQUE (product_id, name),   -- 수집 갱신 기준 · 상품의 옵션 조회
+    CONSTRAINT ck_product_option_price CHECK (price >= 0),
+    CONSTRAINT ck_product_option_kind CHECK (vinyl_color IS NULL OR size IS NULL)
+);
+
+-- ★ 재고 — 옵션과 1:1. 주문 경합의 행 락 대상이라 옵션과 떼어 좁게 둡니다 (차감은 qty >= n 조건부 UPDATE)
 CREATE TABLE stock (
-    product_id BIGINT      PRIMARY KEY REFERENCES product(id),
-    qty        INTEGER     NOT NULL CHECK (qty >= 0),
-    updated_at TIMESTAMPTZ NOT NULL
+    option_id  BIGINT      PRIMARY KEY REFERENCES product_option(id),
+    qty        INTEGER     NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    CONSTRAINT ck_stock_qty CHECK (qty >= 0)
+);
+
+-- 장바구니 — 재고를 읽기만 합니다 (차감은 주문 생성 때). TTL 없음
+CREATE TABLE cart_item (
+    user_id    BIGINT      NOT NULL,                     -- member.users (FK 없음)
+    option_id  BIGINT      NOT NULL REFERENCES product_option(id),
+    qty        INTEGER     NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (user_id, option_id),
+    CONSTRAINT ck_cart_item_qty CHECK (qty >= 1)
 );
 
 CREATE TABLE purchase_order (                            -- order 는 예약어
-    id          BIGSERIAL PRIMARY KEY,
-    user_id     BIGINT      NOT NULL,                    -- member.users (FK 없음)
-    status      VARCHAR(16) NOT NULL,                    -- PENDING | CONFIRMED | CANCELLED
-    total_price INTEGER     NOT NULL,
-    payment_key VARCHAR(64),                             -- Payment prepare 응답 (NULL = 준비 전)
-    created_at  TIMESTAMPTZ NOT NULL
+    id              BIGSERIAL PRIMARY KEY,
+    user_id         BIGINT       NOT NULL,               -- member.users (FK 없음)
+    status          VARCHAR(16)  NOT NULL,
+    total_price     INTEGER      NOT NULL,
+    pg_order_id     VARCHAR(64),                         -- Payment prepare 응답 (NULL = 준비 전)
+    recipient_name  VARCHAR(20)  NOT NULL,               -- 주문 시점 배송지 복사본
+    recipient_phone VARCHAR(20)  NOT NULL,
+    zonecode        VARCHAR(5)   NOT NULL,
+    address         VARCHAR(200) NOT NULL,
+    address_detail  VARCHAR(100),
+    created_at      TIMESTAMPTZ  NOT NULL,
+    CONSTRAINT ck_order_total_price CHECK (total_price >= 0)
 );
 CREATE INDEX idx_order_user ON purchase_order(user_id, id DESC);
 CREATE INDEX idx_order_pending ON purchase_order(created_at) WHERE status = 'PENDING';   -- 만료 스캔
 
 CREATE TABLE order_item (
-    order_id   BIGINT  NOT NULL REFERENCES purchase_order(id),
-    product_id BIGINT  NOT NULL REFERENCES product(id),
-    qty        INTEGER NOT NULL,
-    price      INTEGER NOT NULL,                         -- ★ 주문 시점 가격 고정
-    PRIMARY KEY (order_id, product_id)
+    order_id  BIGINT  NOT NULL REFERENCES purchase_order(id),
+    option_id BIGINT  NOT NULL REFERENCES product_option(id),
+    qty       INTEGER NOT NULL,
+    price     INTEGER NOT NULL,                          -- ★ 주문 시점 가격 고정
+    PRIMARY KEY (order_id, option_id),
+    CONSTRAINT ck_order_item_qty CHECK (qty >= 1),
+    CONSTRAINT ck_order_item_price CHECK (price >= 0)
 );
-
--- ★ pg_trgm 통합 검색 (FR-CAT-08 · AI 검색의 폴백 최종단)
-CREATE TABLE search_doc (
-    id          BIGSERIAL PRIMARY KEY,
-    target_type VARCHAR(16)  NOT NULL,                   -- ARTIST | ALBUM | TRACK
-    target_id   BIGINT       NOT NULL,
-    body        TEXT         NOT NULL,
-    updated_at  TIMESTAMPTZ  NOT NULL,
-    CONSTRAINT uq_search_doc_target UNIQUE (target_type, target_id)
-);
--- Flyway 는 search_path 를 catalog 로 두므로 연산자 클래스를 public 으로 한정합니다
-CREATE INDEX idx_search_doc_body ON search_doc USING gin (body public.gin_trgm_ops);
 
 CREATE TABLE outbox (
     id           BIGSERIAL PRIMARY KEY,
@@ -139,4 +162,4 @@ CREATE TABLE outbox (
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     published_at TIMESTAMPTZ                             -- NULL = 미발행
 );
-CREATE INDEX idx_outbox_unpublished ON outbox(id) WHERE published_at IS NULL;  -- ★ 부분 인덱스
+CREATE INDEX idx_outbox_unpublished ON outbox(id) WHERE published_at IS NULL;

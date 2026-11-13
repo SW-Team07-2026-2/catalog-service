@@ -9,7 +9,7 @@ public enum ProductErrorCode implements BaseErrorCode {
     PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "상품을 찾을 수 없습니다"),
     OPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "상품 옵션을 찾을 수 없습니다"),
     OUT_OF_STOCK(HttpStatus.CONFLICT, "재고가 부족합니다"),
-    INVALID_OPTION(HttpStatus.BAD_REQUEST, "상품 종류에 맞지 않는 옵션입니다");   // 수집 적재 — OptionRule
+    INVALID_OPTION(HttpStatus.BAD_REQUEST, "상품 종류에 맞지 않는 옵션입니다");   // 수집 적재 · 관리자 등록 — OptionRule
 
     private final HttpStatus status;
     private final String message;

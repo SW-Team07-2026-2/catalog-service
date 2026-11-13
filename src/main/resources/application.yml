@@ -79,7 +79,7 @@ springdoc:
 app:
   internal:                                   # 들어오는 /internal/** 검증
     expected-audience: catalog
-    allowed-issuers: [assistant]              # ✏️ 11/01 21A — 수집(ingest) 직접 호출은 닫음 · Gateway /ingest/** 경유만 (아래 ingest-issuer). TODO(결정대기): 어시스턴트의 iss 이름
+    admin-issuers: [studio]                   # /internal/admin/** 만 — 관리자(Studio). 수집(ingest)은 아래 ingest-issuer 로 Gateway /ingest/** 경유만
     clock-skew-seconds: 30
     ingest-issuer: gateway                    # docs/22 S1 — Gateway /ingest/** 가 수집 서명을 확인하고 발급 (sub=ingest:{키} · body_sha256)
     ingest-paths: [/internal/catalog/artists, /internal/catalog/albums, /internal/catalog/ingest/diff]
