@@ -49,7 +49,8 @@ public class ArtistRepositoryAdapter implements ArtistRepository {
                 .where(nameContains == null || nameContains.isBlank() ? null
                                 : artistEntity.name.lower().like(LikePattern.contains(nameContains), LikePattern.ESCAPE),
                         genre == null ? null : Expressions.booleanTemplate("array_contains({0}, {1})", artistEntity.genres, genre))
-                .orderBy(artistEntity.name.asc(), artistEntity.id.asc())
+                // 이름순은 유니코드 순(ucs_basic = 가나다순) — DB 기본 정렬(en_US.utf8 · glibc 2.28+)은 한글 순서가 깨집니다
+                .orderBy(Expressions.stringTemplate("collate({0} as ucs_basic)", artistEntity.name).asc(), artistEntity.id.asc())
                 .offset(offset)
                 .limit(limit)
                 .fetch();
