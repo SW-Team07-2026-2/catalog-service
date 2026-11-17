@@ -15,6 +15,11 @@ import com.indie.catalog.domain.product.entity.GoodsCategory;
 import com.indie.catalog.domain.product.entity.OptionSize;
 import com.indie.catalog.domain.product.entity.PhysicalFormat;
 import com.indie.catalog.domain.product.entity.VinylColor;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +32,10 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Date;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -150,5 +158,47 @@ class CatalogApiTest {
         // 수집 경로는 내부 토큰 없이는 닫혀 있습니다
         mvc.perform(post("/internal/catalog/artists").contentType(MediaType.APPLICATION_JSON).content("{\"items\":[]}"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    /** 11/17 — 크롤러 → Studio → 관리자 적재 경로. 수집 API 와 같은 본문 · 결과 · 규칙(같은 해시면 UNCHANGED) */
+    @Test
+    void studioIngestsThroughAdminPath() throws Exception {
+        String studio = token("studio");
+        String artists = "{\"items\":[{\"source\":\"crawler\",\"external_id\":\"adm-1\",\"source_hash\":\"h1\",\"name\":\"새소년\",\"genres\":[\"SHOEGAZE\"]}]}";
+        mvc.perform(post("/internal/admin/catalog/ingest/artists").header("X-Internal-Token", studio)
+                        .contentType(MediaType.APPLICATION_JSON).content(artists))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.items[0].external_id").value("adm-1"))
+                .andExpect(jsonPath("$.result.items[0].result").value("CREATED"));
+        mvc.perform(post("/internal/admin/catalog/ingest/artists").header("X-Internal-Token", studio)
+                        .contentType(MediaType.APPLICATION_JSON).content(artists))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.result.items[0].result").value("UNCHANGED"));
+        mvc.perform(post("/internal/admin/catalog/ingest/diff").header("X-Internal-Token", studio).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"source\":\"crawler\",\"type\":\"ARTIST\",\"items\":[{\"external_id\":\"adm-1\",\"source_hash\":\"h2\"},{\"external_id\":\"adm-2\"}]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.changed[0]").value("adm-1"))
+                .andExpect(jsonPath("$.result.new[0]").value("adm-2"));
+        long artistId = jdbc.queryForObject("SELECT id FROM artist WHERE external_id = 'adm-1'", Long.class);
+        mvc.perform(post("/internal/admin/catalog/ingest/albums").header("X-Internal-Token", studio).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"items\":[{\"source\":\"crawler\",\"external_id\":\"adm-album\",\"source_hash\":\"h\",\"artist_id\":" + artistId
+                                + ",\"title\":\"여름깃\",\"type\":\"EP\"}]}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.result.items[0].result").value("CREATED"));
+
+        // 토큰 없이 · 다른 발급자 · Studio 토큰으로 Gateway 수집 경로는 닫혀 있습니다
+        mvc.perform(post("/internal/admin/catalog/ingest/artists").contentType(MediaType.APPLICATION_JSON).content(artists))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(post("/internal/admin/catalog/ingest/artists").header("X-Internal-Token", token("crawler"))
+                        .contentType(MediaType.APPLICATION_JSON).content(artists))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(post("/internal/catalog/artists").header("X-Internal-Token", studio)
+                        .contentType(MediaType.APPLICATION_JSON).content(artists))
+                .andExpect(status().isUnauthorized());
+    }
+
+    private static String token(String iss) throws Exception {
+        SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), new JWTClaimsSet.Builder()
+                .issuer(iss).audience("catalog").expirationTime(Date.from(Instant.now().plusSeconds(60))).build());
+        jwt.sign(new MACSigner("test-secret-test-secret-test-secret-0123456789".getBytes(StandardCharsets.UTF_8)));
+        return jwt.serialize();
     }
 }

@@ -268,6 +268,7 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 | `POST /internal/admin/catalog/options/{optionId}/stock` | **신규(11/13)** 재고 조정 |
 | `GET /internal/admin/catalog/users/{userId}/orders` | **신규(11/13)** 회원 주문 목록 (CS) |
 | `POST /internal/admin/catalog/orders/{id}/cancel` | **신규(11/13)** 주문 취소 대행 (CS) |
+| `POST /internal/admin/catalog/ingest/artists` · `/albums` · `/diff` | **신규(11/17)** 크롤러 → Studio → 여기. 본문 · 결과 · 저장 규칙은 수집 API(7.3 · 5.6)와 같고 토큰만 `iss=studio`. 크롤러는 Gateway `/ingest` 로 보내지 않습니다 (Cloudflare 터널 헤더 때문에 G1 이 막음 · docs/v2_후속_작업 1-12) |
 
 **관리자(Studio) API** — Studio 가 Gateway 를 거치지 않고 직접 부릅니다 (Studio 문서 6.5 · 6.6). 본문은 camelCase 입니다.
 
@@ -288,7 +289,7 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 
 ### 7.3 수집 적재 본문 (snake_case)
 
-수집기 담당자에게 전달할 계약입니다.
+수집기 담당자에게 전달할 계약입니다. ✏️ 11/17 크롤러는 Studio 를 거쳐 `/internal/admin/catalog/ingest/*` 로 들어오며 본문은 아래와 같습니다.
 
 ```jsonc
 // POST /ingest/catalog/artists  (Gateway → /internal/catalog/artists)
