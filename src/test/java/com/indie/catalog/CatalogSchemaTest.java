@@ -92,16 +92,20 @@ class CatalogSchemaTest extends PostgresTest {
         assertCheck("ck_physical_album_format", PhysicalFormat.values());
         assertCheck("ck_goods_category", GoodsCategory.values());
         assertCheck("ck_product_option_vinyl_color", VinylColor.values());
-        assertCheck("ck_product_option_size", OptionSize.values());
+        assertCheck("ck_product_option_size", Arrays.stream(OptionSize.values()).map(OptionSize::value).toList());   // DB 값은 name 이 아니라 value
         assertCheck("ck_order_status", Status.values());
     }
 
     private void assertCheck(String constraint, Enum<?>[] values) {
+        assertCheck(constraint, Arrays.stream(values).map(Enum::name).toList());
+    }
+
+    private void assertCheck(String constraint, List<String> values) {
         String def = jdbc.queryForObject("SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname = ?", String.class, constraint);
         Set<String> inDb = new TreeSet<>();
         Matcher m = Pattern.compile("'([A-Z0-9_]+)'").matcher(def);
         while (m.find()) inDb.add(m.group(1));
-        assertThat(inDb).as(constraint).isEqualTo(new TreeSet<>(Arrays.stream(values).map(Enum::name).toList()));
+        assertThat(inDb).as(constraint).isEqualTo(new TreeSet<>(values));
     }
 
     /** enum 배열 컬럼 — 저장 · 조회 · 장르 필터(genres @> …) · 이름 부분 일치(대소문자 무시 · % 는 글자 그대로) */
