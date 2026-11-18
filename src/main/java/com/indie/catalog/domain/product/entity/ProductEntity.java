@@ -16,7 +16,6 @@ import java.util.Objects;
 /**
  * product — 상품 부모. physical_album · goods 가 상속하고 id 를 공유합니다 (JOINED).
  * 가격 · 재고는 여기에 없습니다 — 판매 단위는 product_option 이고, 주문 · 장바구니는 옵션을 가리킵니다.
- * purchase_url 은 실제 판매처를 크롤링해 온 링크 1개입니다.
  */
 @Entity
 @Table(name = "product", uniqueConstraints = @UniqueConstraint(name = "uq_product_source", columnNames = {"source", "external_id"}))
@@ -31,7 +30,6 @@ public abstract class ProductEntity {
     private Long id;
     private String name;
     private String thumbnailUrl;
-    private String purchaseUrl;
     private String source;
     private String externalId;
     private String sourceHash;
@@ -48,13 +46,10 @@ public abstract class ProductEntity {
     public abstract Type getProductType();
 
     /** 공통 값을 덮어쓰고 바뀐 게 있으면 true. 자식의 apply 가 자기 값과 함께 부릅니다 */
-    protected boolean applyCommon(String name, String thumbnailUrl, String purchaseUrl, String sourceHash,
-                                  boolean childChanged, OffsetDateTime now) {
-        boolean changed = childChanged || !Objects.equals(this.name, name) || !Objects.equals(this.thumbnailUrl, thumbnailUrl)
-                || !Objects.equals(this.purchaseUrl, purchaseUrl);
+    protected boolean applyCommon(String name, String thumbnailUrl, String sourceHash, boolean childChanged, OffsetDateTime now) {
+        boolean changed = childChanged || !Objects.equals(this.name, name) || !Objects.equals(this.thumbnailUrl, thumbnailUrl);
         this.name = name;
         this.thumbnailUrl = thumbnailUrl;
-        this.purchaseUrl = purchaseUrl;
         this.sourceHash = sourceHash;
         if (this.createdAt == null) this.createdAt = now;
         if (changed || this.updatedAt == null) this.updatedAt = now;
@@ -64,7 +59,6 @@ public abstract class ProductEntity {
     public Long getId() { return id; }
     public String getName() { return name; }
     public String getThumbnailUrl() { return thumbnailUrl; }
-    public String getPurchaseUrl() { return purchaseUrl; }
     public String getSourceHash() { return sourceHash; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
 }

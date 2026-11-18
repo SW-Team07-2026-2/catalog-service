@@ -23,5 +23,4 @@ public record PhysicalAlbumUpsert(@NotBlank @Size(max = 128) String externalId,
                                   @NotBlank @Size(max = 255) String name,
                                   LocalDate releasedAt,
                                   @Size(max = 512) String thumbnailUrl,
-                                  @Size(max = 1024) String purchaseUrl,
                                   @NotEmpty List<@Valid @NotNull OptionUpsert> options) {}

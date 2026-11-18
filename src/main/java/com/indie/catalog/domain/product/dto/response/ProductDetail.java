@@ -13,6 +13,6 @@ import java.util.List;
  * (피지컬 앨범: albumId · albumTitle · format · releasedAt / 굿즈: category).
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record ProductDetail(long id, ProductEntity.Type productType, String name, String thumbnailUrl, String purchaseUrl,
+public record ProductDetail(long id, ProductEntity.Type productType, String name, String thumbnailUrl,
                             Long artistId, String artistName, Long albumId, String albumTitle, PhysicalFormat format,
                             LocalDate releasedAt, GoodsCategory category, List<OptionView> options) {}

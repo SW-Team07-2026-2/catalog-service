@@ -163,7 +163,7 @@ public class IngestService {
         GoodsEntity goods = goodsRepository.findBySourceAndExternalId(source, g.externalId())
                 .orElseGet(() -> new GoodsEntity(source, g.externalId()));
         boolean created = goods.getId() == null;
-        boolean changed = goods.apply(artist.getId(), g.category(), g.name().strip(), g.thumbnailUrl(), g.purchaseUrl(),
+        boolean changed = goods.apply(artist.getId(), g.category(), g.name().strip(), g.thumbnailUrl(),
                 g.sourceHash(), now);
         goods = goodsRepository.save(goods);
         ProductService.OptionsResult options = productService.upsertOptions(goods.getId(), null, inputs(g.options()));
@@ -240,7 +240,7 @@ public class IngestService {
                 .orElseGet(() -> new PhysicalAlbumEntity(source, u.externalId()));
         boolean created = physicalAlbum.getId() == null;
         boolean changed = physicalAlbum.apply(album.getId(), u.format(), u.releasedAt(), u.name().strip(),
-                u.thumbnailUrl() == null ? album.getThumbnailUrl() : u.thumbnailUrl(), u.purchaseUrl(), u.sourceHash(), now);
+                u.thumbnailUrl() == null ? album.getThumbnailUrl() : u.thumbnailUrl(), u.sourceHash(), now);
         physicalAlbum = physicalAlbumRepository.save(physicalAlbum);
         ProductService.OptionsResult options = productService.upsertOptions(physicalAlbum.getId(), u.format(), inputs(u.options()));
         // 새 상품은 발매일이 최근이거나 모를 때만 · 이미 있던 상품에 옵션(컬러반 등)이 새로 생기면 그 옵션만 실어 보냅니다

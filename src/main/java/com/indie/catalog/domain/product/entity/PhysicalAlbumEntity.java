@@ -36,13 +36,13 @@ public class PhysicalAlbumEntity extends ProductEntity {
     public Type getProductType() { return Type.PHYSICAL_ALBUM; }
 
     public boolean apply(Long albumId, PhysicalFormat format, LocalDate releasedAt, String name, String thumbnailUrl,
-                         String purchaseUrl, String sourceHash, OffsetDateTime now) {
+                         String sourceHash, OffsetDateTime now) {
         boolean changed = !Objects.equals(this.albumId, albumId) || this.format != format
                 || !Objects.equals(this.releasedAt, releasedAt);
         this.albumId = albumId;
         this.format = format;
         this.releasedAt = releasedAt;
-        return applyCommon(name, thumbnailUrl, purchaseUrl, sourceHash, changed, now);
+        return applyCommon(name, thumbnailUrl, sourceHash, changed, now);
     }
 
     public Long getAlbumId() { return albumId; }
