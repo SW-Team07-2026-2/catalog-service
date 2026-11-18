@@ -60,7 +60,7 @@ id 는 모두 `BIGINT`(BIGSERIAL)입니다. 매핑만 하는 테이블(`cart_ite
   - 아티스트 → 굿즈 → 상품 옵션 → 주문 항목 → 주문
   - 아티스트 → 앨범 → 피지컬 앨범 → 상품 옵션 → 주문 항목 → 주문
 - 한 앨범에 같은 매체가 여러 개 있을 수 있습니다. 초판 · 재판 · N차는 상품 이름으로 구분합니다 (크롤링 원본 그대로).
-- 가격은 옵션에만 있습니다. 목록의 `minPrice` 는 옵션 중 최저가입니다.
+- 가격은 옵션에만 있습니다. 목록의 `minPrice` 는 옵션 중 최저가입니다. ✏️ 11/18 목록의 `soldOut` 은 모든 옵션 재고가 0 이거나 옵션이 없을 때 `true` 입니다 (상세 옵션의 `soldOut` 과 같은 기준).
 - 옵션은 지우지 않습니다. 주문 항목과 member 의 보유 음반이 옵션 id 를 가리키기 때문입니다.
 
 ### 2.3 장바구니 · 주문
@@ -241,8 +241,8 @@ Payment 는 바꾸지 않았습니다. Payment 가 내는 `payment.cancelled` �
 | `GET /api/catalog/albums` | 변경 | 항목에 `genres` 추가 |
 | `GET /api/catalog/albums/{id}` | 변경 | `cd` · `lps` 삭제 → `physicalAlbums`. 트랙에 `genres` · `tempo` · `moods` · `emotions` · `styles` |
 | `GET /api/catalog/lps` | **삭제** | → `GET /api/catalog/physical-albums` |
-| `GET /api/catalog/physical-albums` | **신규** | `?format=LP\|CD\|CASSETTE&from=&to=&page=&size=` — 발매일순 |
-| `GET /api/catalog/goods` | 변경 | `category` 필터 추가 (`?artistId=&category=`). 항목에 `category` · `minPrice` (상품 단위 `price` · `qty` 없음) |
+| `GET /api/catalog/physical-albums` | **신규** | `?format=LP\|CD\|CASSETTE&from=&to=&page=&size=` — 발매일순 · ✏️ 11/18 항목에 `soldOut` |
+| `GET /api/catalog/goods` | 변경 | `category` 필터 추가 (`?artistId=&category=`). 항목에 `category` · `minPrice` · ✏️ 11/18 `soldOut` (상품 단위 `price` · `qty` 없음) |
 | `GET /api/catalog/products/{id}` | 변경 | 상품 + `options[]`(옵션별 `price` · `qty` · `soldOut`). 상품 단위 `price` · `qty` 는 없음 |
 | `GET /api/catalog/products?ids=` | 변경 | 위와 같은 모양의 목록 |
 | `GET /api/catalog/search` | 유지 | 경로 · 응답 모양 그대로 (내부 구현만 바뀜) |

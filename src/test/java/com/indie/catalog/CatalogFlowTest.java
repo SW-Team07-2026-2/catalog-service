@@ -277,6 +277,16 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(goods.options()).extracting(OptionView::size).containsExactly(OptionSize.M);
         assertThat(productService.products(List.of(shop.lpId, shop.goodsId, 999_999L))).hasSize(2);
         assertCode(() -> productService.product(999_999L), CommonErrorCode.NOT_FOUND);
+
+        // 11/18 목록의 품절 — 모든 옵션 재고가 0 이면 true (상세 soldOut 과 같은 기준). 아티스트 상세의 목록도 같은 항목
+        assertThat(productService.goods(shop.artistId, null, 0, 10).items()).extracting(GoodsItem::soldOut).containsExactly(false);
+        assertThat(productService.physicalAlbums(null, null, null, 0, 10).items()).extracting(PhysicalAlbumItem::soldOut).containsExactly(false);
+        admin.setStock(shop.goodsOption, 0, "품절 확인", "7");
+        assertThat(productService.goods(shop.artistId, null, 0, 10).items()).extracting(GoodsItem::soldOut).containsExactly(true);
+        assertThat(artistService.detail(shop.artistId).goods()).extracting(GoodsItem::soldOut).containsExactly(true);
+        assertThat(artistService.detail(shop.artistId).physicalAlbums()).extracting(PhysicalAlbumItem::soldOut).containsExactly(false);
+        admin.setStock(shop.goodsOption, 1, "다시 입고", "7");
+        assertThat(productService.goods(shop.artistId, null, 0, 10).items()).extracting(GoodsItem::soldOut).containsExactly(false);
     }
 
     // ── 장바구니 ────────────────────────────────────────────────────────────────────────────────

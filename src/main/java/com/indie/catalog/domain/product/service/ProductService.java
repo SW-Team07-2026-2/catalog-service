@@ -205,20 +205,24 @@ public class ProductService {
 
     private List<GoodsItem> goodsItems(List<GoodsEntity> goods) {
         Map<Long, String> artistNames = artistNames(goods, Map.of());
-        Map<Long, Integer> minPrices = minPrices(goods);
-        return goods.stream().map(g -> new GoodsItem(g.getId(), g.getArtistId(), artistNames.get(g.getArtistId()), g.getName(),
-                g.getCategory(), g.getThumbnailUrl(), minPrices.get(g.getId()))).toList();
+        Map<Long, ListInfo> infos = listInfos(goods);
+        return goods.stream().map(g -> {
+            ListInfo info = infos.getOrDefault(g.getId(), ListInfo.NO_OPTIONS);
+            return new GoodsItem(g.getId(), g.getArtistId(), artistNames.get(g.getArtistId()), g.getName(),
+                    g.getCategory(), g.getThumbnailUrl(), info.minPrice(), info.soldOut());
+        }).toList();
     }
 
     private List<PhysicalAlbumItem> physicalAlbumItems(List<PhysicalAlbumEntity> physicalAlbums) {
         Map<Long, AlbumEntity> albums = albumsOf(physicalAlbums);
         Map<Long, String> artistNames = artistNames(physicalAlbums, albums);
-        Map<Long, Integer> minPrices = minPrices(physicalAlbums);
+        Map<Long, ListInfo> infos = listInfos(physicalAlbums);
         return physicalAlbums.stream().map(pa -> {
             AlbumEntity album = albums.get(pa.getAlbumId());
+            ListInfo info = infos.getOrDefault(pa.getId(), ListInfo.NO_OPTIONS);
             return new PhysicalAlbumItem(pa.getId(), album.getId(), album.getTitle(), album.getArtistId(),
                     artistNames.get(album.getArtistId()), pa.getFormat(), pa.getName(), pa.getReleasedAt(),
-                    pa.getThumbnailUrl(), minPrices.get(pa.getId()));
+                    pa.getThumbnailUrl(), info.minPrice(), info.soldOut());
         }).toList();
     }
 
@@ -228,11 +232,23 @@ public class ProductService {
                 .collect(Collectors.groupingBy(ProductOptionEntity::getProductId));
     }
 
-    private Map<Long, Integer> minPrices(List<? extends ProductEntity> products) {
-        Map<Long, Integer> min = new HashMap<>();
-        optionsOf(products).forEach((productId, options) ->
-                min.put(productId, options.stream().mapToInt(ProductOptionEntity::getPrice).min().orElseThrow()));
-        return min;
+    /** 목록 항목의 최저가 · 품절 — 옵션 · 재고를 한 번씩만 읽습니다. 품절 기준은 상세의 OptionView.soldOut(재고 0)과 같습니다 */
+    private Map<Long, ListInfo> listInfos(List<? extends ProductEntity> products) {
+        Map<Long, List<ProductOptionEntity>> options = optionsOf(products);
+        if (options.isEmpty()) return Map.of();
+        Set<Long> inStock = new HashSet<>();
+        stockRepository.findAllById(options.values().stream().flatMap(List::stream).map(ProductOptionEntity::getId).toList())
+                .forEach(s -> { if (s.getQty() > 0) inStock.add(s.getOptionId()); });
+        Map<Long, ListInfo> infos = new HashMap<>();
+        options.forEach((productId, opts) -> infos.put(productId, new ListInfo(
+                opts.stream().mapToInt(ProductOptionEntity::getPrice).min().orElseThrow(),
+                opts.stream().noneMatch(o -> inStock.contains(o.getId())))));
+        return infos;
+    }
+
+    /** 옵션이 없으면 최저가 없음 · 살 수 있는 옵션이 없으니 품절 */
+    private record ListInfo(Integer minPrice, boolean soldOut) {
+        static final ListInfo NO_OPTIONS = new ListInfo(null, true);
     }
 
     /** 피지컬 앨범이 가리키는 앨범 — albumId → 앨범 */
