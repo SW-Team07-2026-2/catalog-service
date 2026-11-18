@@ -116,7 +116,7 @@ CHECK 제약: 모든 enum 컬럼의 값 목록, `price >= 0`, `stock.qty >= 0`, 
 | `PhysicalFormat` | LP · CD · CASSETTE | `physical_album.format` |
 | `GoodsCategory` | TSHIRT · OUTER · KEYRING · PICK · MUFFLER · SCARF · BAG · HAT · ETC | `goods.category` |
 | `VinylColor` | BLACK · COLOR | `product_option.vinyl_color` |
-| `OptionSize` | XS · S · M · L · XL · XXL · FREE | `product_option.size` |
+| `OptionSize` | XS · S · M · L · XL · XXL · FREE · ✏️ 11/18 `0` · `1` · `2` · `3` · `4` (숫자 사이즈 — 브랜드 표기 그대로 · Java 이름은 `SIZE_0` 이지만 API · DB 값은 `"0"`) | `product_option.size` |
 | `PurchaseOrderEntity.Status` | PENDING · CONFIRMED · CANCELLED · REFUNDED | `purchase_order.status` |
 
 값을 추가할 때는 **Java enum 과 마이그레이션의 CHECK 를 함께** 고칩니다. 한쪽만 고치면 `CatalogSchemaTest.checkConstraintValuesMatchJavaEnums` 가 깨집니다.
@@ -266,6 +266,7 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 | `PATCH /internal/admin/catalog/products/{id}` | **신규(11/13)** 상품 수정 (보낸 값만) |
 | `PUT /internal/admin/catalog/products/{id}/options` | **신규(11/13)** 옵션 추가 · 수정 |
 | `POST /internal/admin/catalog/options/{optionId}/stock` | **신규(11/13)** 재고 조정 |
+| `PUT /internal/admin/catalog/options/{optionId}/stock` | **신규(11/18)** 재고 설정 (절대값) |
 | `GET /internal/admin/catalog/users/{userId}/orders` | **신규(11/13)** 회원 주문 목록 (CS) |
 | `POST /internal/admin/catalog/orders/{id}/cancel` | **신규(11/13)** 주문 취소 대행 (CS) |
 | `POST /internal/admin/catalog/ingest/artists` · `/albums` · `/diff` | **신규(11/17)** 크롤러 → Studio → 여기. 본문 · 결과 · 저장 규칙은 수집 API(7.3 · 5.6)와 같고 토큰만 `iss=studio`. 크롤러는 Gateway `/ingest` 로 보내지 않습니다 (Cloudflare 터널 헤더 때문에 G1 이 막음 · docs/v2_후속_작업 1-12) |
@@ -278,6 +279,7 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 | 상품 수정 | `{ name?, thumbnailUrl?, purchaseUrl?, category?(굿즈), releasedAt?(피지컬) }` | 보낸 값만 바꿉니다. 매체 · 연결된 앨범 · 아티스트는 바꾸지 않습니다 |
 | 옵션 | `{ options: [{ id?, name, vinylColor?, size?, price }] }` | `id` 가 있으면 그 옵션을 고치고 이름도 바꿉니다. 없으면 이름으로 찾아 고치거나 새로 만듭니다(재고 0). 요청에 없는 옵션은 그대로 둡니다 |
 | 재고 조정 | `{ delta, reason }` | `{ optionId, qty, updatedAt }`. 입고 +, 회수 · 파손 −. 주문 차감과 같은 조건부 UPDATE 라 0 아래로 내려가지 않습니다 (모자라면 409 `OUT_OF_STOCK`) |
+| 재고 설정 (11/18) | `PUT` `{ qty, reason }` (qty 0 이상) | `{ optionId, qty, updatedAt }`. 재고를 qty 개로 맞춥니다. 수집 입고와 같은 행 락이라 주문 차감과 엇갈리지 않습니다. 수집 · 시드로 들어온 상품은 qty 없이 들어와 재고 0 이고, 관리자가 여기서 정합니다 |
 | 회원 주문 목록 | `?cursor=&size=` | 내 주문 목록(C10)과 같은 모양 |
 | 주문 취소 대행 | `{ reason }` (Studio 작업 기록용 · catalog 는 읽지 않음) | 주문 상세. 회원 본인 취소(C12)와 같은 흐름이고 Payment 에 남는 사유만 `ADMIN_CANCEL` 입니다 |
 
@@ -378,7 +380,7 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 | 테스트 | 건수 | 확인하는 것 |
 |---|---|---|
 | `CatalogSchemaTest` | 11 | Flyway 이력이 V1 · V2 둘인지 · `ddl-auto: validate` 로 엔티티 ↔ 스키마 일치 · CHECK 값 목록 = Java enum · enum 배열 저장/조회 · 장르 필터 · 검색(트라이그램 · `%` 는 글자 그대로) · 재고 5개에 동시 주문 20건 → 5건만 성공 · 장바구니 upsert · outbox SKIP LOCKED · 주문 상태 전이 |
-| `CatalogFlowTest` | 11 | 관리자 상품 등록 · 수정 · 옵션(이름 변경) · 재고 조정과 주문 취소 대행(11/13). 수집 → 조회 → 장바구니 → 주문 · 환불. 이벤트 payload 필드, 값이 안 바뀌면 이벤트 없음, 트랙 id 유지, 옵션 규칙 위반 거절, 재고 부족 · 결제 준비 실패 시 재고 복구, 취소 뒤 환불 정정(재고 이중 복구 없음), 만료 · 탈퇴 |
+| `CatalogFlowTest` | 11 | 관리자 상품 등록 · 수정 · 옵션(이름 변경) · 재고 조정과 주문 취소 대행(11/13) · 재고 설정과 숫자 사이즈 `"0"` 저장(11/18). 수집 → 조회 → 장바구니 → 주문 · 환불. 이벤트 payload 필드, 값이 안 바뀌면 이벤트 없음, 트랙 id 유지, 옵션 규칙 위반 거절, 재고 부족 · 결제 준비 실패 시 재고 복구, 취소 뒤 환불 정정(재고 이중 복구 없음), 만료 · 탈퇴 |
 | `CatalogApiTest` | 1 | 앱 전체 기동 + HTTP — enum 파라미터 · JSON 필드 · 장바구니 · 주문 요청 모양 · 캐시(Redis) 없이 조회 · Payment 불통 시 503 과 재고 복구 |
 | `OptionRuleTest` | 3 | LP · CD/카세트 · 굿즈 옵션 규칙 |
 | `SearchServiceTest` · `InternalTokenFilterTest` | 1 · 14 | 검색 / 내부 토큰 — 관리자(`studio`) 토큰은 `/internal/admin/**` 만 열고 수집 API 는 못 엽니다(11/13) |

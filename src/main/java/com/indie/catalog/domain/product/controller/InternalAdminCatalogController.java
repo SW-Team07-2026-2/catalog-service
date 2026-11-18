@@ -7,6 +7,7 @@ import com.indie.catalog.domain.product.dto.request.AdminOptionsRequest;
 import com.indie.catalog.domain.product.dto.request.AdminProductCreate;
 import com.indie.catalog.domain.product.dto.request.AdminProductUpdate;
 import com.indie.catalog.domain.product.dto.request.AdminStockAdjust;
+import com.indie.catalog.domain.product.dto.request.AdminStockSet;
 import com.indie.catalog.domain.product.dto.response.ProductDetail;
 import com.indie.catalog.domain.product.dto.response.StockView;
 import com.indie.catalog.domain.product.service.AdminProductService;
@@ -62,6 +63,12 @@ public class InternalAdminCatalogController {
     public ApiResponse<StockView> adjustStock(@PathVariable @Positive long optionId, @Valid @RequestBody AdminStockAdjust request,
                                               @RequestHeader(value = "X-Admin-Id", required = false) String adminId) {
         return ApiResponse.onSuccess(adminProductService.adjustStock(optionId, request.delta(), request.reason(), adminId));
+    }
+
+    @PutMapping("/internal/admin/catalog/options/{optionId}/stock")
+    public ApiResponse<StockView> setStock(@PathVariable @Positive long optionId, @Valid @RequestBody AdminStockSet request,
+                                           @RequestHeader(value = "X-Admin-Id", required = false) String adminId) {
+        return ApiResponse.onSuccess(adminProductService.setStock(optionId, request.qty(), request.reason(), adminId));
     }
 
     /** 회원의 주문 목록 — 최신순 커서 (내 주문 목록 C10 과 같은 모양) */

@@ -1,5 +1,6 @@
 package com.indie.catalog.domain.product.entity;
 
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -29,7 +30,7 @@ public class ProductOptionEntity {
     private String name;
     @Enumerated(EnumType.STRING)
     private VinylColor vinylColor;
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = OptionSizeConverter.class)
     private OptionSize size;
     private Integer price;
     private OffsetDateTime createdAt;

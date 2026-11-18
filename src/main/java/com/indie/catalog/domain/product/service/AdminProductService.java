@@ -165,6 +165,16 @@ public class AdminProductService {
         return new StockView(optionId, stock.getQty(), stock.getUpdatedAt());
     }
 
+    /** 재고 설정 — 수량을 qty 개로 맞춥니다. 수집 입고와 같은 행 락이라 주문 차감과 엇갈리지 않습니다 */
+    @Transactional
+    public StockView setStock(long optionId, int qty, String reason, String adminId) {
+        optionRepository.findById(optionId).orElseThrow(() -> new GeneralException(ProductErrorCode.OPTION_NOT_FOUND));
+        StockEntity stock = stockRepository.findForUpdate(optionId).orElseThrow();
+        stock.restockTo(qty, OffsetDateTime.now(clock));
+        log.info("stock_set optionId={} qty={} adminId={} reason={}", optionId, qty, adminId, reason);
+        return new StockView(optionId, stock.getQty(), stock.getUpdatedAt());
+    }
+
     private ProductEntity product(long id) {
         return productRepository.findById(id).orElseThrow(() -> new GeneralException(ProductErrorCode.PRODUCT_NOT_FOUND));
     }
