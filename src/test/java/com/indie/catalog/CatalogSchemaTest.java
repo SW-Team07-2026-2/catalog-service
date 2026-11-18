@@ -125,6 +125,20 @@ class CatalogSchemaTest extends PostgresTest {
         assertThat(artistRepository.search("paran", Genre.JAZZ, 0, 10)).isEmpty();
     }
 
+    /** 이름순은 가나다순 — DB 기본 정렬(en_US.utf8 · glibc 2.28+)은 한글을 글자 수 순서처럼 섞습니다 (11/17 PC 에서 확인) */
+    @Test
+    void artistNamesSortInKoreanOrder() {
+        artist("sort-1", "혁오", List.of(Genre.INDIE_ROCK));
+        artist("sort-2", "장기하와 얼굴들", List.of(Genre.INDIE_ROCK));
+        artist("sort-3", "넬", List.of(Genre.INDIE_ROCK));
+        artist("sort-4", "다브다", List.of(Genre.INDIE_ROCK));
+        em.flush();
+        em.clear();
+
+        assertThat(artistRepository.search(null, null, 0, 50)).extracting(ArtistEntity::getName)   // 다른 테스트 행이 섞여도 순서만 봄
+                .containsSubsequence("넬", "다브다", "장기하와 얼굴들", "혁오");
+    }
+
     /** 목록에 없는 값은 DB 가 거절합니다 */
     @Test
     void unknownGenreIsRejectedByCheck() {
