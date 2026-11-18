@@ -10,7 +10,7 @@ import java.util.Arrays;
  */
 public enum OptionSize {
     XS("XS"), S("S"), M("M"), L("L"), XL("XL"), XXL("XXL"), FREE("FREE"),
-    SIZE_0("0"), SIZE_1("1"), SIZE_2("2"), SIZE_3("3"), SIZE_4("4");
+    SIZE_0("0"), SIZE_1("1"), SIZE_2("2"), SIZE_3("3"), SIZE_4("4"), SIZE_5("5"), SIZE_6("6");
 
     private final String value;
 
