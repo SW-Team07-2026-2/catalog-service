@@ -50,7 +50,7 @@ id 는 모두 `BIGINT`(BIGSERIAL)입니다. 매핑만 하는 테이블(`cart_ite
 
 | 테이블 | 컬럼 |
 |---|---|
-| `product` | `id` · `product_type` · `name` · `thumbnail_url` · `purchase_url` · `source` · `external_id` · `source_hash` · `created_at` · `updated_at` |
+| `product` | `id` · `product_type` · `name` · `thumbnail_url` · ~~`purchase_url`~~ (✏️ 11/18 삭제 — 구매 링크는 두지 않음 · indig 가 직접 판매) · `source` · `external_id` · `source_hash` · `created_at` · `updated_at` |
 | `physical_album` | `id`(PK = FK → product) · `album_id`(FK) · `format` · `released_at` |
 | `goods` | `id`(PK = FK → product) · `artist_id`(FK) · `category` |
 | `product_option` | `id` · `product_id`(FK) · `name` · `vinyl_color` · `size` · `price` · `created_at` |
@@ -275,8 +275,8 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 
 | API | 요청 | 응답 · 규칙 |
 |---|---|---|
-| 상품 등록 | `{ productType, name, thumbnailUrl?, purchaseUrl?, options: [{ name, vinylColor?, size?, price, qty? }] }` + 굿즈는 `artistId` · `category`, 피지컬 앨범은 `albumId` · `format` · `releasedAt?` | 상품 상세(C8 과 같은 모양). `source` 는 `studio`. 옵션 규칙은 수집과 같습니다(4.2). 굿즈는 `goods.released`, 피지컬 앨범은 발매일이 최근이거나 없을 때 `physical_album.released` 를 냅니다 |
-| 상품 수정 | `{ name?, thumbnailUrl?, purchaseUrl?, category?(굿즈), releasedAt?(피지컬) }` | 보낸 값만 바꿉니다. 매체 · 연결된 앨범 · 아티스트는 바꾸지 않습니다 |
+| 상품 등록 | `{ productType, name, thumbnailUrl?, options: [{ name, vinylColor?, size?, price, qty? }] }` + 굿즈는 `artistId` · `category`, 피지컬 앨범은 `albumId` · `format` · `releasedAt?` | 상품 상세(C8 과 같은 모양). `source` 는 `studio`. 옵션 규칙은 수집과 같습니다(4.2). 굿즈는 `goods.released`, 피지컬 앨범은 발매일이 최근이거나 없을 때 `physical_album.released` 를 냅니다 |
+| 상품 수정 | `{ name?, thumbnailUrl?, category?(굿즈), releasedAt?(피지컬) }` | 보낸 값만 바꿉니다. ✏️ 11/18 등록 · 수정 · 상품 상세에서 `purchaseUrl` 을 뺐습니다(보내면 무시). 매체 · 연결된 앨범 · 아티스트는 바꾸지 않습니다 |
 | 옵션 | `{ options: [{ id?, name, vinylColor?, size?, price }] }` | `id` 가 있으면 그 옵션을 고치고 이름도 바꿉니다. 없으면 이름으로 찾아 고치거나 새로 만듭니다(재고 0). 요청에 없는 옵션은 그대로 둡니다 |
 | 재고 조정 | `{ delta, reason }` | `{ optionId, qty, updatedAt }`. 입고 +, 회수 · 파손 −. 주문 차감과 같은 조건부 UPDATE 라 0 아래로 내려가지 않습니다 (모자라면 409 `OUT_OF_STOCK`) |
 | 재고 설정 (11/18) | `PUT` `{ qty, reason }` (qty 0 이상) | `{ optionId, qty, updatedAt }`. 재고를 qty 개로 맞춥니다. 수집 입고와 같은 행 락이라 주문 차감과 엇갈리지 않습니다. 수집 · 시드로 들어온 상품은 qty 없이 들어와 재고 0 이고, 관리자가 여기서 정합니다 |
@@ -300,7 +300,7 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
   "name": "…", "genres": ["SHOEGAZE", "EMO"], "label": "소속사 이름", "debut_year": 2018, "profile_url": "…",
   "goods": [{                                   // null 이면 굿즈는 건드리지 않음
     "external_id": "…", "source_hash": "…", "name": "로고 티셔츠 (블랙)", "category": "TSHIRT",
-    "thumbnail_url": "…", "purchase_url": "…",
+    "thumbnail_url": "…",                       // ✏️ 11/18 purchase_url 삭제 (보내면 무시)
     "options": [{ "name": "M", "size": "M", "price": 35000, "qty": 3 }]
   }]
 }]}
@@ -313,7 +313,7 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
                "moods": ["DREAMY"], "emotions": ["LONGING"], "styles": ["GUITAR_DRIVEN"] }],
   "physical_albums": [{
     "external_id": "…", "source_hash": "…", "format": "LP", "name": "… LP (초판)", "released_at": "2026-11-01",
-    "thumbnail_url": "…", "purchase_url": "…",
+    "thumbnail_url": "…",                       // ✏️ 11/18 purchase_url 삭제 (보내면 무시)
     "options": [{ "name": "블랙", "vinyl_color": "BLACK", "price": 42000, "qty": 5 }]
   }]
 }]}

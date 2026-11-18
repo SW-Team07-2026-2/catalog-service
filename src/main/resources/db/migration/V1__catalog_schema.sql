@@ -69,7 +69,6 @@ CREATE TABLE product (
     product_type  VARCHAR(16)  NOT NULL,
     name          VARCHAR(255) NOT NULL,
     thumbnail_url VARCHAR(512),
-    purchase_url  VARCHAR(1024),                         -- 실제 판매처(크롤링) 링크
     source        VARCHAR(32)  NOT NULL,
     external_id   VARCHAR(128) NOT NULL,
     source_hash   VARCHAR(128),
