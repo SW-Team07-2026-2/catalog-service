@@ -490,6 +490,15 @@ class CatalogFlowTest extends PostgresTest {
         assertCode(() -> admin.adjustStock(freeId, -1, "회수", "7"), ProductErrorCode.OUT_OF_STOCK);
         assertCode(() -> admin.adjustStock(freeId, 0, "오타", "7"), CommonErrorCode.INVALID_REQUEST);
         assertCode(() -> admin.adjustStock(999_999L, 1, "입고", "7"), ProductErrorCode.OPTION_NOT_FOUND);
+
+        assertThat(admin.setStock(freeId, 12, "첫 입고", "7").qty()).isEqualTo(12);                   // 설정은 절대값
+        assertThat(admin.setStock(freeId, 0, "실사 보정", "7").qty()).isZero();
+        assertCode(() -> admin.setStock(999_999L, 1, "입고", "7"), ProductErrorCode.OPTION_NOT_FOUND);
+
+        ProductDetail tee = admin.create(new AdminProductCreate(ProductEntity.Type.GOODS, "로고 티셔츠", null, null, shop.artistId,
+                GoodsCategory.TSHIRT, null, null, null, List.of(new AdminOption(null, "0", null, OptionSize.SIZE_0, 59000, null))));
+        assertThat(tee.options()).extracting(OptionView::size, OptionView::qty).containsExactly(org.assertj.core.api.Assertions.tuple(OptionSize.SIZE_0, 0));
+        assertThat(jdbc.queryForObject("SELECT size FROM product_option WHERE id = ?", String.class, tee.options().get(0).id())).isEqualTo("0");   // DB 값은 "0"
     }
 
     /** CS 관리자의 취소 대행 — 회원 본인 취소와 같은 흐름 (결제 후면 환불 · 재고 복구), Payment 에 남는 사유만 다릅니다 */

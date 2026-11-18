@@ -32,7 +32,7 @@ ALTER TABLE product ADD CONSTRAINT ck_product_type CHECK (product_type IN ('PHYS
 ALTER TABLE physical_album ADD CONSTRAINT ck_physical_album_format CHECK (format IN ('LP','CD','CASSETTE'));
 ALTER TABLE goods ADD CONSTRAINT ck_goods_category CHECK (category IN ('TSHIRT','OUTER','KEYRING','PICK','MUFFLER','SCARF','BAG','HAT','ETC'));
 ALTER TABLE product_option ADD CONSTRAINT ck_product_option_vinyl_color CHECK (vinyl_color IN ('BLACK','COLOR'));
-ALTER TABLE product_option ADD CONSTRAINT ck_product_option_size CHECK (size IN ('XS','S','M','L','XL','XXL','FREE'));
+ALTER TABLE product_option ADD CONSTRAINT ck_product_option_size CHECK (size IN ('XS','S','M','L','XL','XXL','FREE','0','1','2','3','4'));   -- 숫자 사이즈는 브랜드 표기 그대로 (OptionSize.SIZE_0 = '0')
 
 -- ── 주문 (OrderStatus) ──
 ALTER TABLE purchase_order ADD CONSTRAINT ck_order_status CHECK (status IN ('PENDING','CONFIRMED','CANCELLED','REFUNDED'));

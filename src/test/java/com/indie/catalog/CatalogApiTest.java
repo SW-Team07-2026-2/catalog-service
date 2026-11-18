@@ -184,6 +184,23 @@ class CatalogApiTest {
                                 + ",\"title\":\"여름깃\",\"type\":\"EP\"}]}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.result.items[0].result").value("CREATED"));
 
+        // 11/18 — 숫자 사이즈는 JSON 값 "0" 그대로 · 적재 때 qty 를 안 보내면 재고 0 → 관리자가 설정
+        mvc.perform(post("/internal/admin/catalog/ingest/artists").header("X-Internal-Token", studio).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"items\":[{\"source\":\"crawler\",\"external_id\":\"adm-1\",\"source_hash\":\"h3\",\"name\":\"새소년\",\"genres\":[\"SHOEGAZE\"],"
+                                + "\"goods\":[{\"external_id\":\"adm-tee\",\"name\":\"로고 티셔츠\",\"category\":\"TSHIRT\",\"options\":[{\"name\":\"0\",\"size\":\"0\",\"price\":59000}]}]}]}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.result.items[0].result").value("UPDATED"));
+        long teeId = jdbc.queryForObject("SELECT id FROM product WHERE external_id = 'adm-tee'", Long.class);
+        long teeOption = jdbc.queryForObject("SELECT id FROM product_option WHERE product_id = ?", Long.class, teeId);
+        mvc.perform(get("/api/catalog/products/" + teeId)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.options[0].size").value("0"))
+                .andExpect(jsonPath("$.result.options[0].qty").value(0));
+        mvc.perform(put("/internal/admin/catalog/options/" + teeOption + "/stock").header("X-Internal-Token", studio)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"qty\":15,\"reason\":\"첫 입고\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.result.qty").value(15));
+        mvc.perform(put("/internal/admin/catalog/options/" + teeOption + "/stock").header("X-Internal-Token", studio)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"qty\":-1,\"reason\":\"오타\"}"))
+                .andExpect(status().isBadRequest());
+
         // 토큰 없이 · 다른 발급자 · Studio 토큰으로 Gateway 수집 경로는 닫혀 있습니다
         mvc.perform(post("/internal/admin/catalog/ingest/artists").contentType(MediaType.APPLICATION_JSON).content(artists))
                 .andExpect(status().isUnauthorized());
