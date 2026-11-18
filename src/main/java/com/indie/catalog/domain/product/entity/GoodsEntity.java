@@ -30,12 +30,12 @@ public class GoodsEntity extends ProductEntity {
     @Override
     public Type getProductType() { return Type.GOODS; }
 
-    public boolean apply(Long artistId, GoodsCategory category, String name, String thumbnailUrl, String purchaseUrl,
-                         String sourceHash, OffsetDateTime now) {
+    public boolean apply(Long artistId, GoodsCategory category, String name, String thumbnailUrl, String sourceHash,
+                         OffsetDateTime now) {
         boolean changed = !Objects.equals(this.artistId, artistId) || this.category != category;
         this.artistId = artistId;
         this.category = category;
-        return applyCommon(name, thumbnailUrl, purchaseUrl, sourceHash, changed, now);
+        return applyCommon(name, thumbnailUrl, sourceHash, changed, now);
     }
 
     public Long getArtistId() { return artistId; }

@@ -23,7 +23,6 @@ import java.util.List;
 public record AdminProductCreate(@NotNull ProductEntity.Type productType,
                                  @NotBlank @Size(max = 255) String name,
                                  @Size(max = 512) String thumbnailUrl,
-                                 @Size(max = 1024) String purchaseUrl,
                                  @Positive Long artistId,
                                  GoodsCategory category,
                                  @Positive Long albumId,

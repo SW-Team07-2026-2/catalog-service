@@ -89,12 +89,12 @@ class CatalogApiTest {
     void publicApisCartAndOrderOverHttp() throws Exception {
         long artistId = ingest.upsertArtists(List.of(new ArtistUpsert("crawler", "api-artist", "h", "파란노을",
                 List.of(Genre.SHOEGAZE, Genre.EMO), "인디레이블", 2018, null,
-                List.of(new GoodsUpsert("api-goods", "h", "로고 티셔츠", GoodsCategory.TSHIRT, null, null,
+                List.of(new GoodsUpsert("api-goods", "h", "로고 티셔츠", GoodsCategory.TSHIRT, null,
                         List.of(new OptionUpsert("M", null, OptionSize.M, 35000, 3))))))).get(0).id();
         long albumId = ingest.upsertAlbums(List.of(new AlbumUpsert("crawler", "api-album", "h", artistId, "슬로우 다이브",
                 AlbumEntity.Type.EP, List.of(Genre.SHOEGAZE), LocalDate.now(), null,
                 List.of(new TrackUpsert(1, "아름다운 세상", List.of(Genre.SHOEGAZE), Tempo.MID, List.of(Mood.DREAMY), null, null)),
-                List.of(new PhysicalAlbumUpsert("api-lp", "h", PhysicalFormat.LP, "슬로우 다이브 LP", LocalDate.now(), null, null,
+                List.of(new PhysicalAlbumUpsert("api-lp", "h", PhysicalFormat.LP, "슬로우 다이브 LP", LocalDate.now(), null,
                         List.of(new OptionUpsert("블랙", VinylColor.BLACK, null, 42000, 5))))))).get(0).id();
         long lpId = jdbc.queryForObject("SELECT id FROM product WHERE external_id = 'api-lp'", Long.class);
         long lpOption = jdbc.queryForObject("SELECT id FROM product_option WHERE product_id = ?", Long.class, lpId);

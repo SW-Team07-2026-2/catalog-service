@@ -192,13 +192,13 @@ public class ProductService {
                     .map(o -> optionView(o, Optional.ofNullable(stocks.get(o.getId())))).toList();
             if (p instanceof PhysicalAlbumEntity pa) {
                 AlbumEntity album = albums.get(pa.getAlbumId());
-                return new ProductDetail(pa.getId(), pa.getProductType(), pa.getName(), pa.getThumbnailUrl(), pa.getPurchaseUrl(),
+                return new ProductDetail(pa.getId(), pa.getProductType(), pa.getName(), pa.getThumbnailUrl(),
                         album.getArtistId(), artistNames.get(album.getArtistId()), album.getId(), album.getTitle(),
                         pa.getFormat(), pa.getReleasedAt(), null, views);
             }
             GoodsEntity goods = (GoodsEntity) p;
             return new ProductDetail(goods.getId(), goods.getProductType(), goods.getName(), goods.getThumbnailUrl(),
-                    goods.getPurchaseUrl(), goods.getArtistId(), artistNames.get(goods.getArtistId()), null, null,
+                    goods.getArtistId(), artistNames.get(goods.getArtistId()), null, null,
                     null, null, goods.getCategory(), views);
         }).toList();
     }

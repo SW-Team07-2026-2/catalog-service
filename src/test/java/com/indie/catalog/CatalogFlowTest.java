@@ -131,7 +131,7 @@ class CatalogFlowTest extends PostgresTest {
                 List.of(track(1, "NO PAIN"), track(2, "Tik Tak Tok")),
                 List.of(lp("lp-1", "ph1", LocalDate.now(), opt("초판 블랙", VinylColor.BLACK, null, 42000, 5),
                                 opt("초판 컬러", VinylColor.COLOR, null, 45000, 2)),
-                        new PhysicalAlbumUpsert("cd-1", "ch1", PhysicalFormat.CD, "POWER ANDRE 99 CD", null, null, null,
+                        new PhysicalAlbumUpsert("cd-1", "ch1", PhysicalFormat.CD, "POWER ANDRE 99 CD", null, null,
                                 List.of(opt("기본", null, null, 18000, 10)))));
         ItemResult albumCreated = ingest.upsertAlbums(List.of(album)).get(0);
         long albumId = albumCreated.id();
@@ -215,7 +215,7 @@ class CatalogFlowTest extends PostgresTest {
                 album("lp-with-size", "h", artistId, today, null,
                         List.of(lp("p2", "h", today, opt("기본", VinylColor.BLACK, OptionSize.FREE, 40000, 1)))),
                 album("cd-with-color", "h", artistId, today, null, List.of(new PhysicalAlbumUpsert("p3", "h", PhysicalFormat.CD,
-                        "CD", today, null, null, List.of(opt("기본", VinylColor.BLACK, null, 15000, 1))))),
+                        "CD", today, null, List.of(opt("기본", VinylColor.BLACK, null, 15000, 1))))),
                 album("dup-option", "h", artistId, today, null, List.of(lp("p4", "h", today,
                         opt("블랙", VinylColor.BLACK, null, 40000, 1), opt(" 블랙 ", VinylColor.BLACK, null, 41000, 1)))),
                 album("dup-track", "h", artistId, today, List.of(track(1, "a"), track(1, "b")), null),
@@ -462,9 +462,9 @@ class CatalogFlowTest extends PostgresTest {
         int goodsEvents = events("goods.released").size();
         int physicalEvents = events("physical_album.released").size();
 
-        ProductDetail goods = admin.create(new AdminProductCreate(ProductEntity.Type.GOODS, " 로고 키링 ", null, "https://shop/keyring",
+        ProductDetail goods = admin.create(new AdminProductCreate(ProductEntity.Type.GOODS, " 로고 키링 ", "https://img/keyring.jpg",
                 shop.artistId, GoodsCategory.KEYRING, null, null, null, List.of(new AdminOption(null, "FREE", null, OptionSize.FREE, 8000, 10))));
-        ProductDetail cd = admin.create(new AdminProductCreate(ProductEntity.Type.PHYSICAL_ALBUM, "슬로우 다이브 CD", null, null,
+        ProductDetail cd = admin.create(new AdminProductCreate(ProductEntity.Type.PHYSICAL_ALBUM, "슬로우 다이브 CD", null,
                 null, null, shop.albumId, PhysicalFormat.CD, LocalDate.now(), List.of(new AdminOption(null, "기본", null, null, 18000, null))));
 
         assertThat(goods.name()).isEqualTo("로고 키링");
@@ -475,16 +475,16 @@ class CatalogFlowTest extends PostgresTest {
                 .containsExactly("studio");
         assertThat(events("goods.released")).hasSize(goodsEvents + 1);
         assertThat(events("physical_album.released")).hasSize(physicalEvents + 1);
-        assertCode(() -> admin.create(new AdminProductCreate(ProductEntity.Type.GOODS, "키링", null, null, shop.artistId, null, null, null, null,
+        assertCode(() -> admin.create(new AdminProductCreate(ProductEntity.Type.GOODS, "키링", null, shop.artistId, null, null, null, null,
                 List.of(new AdminOption(null, "FREE", null, OptionSize.FREE, 8000, 1)))), CommonErrorCode.INVALID_REQUEST);   // category 없음
-        assertCode(() -> admin.create(new AdminProductCreate(ProductEntity.Type.PHYSICAL_ALBUM, "LP", null, null, null, null, shop.albumId,
+        assertCode(() -> admin.create(new AdminProductCreate(ProductEntity.Type.PHYSICAL_ALBUM, "LP", null, null, null, shop.albumId,
                 PhysicalFormat.LP, null, List.of(new AdminOption(null, "블랙", null, null, 42000, 1)))), ProductErrorCode.INVALID_OPTION);   // LP 는 vinylColor 필수
 
-        ProductDetail renamed = admin.update(goods.id(), new AdminProductUpdate("로고 키링 (실버)", null, null, GoodsCategory.ETC, null));
+        ProductDetail renamed = admin.update(goods.id(), new AdminProductUpdate("로고 키링 (실버)", null, GoodsCategory.ETC, null));
         assertThat(renamed.name()).isEqualTo("로고 키링 (실버)");
-        assertThat(renamed.purchaseUrl()).isEqualTo("https://shop/keyring");                       // 안 보낸 값은 그대로
+        assertThat(renamed.thumbnailUrl()).isEqualTo("https://img/keyring.jpg");                     // 안 보낸 값은 그대로
         assertThat(renamed.category()).isEqualTo(GoodsCategory.ETC);
-        assertCode(() -> admin.update(goods.id(), new AdminProductUpdate(null, null, null, null, LocalDate.now())), CommonErrorCode.INVALID_REQUEST);
+        assertCode(() -> admin.update(goods.id(), new AdminProductUpdate(null, null, null, LocalDate.now())), CommonErrorCode.INVALID_REQUEST);
 
         long freeId = goods.options().get(0).id();
         ProductDetail withOptions = admin.options(goods.id(), List.of(new AdminOption(freeId, "기본", null, OptionSize.FREE, 9000, null),
@@ -505,7 +505,7 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(admin.setStock(freeId, 0, "실사 보정", "7").qty()).isZero();
         assertCode(() -> admin.setStock(999_999L, 1, "입고", "7"), ProductErrorCode.OPTION_NOT_FOUND);
 
-        ProductDetail tee = admin.create(new AdminProductCreate(ProductEntity.Type.GOODS, "로고 티셔츠", null, null, shop.artistId,
+        ProductDetail tee = admin.create(new AdminProductCreate(ProductEntity.Type.GOODS, "로고 티셔츠", null, shop.artistId,
                 GoodsCategory.TSHIRT, null, null, null, List.of(new AdminOption(null, "0", null, OptionSize.SIZE_0, 59000, null))));
         assertThat(tee.options()).extracting(OptionView::size, OptionView::qty).containsExactly(org.assertj.core.api.Assertions.tuple(OptionSize.SIZE_0, 0));
         assertThat(jdbc.queryForObject("SELECT size FROM product_option WHERE id = ?", String.class, tee.options().get(0).id())).isEqualTo("0");   // DB 값은 "0"
@@ -539,7 +539,7 @@ class CatalogFlowTest extends PostgresTest {
                 List.of(Genre.SHOEGAZE), "인디레이블", 2018, null, List.of(tshirt("shop-goods", opt("M", null, OptionSize.M, 35000, 3)))))).get(0).id();
         long albumId = ingest.upsertAlbums(List.of(new AlbumUpsert("crawler", "shop-album", "h", artistId, "슬로우 다이브",
                 AlbumEntity.Type.ALBUM, List.of(Genre.SHOEGAZE), LocalDate.now(), "https://img/album.jpg", List.of(track(1, "아름다운 세상")),
-                List.of(new PhysicalAlbumUpsert("shop-lp", "h", PhysicalFormat.LP, "슬로우 다이브 LP", LocalDate.now(), null, null,
+                List.of(new PhysicalAlbumUpsert("shop-lp", "h", PhysicalFormat.LP, "슬로우 다이브 LP", LocalDate.now(), null,
                         List.of(opt("블랙", VinylColor.BLACK, null, 42000, 5))))))).get(0).id();
         long lpId = jdbc.queryForObject("SELECT id FROM product WHERE external_id = 'shop-lp'", Long.class);
         long goodsId = jdbc.queryForObject("SELECT id FROM product WHERE external_id = 'shop-goods'", Long.class);
@@ -576,11 +576,11 @@ class CatalogFlowTest extends PostgresTest {
     }
 
     private static PhysicalAlbumUpsert lp(String externalId, String hash, LocalDate releasedAt, OptionUpsert... options) {
-        return new PhysicalAlbumUpsert(externalId, hash, PhysicalFormat.LP, "POWER ANDRE 99 LP", releasedAt, null, null, List.of(options));
+        return new PhysicalAlbumUpsert(externalId, hash, PhysicalFormat.LP, "POWER ANDRE 99 LP", releasedAt, null, List.of(options));
     }
 
     private static GoodsUpsert tshirt(String externalId, OptionUpsert... options) {
-        return new GoodsUpsert(externalId, "h", "로고 티셔츠 (블랙)", GoodsCategory.TSHIRT, null, null, List.of(options));
+        return new GoodsUpsert(externalId, "h", "로고 티셔츠 (블랙)", GoodsCategory.TSHIRT, null, List.of(options));
     }
 
     private static OptionUpsert opt(String name, VinylColor vinylColor, OptionSize size, int price, Integer qty) {

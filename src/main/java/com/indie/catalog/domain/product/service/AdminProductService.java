@@ -93,7 +93,7 @@ public class AdminProductService {
                     "굿즈에는 albumId · format · releasedAt 을 쓸 수 없습니다");
             ArtistEntity artist = artist(r.artistId());
             GoodsEntity goods = new GoodsEntity(SOURCE, externalId);
-            goods.apply(artist.getId(), r.category(), r.name().strip(), r.thumbnailUrl(), r.purchaseUrl(), null, now);
+            goods.apply(artist.getId(), r.category(), r.name().strip(), r.thumbnailUrl(), null, now);
             goods = goodsRepository.save(goods);
             productService.upsertOptions(goods.getId(), null, options);
             events.goodsReleased(goods, artist, r.options().stream().mapToInt(AdminOption::price).min().orElseThrow());
@@ -107,7 +107,7 @@ public class AdminProductService {
             ArtistEntity artist = artist(album.getArtistId());
             PhysicalAlbumEntity physicalAlbum = new PhysicalAlbumEntity(SOURCE, externalId);
             physicalAlbum.apply(album.getId(), r.format(), r.releasedAt(), r.name().strip(),
-                    r.thumbnailUrl() == null ? album.getThumbnailUrl() : r.thumbnailUrl(), r.purchaseUrl(), null, now);
+                    r.thumbnailUrl() == null ? album.getThumbnailUrl() : r.thumbnailUrl(), null, now);
             physicalAlbum = physicalAlbumRepository.save(physicalAlbum);
             ProductService.OptionsResult created = productService.upsertOptions(physicalAlbum.getId(), r.format(), options);
             if (r.releasedAt() == null || !r.releasedAt().isBefore(LocalDate.now(clock).minusDays(releaseWindowDays))) {
@@ -126,16 +126,15 @@ public class AdminProductService {
         ProductEntity product = product(id);
         String name = r.name() == null ? product.getName() : r.name().strip();
         String thumbnailUrl = r.thumbnailUrl() == null ? product.getThumbnailUrl() : r.thumbnailUrl();
-        String purchaseUrl = r.purchaseUrl() == null ? product.getPurchaseUrl() : r.purchaseUrl();
         if (product instanceof GoodsEntity goods) {
             require(r.releasedAt() == null, "굿즈에는 releasedAt 을 쓸 수 없습니다");
             goods.apply(goods.getArtistId(), r.category() == null ? goods.getCategory() : r.category(), name, thumbnailUrl,
-                    purchaseUrl, goods.getSourceHash(), now);
+                    goods.getSourceHash(), now);
         } else {
             PhysicalAlbumEntity physicalAlbum = (PhysicalAlbumEntity) product;
             require(r.category() == null, "피지컬 앨범에는 category 를 쓸 수 없습니다");
             physicalAlbum.apply(physicalAlbum.getAlbumId(), physicalAlbum.getFormat(),
-                    r.releasedAt() == null ? physicalAlbum.getReleasedAt() : r.releasedAt(), name, thumbnailUrl, purchaseUrl,
+                    r.releasedAt() == null ? physicalAlbum.getReleasedAt() : r.releasedAt(), name, thumbnailUrl,
                     physicalAlbum.getSourceHash(), now);
         }
         artistCache.evictAfterCommit(artistIdOf(product));
