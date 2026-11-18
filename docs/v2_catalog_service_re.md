@@ -116,7 +116,7 @@ CHECK 제약: 모든 enum 컬럼의 값 목록, `price >= 0`, `stock.qty >= 0`, 
 | `PhysicalFormat` | LP · CD · CASSETTE | `physical_album.format` |
 | `GoodsCategory` | TSHIRT · OUTER · KEYRING · PICK · MUFFLER · SCARF · BAG · HAT · ETC | `goods.category` |
 | `VinylColor` | BLACK · COLOR | `product_option.vinyl_color` |
-| `OptionSize` | XS · S · M · L · XL · XXL · FREE · ✏️ 11/18 `0` · `1` · `2` · `3` · `4` (숫자 사이즈 — 브랜드 표기 그대로 · Java 이름은 `SIZE_0` 이지만 API · DB 값은 `"0"`) | `product_option.size` |
+| `OptionSize` | XS · S · M · L · XL · XXL · FREE · ✏️ 11/18 `0` · `1` · `2` · `3` · `4` · `5` · `6` (숫자 사이즈 — 브랜드 표기 그대로 · Java 이름은 `SIZE_0` 이지만 API · DB 값은 `"0"`) | `product_option.size` |
 | `PurchaseOrderEntity.Status` | PENDING · CONFIRMED · CANCELLED · REFUNDED | `purchase_order.status` |
 
 값을 추가할 때는 **Java enum 과 마이그레이션의 CHECK 를 함께** 고칩니다. 한쪽만 고치면 `CatalogSchemaTest.checkConstraintValuesMatchJavaEnums` 가 깨집니다.
