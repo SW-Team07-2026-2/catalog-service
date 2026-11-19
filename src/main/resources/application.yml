@@ -91,6 +91,14 @@ app:
     base-url: ${PAYMENT_BASE_URL:http://payment:8084}
     connect-timeout-ms: 1000
     read-timeout-ms: 3000                     # 11 §4 — 동기 호출 타임아웃 3초
+  member:                                     # 11/19 팔로우 탭 — /api/catalog/following/** 가 팔로우 목록을 받아 옴
+    base-url: ${MEMBER_BASE_URL:http://member:8081}
+    connect-timeout-ms: 1000
+    read-timeout-ms: 3000
+  concert:                                    # 11/19 팔로우 탭 아티스트 업데이트순 — 공연 날짜를 받아 옴 (불통이면 공연 없이 정렬)
+    base-url: ${CONCERT_BASE_URL:http://concert:8083}
+    connect-timeout-ms: 1000
+    read-timeout-ms: 3000
   order:
     max-items: 20
     max-qty: 10

@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.indie.catalog.domain.artist.dto.response.ArtistDetail;
 import com.indie.catalog.domain.artist.repository.ArtistCache;
 import com.indie.catalog.domain.ingest.dto.event.CatalogEvents;
+import com.indie.catalog.domain.follow.client.ConcertClient;
+import com.indie.catalog.domain.follow.client.MemberClient;
 import com.indie.catalog.domain.order.client.PaymentClient;
 import com.indie.catalog.domain.order.dto.event.OrderEvents;
 import com.indie.catalog.global.config.CatalogProperties;
@@ -27,6 +29,7 @@ import org.testcontainers.utility.DockerImageName;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -70,7 +73,7 @@ public abstract class PostgresTest {
 
         @Bean
         CatalogProperties catalogProperties() {
-            return new CatalogProperties(null, null, null, new CatalogProperties.Order(3, 10, 15, 60000),
+            return new CatalogProperties(null, null, null, null, null, new CatalogProperties.Order(3, 10, 15, 60000),
                     new CatalogProperties.Page(20, 50), new CatalogProperties.Cache(600),
                     new CatalogProperties.Outbox(1000, 100), new CatalogProperties.Event(30));
         }
@@ -78,6 +81,17 @@ public abstract class PostgresTest {
         @Bean
         FakePayment paymentClient() {
             return new FakePayment();
+        }
+
+        /** Member 대역 — 팔로우 없음 (팔로우 탭은 CatalogApiTest 에서) */
+        @Bean
+        MemberClient memberClient() {
+            return userId -> List.of();
+        }
+
+        @Bean
+        ConcertClient concertClient() {
+            return artistIds -> Map.of();
         }
 
         /** 캐시 없음 — 항상 DB 로 */
