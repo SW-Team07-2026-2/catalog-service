@@ -26,6 +26,8 @@ import com.indie.catalog.domain.product.repository.StockRepository;
 import com.indie.catalog.global.common.exception.CommonErrorCode;
 import com.indie.catalog.global.common.exception.GeneralException;
 import com.indie.catalog.global.common.response.PageResult;
+import com.indie.catalog.global.common.util.ListFilters;
+import com.indie.catalog.global.common.util.ListSort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -86,9 +88,11 @@ public class ProductService {
 
     /** C7 — 굿즈 목록 (최신 등록순) */
     @Transactional(readOnly = true)
-    public PageResult<GoodsItem> goods(Long artistId, GoodsCategory category, int page, int size) {
-        return PageResult.of(goodsRepository.findLatest(artistId, category, (long) page * size, size + 1), page, size,
-                this::goodsItems);
+    public PageResult<GoodsItem> goods(Long artistId, List<Long> artistIds, List<GoodsCategory> categories, String q,
+                                       Integer minPrice, Integer maxPrice, ListSort sort, int page, int size) {
+        ListFilters.checkPrice(minPrice, maxPrice);
+        var filter = new GoodsRepository.Filter(ListFilters.artistIds(artistId, artistIds, sort), categories, q, minPrice, maxPrice, sort);
+        return PageResult.of(goodsRepository.search(filter, (long) page * size, size + 1), page, size, this::goodsItems);
     }
 
     @Transactional(readOnly = true)
@@ -98,11 +102,14 @@ public class ProductService {
 
     /** C6 — 피지컬 앨범 발매 목록 (발매일 기준 · FR-CAT-12). 매체 · 구간을 안 주면 전체 */
     @Transactional(readOnly = true)
-    public PageResult<PhysicalAlbumItem> physicalAlbums(PhysicalFormat format, LocalDate from, LocalDate to, int page, int size) {
+    public PageResult<PhysicalAlbumItem> physicalAlbums(List<PhysicalFormat> formats, LocalDate from, LocalDate to, List<Long> artistIds,
+                                                        String q, Integer minPrice, Integer maxPrice, ListSort sort, int page, int size) {
         if (from != null && to != null && from.isAfter(to)) {
             throw new GeneralException(CommonErrorCode.INVALID_REQUEST, "from 은 to 보다 이후일 수 없습니다");
         }
-        return PageResult.of(physicalAlbumRepository.findReleased(format, from, to, (long) page * size, size + 1), page, size,
+        ListFilters.checkPrice(minPrice, maxPrice);
+        var filter = new PhysicalAlbumRepository.Filter(formats, from, to, ListFilters.artistIds(artistIds, sort), q, minPrice, maxPrice, sort);
+        return PageResult.of(physicalAlbumRepository.search(filter, (long) page * size, size + 1), page, size,
                 this::physicalAlbumItems);
     }
 

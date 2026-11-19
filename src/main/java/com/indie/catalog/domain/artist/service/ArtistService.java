@@ -14,6 +14,8 @@ import com.indie.catalog.domain.product.service.ProductService;
 import com.indie.catalog.global.common.exception.CommonErrorCode;
 import com.indie.catalog.global.common.exception.GeneralException;
 import com.indie.catalog.global.common.response.PageResult;
+import com.indie.catalog.global.common.util.ListFilters;
+import com.indie.catalog.global.common.util.ListSort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,17 +40,12 @@ public class ArtistService {
         this.cache = cache;
     }
 
-    /** C2 — 이름 · 장르 필터 · 이름순 (FR-CAT-01 · 02). 관련도 검색은 C1 */
+    /** C2 — 이름 · 장르(여러 개) · ids 필터 (FR-CAT-01 · 02). 기본 이름순 · 11/19 sort. 관련도 검색은 C1 */
     @Transactional(readOnly = true)
-    public PageResult<ArtistItem> list(String q, Genre genre, int page, int size) {
-        return PageResult.of(artistRepository.search(q, genre, (long) page * size, size + 1), page, size,
+    public PageResult<ArtistItem> list(String q, List<Genre> genres, List<Long> ids, ListSort sort, int page, int size) {
+        List<Long> artistIds = ListFilters.artistIds(ids, sort);
+        return PageResult.of(artistRepository.search(q, genres, artistIds, sort, (long) page * size, size + 1), page, size,
                 artists -> artists.stream().map(ArtistService::item).toList());
-    }
-
-    /** ?ids= — 팔로우 목록 화면 (Member 팔로우는 artistId 만 들고 있음) */
-    @Transactional(readOnly = true)
-    public List<ArtistItem> byIds(List<Long> ids) {
-        return artistRepository.findAllById(ids).stream().map(ArtistService::item).toList();
     }
 
     /** C3 — 프로필 + 앨범 · 피지컬 앨범 · 굿즈. 캐시 10분 (재고 제외) */
