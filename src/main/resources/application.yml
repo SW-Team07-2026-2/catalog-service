@@ -92,7 +92,7 @@ app:
     connect-timeout-ms: 1000
     read-timeout-ms: 3000                     # 11 §4 — 동기 호출 타임아웃 3초
   member:                                     # 11/19 팔로우 탭 — /api/catalog/following/** 가 팔로우 목록을 받아 옴
-    base-url: ${MEMBER_BASE_URL:http://member:8081}
+    base-url: ${MEMBER_BASE_URL:http://member:8181}   # Member 팔로우 전용 포트 (8081 은 Gateway 전용)
     connect-timeout-ms: 1000
     read-timeout-ms: 3000
   concert:                                    # 11/19 팔로우 탭 아티스트 업데이트순 — 공연 날짜를 받아 옴 (불통이면 공연 없이 정렬)
