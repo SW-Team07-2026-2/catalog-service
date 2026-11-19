@@ -91,7 +91,13 @@ public class ProductService {
     public PageResult<GoodsItem> goods(Long artistId, List<Long> artistIds, List<GoodsCategory> categories, String q,
                                        Integer minPrice, Integer maxPrice, ListSort sort, int page, int size) {
         ListFilters.checkPrice(minPrice, maxPrice);
-        var filter = new GoodsRepository.Filter(ListFilters.artistIds(artistId, artistIds, sort), categories, q, minPrice, maxPrice, sort);
+        return goods(new GoodsRepository.Filter(ListFilters.artistIds(artistId, artistIds, sort), categories, q, minPrice, maxPrice, sort),
+                page, size);
+    }
+
+    /** 검증을 마친 필터로 — 팔로우 탭 */
+    @Transactional(readOnly = true)
+    public PageResult<GoodsItem> goods(GoodsRepository.Filter filter, int page, int size) {
         return PageResult.of(goodsRepository.search(filter, (long) page * size, size + 1), page, size, this::goodsItems);
     }
 
@@ -108,7 +114,13 @@ public class ProductService {
             throw new GeneralException(CommonErrorCode.INVALID_REQUEST, "from 은 to 보다 이후일 수 없습니다");
         }
         ListFilters.checkPrice(minPrice, maxPrice);
-        var filter = new PhysicalAlbumRepository.Filter(formats, from, to, ListFilters.artistIds(artistIds, sort), q, minPrice, maxPrice, sort);
+        return physicalAlbums(new PhysicalAlbumRepository.Filter(formats, from, to, ListFilters.artistIds(artistIds, sort), q,
+                minPrice, maxPrice, sort), page, size);
+    }
+
+    /** 검증을 마친 필터로 — 팔로우 탭 */
+    @Transactional(readOnly = true)
+    public PageResult<PhysicalAlbumItem> physicalAlbums(PhysicalAlbumRepository.Filter filter, int page, int size) {
         return PageResult.of(physicalAlbumRepository.search(filter, (long) page * size, size + 1), page, size,
                 this::physicalAlbumItems);
     }

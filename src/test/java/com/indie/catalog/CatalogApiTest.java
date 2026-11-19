@@ -4,6 +4,9 @@ import com.indie.catalog.domain.album.entity.AlbumEntity;
 import com.indie.catalog.domain.album.entity.Mood;
 import com.indie.catalog.domain.album.entity.Tempo;
 import com.indie.catalog.domain.artist.entity.Genre;
+import com.indie.catalog.domain.follow.client.ConcertClient;
+import com.indie.catalog.domain.follow.client.MemberClient;
+import com.indie.catalog.domain.follow.client.MemberClient.FollowedArtist;
 import com.indie.catalog.domain.ingest.dto.request.AlbumUpsert;
 import com.indie.catalog.domain.ingest.dto.request.ArtistUpsert;
 import com.indie.catalog.domain.ingest.dto.request.GoodsUpsert;
@@ -25,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -35,11 +39,17 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -78,6 +88,8 @@ class CatalogApiTest {
     @Autowired MockMvc mvc;
     @Autowired IngestService ingest;
     @Autowired JdbcTemplate jdbc;
+    @MockBean MemberClient memberClient;
+    @MockBean ConcertClient concertClient;
 
     @AfterEach
     void clean() {
@@ -260,6 +272,92 @@ class CatalogApiTest {
         mvc.perform(get("/api/catalog/physical-albums").param("maxPrice", "15000")).andExpect(jsonPath("$.result.items", hasSize(2)));
         mvc.perform(get("/api/catalog/physical-albums").param("artistIds", c + "," + a).param("sort", "ARTIST_ORDER"))
                 .andExpect(jsonPath("$.result.items[*].artistId").value(org.hamcrest.Matchers.contains((int) c, (int) a)));
+    }
+
+    /** 11/19 전체 검색 · 팔로우 탭 (프론트 요구 1-1 ~ 1-4) — 팔로우 목록은 Member 대역 */
+    @Test
+    void searchAndFollowingApis() throws Exception {
+        long a = artist("fw-a", "에이밴드", Genre.SHOEGAZE, new GoodsUpsert("fw-a-tee", "h", "에이 티셔츠", GoodsCategory.TSHIRT, null,
+                List.of(new OptionUpsert("M", null, OptionSize.M, 30000, 1))));
+        long b = artist("fw-b", "비밴드", Genre.EMO, new GoodsUpsert("fw-b-cap", "h", "비 모자", GoodsCategory.HAT, null,
+                List.of(new OptionUpsert("FREE", null, OptionSize.FREE, 20000, 1))));
+        long c = artist("fw-c", "씨밴드", Genre.INDIE_ROCK, new GoodsUpsert("fw-c-bag", "h", "씨 에코백", GoodsCategory.BAG, null,
+                List.of(new OptionUpsert("기본", null, OptionSize.FREE, 160000, 1))));
+        long d = artist("fw-d", "디밴드", Genre.EMO, new GoodsUpsert("fw-d-tee", "h", "디 티셔츠", GoodsCategory.TSHIRT, null,
+                List.of(new OptionUpsert("M", null, OptionSize.M, 25000, 1))));   // 팔로우 안 함
+        album(a, "fw-a-album", "첫 노을", new PhysicalAlbumUpsert("fw-a-lp", "h", PhysicalFormat.LP, "첫 노을 LP", LocalDate.parse("2024-01-01"), null,
+                List.of(new OptionUpsert("블랙", VinylColor.BLACK, null, 40000, 1))));
+        album(b, "fw-b-album", "두번째 비", new PhysicalAlbumUpsert("fw-b-cd", "h", PhysicalFormat.CD, "두번째 비 CD", LocalDate.parse("2025-01-01"), null,
+                List.of(new OptionUpsert("기본", null, null, 15000, 1))));
+        album(d, "fw-d-album", "디 앨범", new PhysicalAlbumUpsert("fw-d-cd", "h", PhysicalFormat.CD, "디 앨범 CD", LocalDate.parse("2025-06-01"), null,
+                List.of(new OptionUpsert("기본", null, null, 18000, 1))));
+
+        // 전체 검색 — q(LIKE) 는 선택 · 칩 여러 개(OR) · 다른 칩끼리 AND · 15만원 이상은 상한 없음
+        mvc.perform(get("/api/catalog/search/artists").param("q", "밴드").param("genre", "EMO,SHOEGAZE"))
+                .andExpect(jsonPath("$.result.items[*].id").value(contains((int) d, (int) b, (int) a)))   // 가나다순
+                .andExpect(jsonPath("$.result.hasNext").value(false));
+        mvc.perform(get("/api/catalog/search/artists").param("genre", "INDIE_ROCK")).andExpect(jsonPath("$.result.items[*].id").value(contains((int) c)));
+        mvc.perform(get("/api/catalog/search/goods").param("q", "씨밴드")).andExpect(jsonPath("$.result.items[*].name").value(contains("씨 에코백")));
+        mvc.perform(get("/api/catalog/search/goods").param("category", "TSHIRT").param("q", "디"))
+                .andExpect(jsonPath("$.result.items[*].name").value(contains("디 티셔츠")));
+        mvc.perform(get("/api/catalog/search/goods").param("minPrice", "30000").param("maxPrice", "150000"))
+                .andExpect(jsonPath("$.result.items[*].name").value(containsInAnyOrder("에이 티셔츠", "씨 에코백")));
+        mvc.perform(get("/api/catalog/search/goods").param("minPrice", "30000").param("maxPrice", "145000"))
+                .andExpect(jsonPath("$.result.items[*].name").value(contains("에이 티셔츠")));
+        mvc.perform(get("/api/catalog/search/physical-albums").param("q", "비").param("format", "CD"))
+                .andExpect(jsonPath("$.result.items[*].name").value(contains("두번째 비 CD")));
+        mvc.perform(get("/api/catalog/search/physical-albums").param("format", "CD").param("size", "1"))
+                .andExpect(jsonPath("$.result.items[*].name").value(contains("디 앨범 CD"))).andExpect(jsonPath("$.result.hasNext").value(true));
+
+        // 팔로우 — Member 는 최근 팔로우순(c, a, b)으로 줌 · 팔로워 a 5 > b 3 > c 1
+        OffsetDateTime t = OffsetDateTime.parse("2026-11-01T00:00:00Z");
+        when(memberClient.follows(7L)).thenReturn(List.of(new FollowedArtist(c, t.plusDays(3), 1),
+                new FollowedArtist(a, t.plusDays(2), 5), new FollowedArtist(b, t.plusDays(1), 3)));
+        mvc.perform(get("/api/catalog/following/artists").header(USER, "7"))
+                .andExpect(jsonPath("$.result.items[*].id").value(contains((int) c, (int) a, (int) b)));
+        mvc.perform(get("/api/catalog/following/artists").header(USER, "7").param("sort", "FOLLOWERS"))
+                .andExpect(jsonPath("$.result.items[*].id").value(contains((int) a, (int) b, (int) c)));
+
+        // 아티스트 업데이트순 — 새소식 날짜: 앨범 · 피지컬 발매일 · 굿즈 등록 시각 · 공연(Concert) 중 가장 늦은 것
+        jdbc.update("UPDATE product SET created_at = '2023-01-01T00:00:00Z' WHERE external_id IN ('fw-a-tee', 'fw-b-cap')");
+        jdbc.update("UPDATE product SET created_at = '2020-01-01T00:00:00Z' WHERE external_id = 'fw-c-bag'");
+        // a 2024-01-01(LP) · b 2025-01-01(CD) · c 2020-01-01(굿즈) → 공연 없으면 b, a, c
+        when(concertClient.latestConcertAt(anyList())).thenReturn(Map.of());
+        mvc.perform(get("/api/catalog/following/artists").header(USER, "7").param("sort", "UPDATED"))
+                .andExpect(jsonPath("$.result.items[*].id").value(contains((int) b, (int) a, (int) c)));
+        // c 의 공연이 가장 최근 → c, b, a
+        when(concertClient.latestConcertAt(anyList())).thenReturn(Map.of(c, t.plusDays(10)));
+        mvc.perform(get("/api/catalog/following/artists").header(USER, "7").param("sort", "UPDATED"))
+                .andExpect(jsonPath("$.result.items[*].id").value(contains((int) c, (int) b, (int) a)));
+        // Concert 불통 → 공연 없이 정렬 (목록은 그대로 나옴)
+        when(concertClient.latestConcertAt(anyList())).thenThrow(new ConcertClient.Unavailable(new java.io.IOException("connection refused")));
+        mvc.perform(get("/api/catalog/following/artists").header(USER, "7").param("sort", "UPDATED")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.items[*].id").value(contains((int) b, (int) a, (int) c)));
+        mvc.perform(get("/api/catalog/following/artists").header(USER, "7").param("genre", "EMO").param("q", "밴드"))
+                .andExpect(jsonPath("$.result.items[*].id").value(contains((int) b)));   // d 는 팔로우 밖
+        mvc.perform(get("/api/catalog/following/goods").header(USER, "7"))
+                .andExpect(jsonPath("$.result.items[*].artistId").value(contains((int) c, (int) a, (int) b)));
+        mvc.perform(get("/api/catalog/following/goods").header(USER, "7").param("category", "TSHIRT"))
+                .andExpect(jsonPath("$.result.items[*].name").value(contains("에이 티셔츠")));
+        mvc.perform(get("/api/catalog/following/goods").header(USER, "7").param("minPrice", "25000").param("maxPrice", "150000").param("sort", "FOLLOWERS"))
+                .andExpect(jsonPath("$.result.items[*].name").value(contains("에이 티셔츠", "씨 에코백")));
+        jdbc.update("UPDATE product SET updated_at = now() + interval '1 hour' WHERE external_id = 'fw-b-cap'");
+        mvc.perform(get("/api/catalog/following/goods").header(USER, "7").param("sort", "UPDATED"))
+                .andExpect(jsonPath("$.result.items[0].name").value("비 모자"));
+        mvc.perform(get("/api/catalog/following/physical-albums").header(USER, "7").param("sort", "FOLLOWERS"))
+                .andExpect(jsonPath("$.result.items[*].name").value(contains("첫 노을 LP", "두번째 비 CD")));
+        mvc.perform(get("/api/catalog/following/physical-albums").header(USER, "7").param("format", "CD").param("q", "두번째"))
+                .andExpect(jsonPath("$.result.items[*].name").value(contains("두번째 비 CD")));
+        mvc.perform(get("/api/catalog/following/goods").header(USER, "7").param("sort", "ARTIST_ORDER")).andExpect(status().isBadRequest());
+
+        // 팔로우 없음 → 빈 페이지 · 비로그인 → 401 · Member 불통 → 503
+        when(memberClient.follows(8L)).thenReturn(List.of());
+        mvc.perform(get("/api/catalog/following/goods").header(USER, "8")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.items", hasSize(0))).andExpect(jsonPath("$.result.hasNext").value(false));
+        mvc.perform(get("/api/catalog/following/artists")).andExpect(status().isUnauthorized());
+        when(memberClient.follows(9L)).thenThrow(new MemberClient.Unavailable(new java.io.IOException("connection refused")));
+        mvc.perform(get("/api/catalog/following/artists").header(USER, "9")).andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("FOLLOW_UNAVAILABLE"));
     }
 
     private long artist(String externalId, String name, Genre genre, GoodsUpsert goods) {

@@ -43,6 +43,15 @@ public class ArtistController {
         return ApiResponse.onSuccess(artistService.list(q, genre, ids, sort, page, pageSize.resolve(size)));
     }
 
+    /** 11/19 전체 검색 (프론트 요구 1-3 · 2-1) — 아티스트 이름 LIKE + 장르(여러 개 · OR). q 가 없으면 칩만으로 · 가나다순 */
+    @GetMapping("/api/catalog/search/artists")
+    public ApiResponse<PageResult<ArtistItem>> search(@RequestParam(required = false) String q,
+                                                       @RequestParam(required = false) List<Genre> genre,
+                                                       @RequestParam(defaultValue = "0") @PositiveOrZero int page,
+                                                       @RequestParam(required = false) Integer size) {
+        return ApiResponse.onSuccess(artistService.list(q, genre, null, null, page, pageSize.resolve(size)));
+    }
+
     @GetMapping("/api/catalog/artists/{id}")
     public ApiResponse<ArtistDetail> detail(@PathVariable @Positive long id) {
         return ApiResponse.onSuccess(artistService.detail(id));

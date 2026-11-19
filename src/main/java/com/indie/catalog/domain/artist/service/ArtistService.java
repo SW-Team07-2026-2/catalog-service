@@ -19,6 +19,9 @@ import com.indie.catalog.global.common.util.ListSort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
+import java.util.Collection;
+import java.util.Map;
 import java.util.List;
 
 /** 아티스트 조회 (C2 · C3) */
@@ -43,9 +46,20 @@ public class ArtistService {
     /** C2 — 이름 · 장르(여러 개) · ids 필터 (FR-CAT-01 · 02). 기본 이름순 · 11/19 sort. 관련도 검색은 C1 */
     @Transactional(readOnly = true)
     public PageResult<ArtistItem> list(String q, List<Genre> genres, List<Long> ids, ListSort sort, int page, int size) {
-        List<Long> artistIds = ListFilters.artistIds(ids, sort);
+        return listOf(q, genres, ListFilters.artistIds(ids, sort), sort, page, size);
+    }
+
+    /** 검증을 마친 아티스트 ID 목록으로 — 팔로우 탭은 Member 에서 받은 순서를 그대로 넘깁니다 (상한 200 은 쿼리 문자열용) */
+    @Transactional(readOnly = true)
+    public PageResult<ArtistItem> listOf(String q, List<Genre> genres, List<Long> artistIds, ListSort sort, int page, int size) {
         return PageResult.of(artistRepository.search(q, genres, artistIds, sort, (long) page * size, size + 1), page, size,
                 artists -> artists.stream().map(ArtistService::item).toList());
+    }
+
+    /** 11/19 팔로우 탭 업데이트순 — 아티스트별 가장 최근 콘텐츠 날짜 (앨범 · 피지컬 발매일 · 굿즈 등록 시각) */
+    @Transactional(readOnly = true)
+    public Map<Long, OffsetDateTime> latestContentAt(Collection<Long> artistIds) {
+        return artistRepository.findLatestContentAt(artistIds);
     }
 
     /** C3 — 프로필 + 앨범 · 피지컬 앨범 · 굿즈. 캐시 10분 (재고 제외) */

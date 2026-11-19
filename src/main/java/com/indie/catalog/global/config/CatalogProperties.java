@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import java.util.List;
 
 @ConfigurationProperties("app")
-public record CatalogProperties(Internal internal, InternalToken internalToken, Payment payment, Order order,
+public record CatalogProperties(Internal internal, InternalToken internalToken, Payment payment, Member member, Concert concert, Order order,
                                 Page page, Cache cache, Outbox outbox, Event event) {
 
     /** adminIssuers — /internal/admin/** 를 부를 수 있는 발급자(studio). ingestIssuer · ingestPaths — Gateway 수집 토큰을 받는 곳 (docs/22 S1) */
@@ -15,6 +15,12 @@ public record CatalogProperties(Internal internal, InternalToken internalToken, 
     public record InternalToken(String issuer, long ttlSeconds) {}
 
     public record Payment(String baseUrl, int connectTimeoutMs, int readTimeoutMs) {}
+
+    /** 11/19 팔로우 탭 — 회원의 팔로우 목록 (GET /internal/members/{userId}/follows) */
+    public record Member(String baseUrl, int connectTimeoutMs, int readTimeoutMs) {}
+
+    /** 11/19 팔로우 탭 업데이트순 — 아티스트별 가장 최근 공연 등록 · 수정 시각 (POST /internal/concerts/artists/latest) */
+    public record Concert(String baseUrl, int connectTimeoutMs, int readTimeoutMs) {}
 
     public record Order(int maxItems, int maxQty, long pendingTtlMinutes, long expiryIntervalMs) {}
 
