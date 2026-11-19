@@ -119,10 +119,10 @@ class CatalogSchemaTest extends PostgresTest {
         assertThat(artistRepository.findById(shoegaze.getId()).orElseThrow().getGenres()).containsExactly(Genre.SHOEGAZE, Genre.EMO);
         assertThat(jdbc.queryForObject("SELECT array_to_string(genres, ',') FROM artist WHERE id = ?", String.class, shoegaze.getId()))
                 .isEqualTo("SHOEGAZE,EMO");
-        assertThat(artistRepository.search(null, Genre.EMO, 0, 10)).extracting(ArtistEntity::getName).containsExactly("Parannoul");
-        assertThat(artistRepository.search("paran", null, 0, 10)).extracting(ArtistEntity::getName).containsExactly("Parannoul");
-        assertThat(artistRepository.search("%", null, 0, 10)).extracting(ArtistEntity::getName).containsExactly("100% 밴드");
-        assertThat(artistRepository.search("paran", Genre.JAZZ, 0, 10)).isEmpty();
+        assertThat(artistRepository.search(null, List.of(Genre.EMO), null, null, 0, 10)).extracting(ArtistEntity::getName).containsExactly("Parannoul");
+        assertThat(artistRepository.search("paran", null, null, null, 0, 10)).extracting(ArtistEntity::getName).containsExactly("Parannoul");
+        assertThat(artistRepository.search("%", null, null, null, 0, 10)).extracting(ArtistEntity::getName).containsExactly("100% 밴드");
+        assertThat(artistRepository.search("paran", List.of(Genre.JAZZ), null, null, 0, 10)).isEmpty();
     }
 
     /** 이름순은 가나다순 — DB 기본 정렬(en_US.utf8 · glibc 2.28+)은 한글을 글자 수 순서처럼 섞습니다 (11/17 PC 에서 확인) */
@@ -135,7 +135,7 @@ class CatalogSchemaTest extends PostgresTest {
         em.flush();
         em.clear();
 
-        assertThat(artistRepository.search(null, null, 0, 50)).extracting(ArtistEntity::getName)   // 다른 테스트 행이 섞여도 순서만 봄
+        assertThat(artistRepository.search(null, null, null, null, 0, 50)).extracting(ArtistEntity::getName)   // 다른 테스트 행이 섞여도 순서만 봄
                 .containsSubsequence("넬", "다브다", "장기하와 얼굴들", "혁오");
     }
 

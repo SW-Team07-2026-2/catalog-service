@@ -8,6 +8,7 @@ import com.indie.catalog.domain.product.entity.PhysicalFormat;
 import com.indie.catalog.domain.product.service.ProductService;
 import com.indie.catalog.global.common.response.ApiResponse;
 import com.indie.catalog.global.common.response.PageResult;
+import com.indie.catalog.global.common.util.ListSort;
 import com.indie.catalog.global.common.util.PageSize;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -35,22 +36,36 @@ public class ProductController {
         this.pageSize = pageSize;
     }
 
+    /** 11/19 팔로우 탭 — format · artistIds 는 여러 개(format=LP&format=CD 또는 format=LP,CD) · 가격은 최저가(원) · sort 없으면 발매일 최신순 */
     @GetMapping("/api/catalog/physical-albums")
     public ApiResponse<PageResult<PhysicalAlbumItem>> physicalAlbums(
-            @RequestParam(required = false) PhysicalFormat format,
+            @RequestParam(required = false) List<PhysicalFormat> format,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) List<Long> artistIds,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) @PositiveOrZero Integer minPrice,
+            @RequestParam(required = false) @PositiveOrZero Integer maxPrice,
+            @RequestParam(required = false) ListSort sort,
             @RequestParam(defaultValue = "0") @PositiveOrZero int page,
             @RequestParam(required = false) Integer size) {
-        return ApiResponse.onSuccess(productService.physicalAlbums(format, from, to, page, pageSize.resolve(size)));
+        return ApiResponse.onSuccess(productService.physicalAlbums(format, from, to, artistIds, q, minPrice, maxPrice, sort,
+                page, pageSize.resolve(size)));
     }
 
+    /** 11/19 팔로우 탭 — category · artistIds 는 여러 개 · artistId(하나)는 기존 그대로 · 가격은 최저가(원) · sort 없으면 최신 등록순 */
     @GetMapping("/api/catalog/goods")
     public ApiResponse<PageResult<GoodsItem>> goods(@RequestParam(required = false) @Positive Long artistId,
-                                                    @RequestParam(required = false) GoodsCategory category,
+                                                    @RequestParam(required = false) List<Long> artistIds,
+                                                    @RequestParam(required = false) List<GoodsCategory> category,
+                                                    @RequestParam(required = false) String q,
+                                                    @RequestParam(required = false) @PositiveOrZero Integer minPrice,
+                                                    @RequestParam(required = false) @PositiveOrZero Integer maxPrice,
+                                                    @RequestParam(required = false) ListSort sort,
                                                     @RequestParam(defaultValue = "0") @PositiveOrZero int page,
                                                     @RequestParam(required = false) Integer size) {
-        return ApiResponse.onSuccess(productService.goods(artistId, category, page, pageSize.resolve(size)));
+        return ApiResponse.onSuccess(productService.goods(artistId, artistIds, category, q, minPrice, maxPrice, sort,
+                page, pageSize.resolve(size)));
     }
 
     @GetMapping("/api/catalog/products/{id}")
