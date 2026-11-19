@@ -19,6 +19,9 @@ public final class ListFilters {
     /** 팔로우한 아티스트를 한 번에 넘길 수 있는 최대 수 (쿼리 문자열 길이) */
     public static final int MAX_ARTIST_IDS = 200;
 
+    /** 가격 슬라이더 끝 (프론트 요구 2-3) — maxPrice 가 이 값 이상이면 '15만원 이상' = 상한 없음 */
+    public static final int PRICE_OPEN_END = 150_000;
+
     private ListFilters() {}
 
     /** 단일 artistId(기존) · 여러 artistIds(새) 중 하나 → 순서를 지킨 목록 (중복은 앞의 것) · 없으면 빈 목록 */
@@ -55,8 +58,9 @@ public final class ListFilters {
         return cases.otherwise(ids.size());
     }
 
-    /** 가격대 — 목록에 보이는 최저가(옵션 중 가장 싼 값)가 [minPrice, maxPrice] 안. 둘 다 없으면 조건 없음 */
+    /** 가격대 — 목록에 보이는 최저가(옵션 중 가장 싼 값)가 [minPrice, maxPrice] 안. 둘 다 없으면 조건 없음 · maxPrice ≥ 150,000 은 상한 없음 */
     public static BooleanExpression lowestPriceBetween(NumberExpression<Long> productId, Integer minPrice, Integer maxPrice) {
+        if (maxPrice != null && maxPrice >= PRICE_OPEN_END) maxPrice = null;
         if (minPrice == null && maxPrice == null) return null;
         NumberExpression<Integer> lowest = Expressions.asNumber(JPAExpressions.select(productOptionEntity.price.min())
                 .from(productOptionEntity).where(productOptionEntity.productId.eq(productId)));

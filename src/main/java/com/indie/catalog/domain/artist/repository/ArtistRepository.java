@@ -5,8 +5,10 @@ import com.indie.catalog.domain.artist.entity.Genre;
 import com.indie.catalog.global.common.util.ListSort;
 import com.indie.catalog.global.common.util.SourceHash;
 
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /** 아티스트 저장소 포트 — 구현은 ArtistRepositoryAdapter. (source, external_id) 가 수집 멱등 upsert 기준 */
@@ -22,6 +24,12 @@ public interface ArtistRepository {
     List<ArtistEntity> search(String nameContains, List<Genre> genres, List<Long> ids, ListSort sort, long offset, int limit);
 
     List<SourceHash> findHashes(String source, Collection<String> externalIds);
+
+    /**
+     * 11/19 팔로우 탭 업데이트순 — 아티스트별 가장 최근 콘텐츠 날짜 (앨범 발매일 · 피지컬 발매일 · 굿즈 등록 시각 중 가장 늦은 것).
+     * 발매일(DATE)은 서울 기준 그날 0시. 콘텐츠가 없는 아티스트는 빠집니다
+     */
+    Map<Long, OffsetDateTime> findLatestContentAt(Collection<Long> artistIds);
 
     ArtistEntity save(ArtistEntity artist);
 }

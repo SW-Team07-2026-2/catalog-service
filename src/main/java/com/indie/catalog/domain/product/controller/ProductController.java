@@ -68,6 +68,30 @@ public class ProductController {
                 page, pageSize.resolve(size)));
     }
 
+    /** 11/19 전체 검색 (프론트 요구 1-3 · 2-3) — 상품명 · 앨범 제목 · 아티스트 이름 LIKE + 매체(여러 개) + 가격대. q 가 없으면 칩만으로 · 발매일 최신순 */
+    @GetMapping("/api/catalog/search/physical-albums")
+    public ApiResponse<PageResult<PhysicalAlbumItem>> searchPhysicalAlbums(@RequestParam(required = false) String q,
+                                                                          @RequestParam(required = false) List<PhysicalFormat> format,
+                                                                          @RequestParam(required = false) @PositiveOrZero Integer minPrice,
+                                                                          @RequestParam(required = false) @PositiveOrZero Integer maxPrice,
+                                                                          @RequestParam(defaultValue = "0") @PositiveOrZero int page,
+                                                                          @RequestParam(required = false) Integer size) {
+        return ApiResponse.onSuccess(productService.physicalAlbums(format, null, null, null, q, minPrice, maxPrice, null,
+                page, pageSize.resolve(size)));
+    }
+
+    /** 11/19 전체 검색 (프론트 요구 1-3 · 2-4) — 굿즈명 · 아티스트 이름 LIKE + 품목(여러 개) + 가격대. q 가 없으면 칩만으로 · 최신 등록순 */
+    @GetMapping("/api/catalog/search/goods")
+    public ApiResponse<PageResult<GoodsItem>> searchGoods(@RequestParam(required = false) String q,
+                                                          @RequestParam(required = false) List<GoodsCategory> category,
+                                                          @RequestParam(required = false) @PositiveOrZero Integer minPrice,
+                                                          @RequestParam(required = false) @PositiveOrZero Integer maxPrice,
+                                                          @RequestParam(defaultValue = "0") @PositiveOrZero int page,
+                                                          @RequestParam(required = false) Integer size) {
+        return ApiResponse.onSuccess(productService.goods(null, null, category, q, minPrice, maxPrice, null,
+                page, pageSize.resolve(size)));
+    }
+
     @GetMapping("/api/catalog/products/{id}")
     public ApiResponse<ProductDetail> product(@PathVariable @Positive long id) {
         return ApiResponse.onSuccess(productService.product(id));

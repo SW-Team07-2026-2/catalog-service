@@ -6,6 +6,7 @@ import com.indie.catalog.global.common.util.LikePattern;
 import com.indie.catalog.global.common.util.ListFilters;
 import com.indie.catalog.global.common.util.ListSort;
 import com.indie.catalog.global.common.util.SourceHash;
+import com.querydsl.core.Tuple;
 import com.querydsl.core.types.ExpressionUtils;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Predicate;
@@ -14,15 +15,26 @@ import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
+import static com.indie.catalog.domain.album.entity.QAlbumEntity.albumEntity;
 import static com.indie.catalog.domain.artist.entity.QArtistEntity.artistEntity;
+import static com.indie.catalog.domain.product.entity.QGoodsEntity.goodsEntity;
+import static com.indie.catalog.domain.product.entity.QPhysicalAlbumEntity.physicalAlbumEntity;
 
 /** ArtistRepository 구현 — 단건 · 저장은 Spring Data, 목록 필터 · 해시 조회는 QueryDSL */
 @Repository
 public class ArtistRepositoryAdapter implements ArtistRepository {
+
+    /** 발매일(DATE)을 시각으로 바꿀 때의 하루 경계 */
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
     private final ArtistJpaRepository jpa;
     private final JPAQueryFactory query;
@@ -81,5 +93,33 @@ public class ArtistRepositoryAdapter implements ArtistRepository {
     @Override
     public ArtistEntity save(ArtistEntity artist) {
         return jpa.save(artist);
+    }
+
+    @Override
+    public Map<Long, OffsetDateTime> findLatestContentAt(Collection<Long> artistIds) {
+        Map<Long, OffsetDateTime> latest = new HashMap<>();
+        if (artistIds.isEmpty()) return latest;
+        for (Tuple t : query.select(albumEntity.artistId, albumEntity.releasedAt.max()).from(albumEntity)
+                .where(albumEntity.artistId.in(artistIds)).groupBy(albumEntity.artistId).fetch()) {
+            keepLater(latest, t.get(albumEntity.artistId), startOfDay(t.get(albumEntity.releasedAt.max())));
+        }
+        for (Tuple t : query.select(albumEntity.artistId, physicalAlbumEntity.releasedAt.max()).from(physicalAlbumEntity)
+                .join(albumEntity).on(albumEntity.id.eq(physicalAlbumEntity.albumId))
+                .where(albumEntity.artistId.in(artistIds)).groupBy(albumEntity.artistId).fetch()) {
+            keepLater(latest, t.get(albumEntity.artistId), startOfDay(t.get(physicalAlbumEntity.releasedAt.max())));
+        }
+        for (Tuple t : query.select(goodsEntity.artistId, goodsEntity.createdAt.max()).from(goodsEntity)
+                .where(goodsEntity.artistId.in(artistIds)).groupBy(goodsEntity.artistId).fetch()) {
+            keepLater(latest, t.get(goodsEntity.artistId), t.get(goodsEntity.createdAt.max()));
+        }
+        return latest;
+    }
+
+    private static OffsetDateTime startOfDay(LocalDate date) {
+        return date == null ? null : date.atStartOfDay(SEOUL).toOffsetDateTime();
+    }
+
+    private static void keepLater(Map<Long, OffsetDateTime> latest, Long artistId, OffsetDateTime at) {
+        if (at != null) latest.merge(artistId, at, (x, y) -> x.isAfter(y) ? x : y);
     }
 }
