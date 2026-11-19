@@ -2,6 +2,7 @@ package com.indie.catalog.domain.artist.repository;
 
 import com.indie.catalog.domain.artist.entity.ArtistEntity;
 import com.indie.catalog.domain.artist.entity.Genre;
+import com.indie.catalog.global.common.util.ListSort;
 import com.indie.catalog.global.common.util.SourceHash;
 
 import java.util.Collection;
@@ -17,8 +18,8 @@ public interface ArtistRepository {
 
     Optional<ArtistEntity> findBySourceAndExternalId(String source, String externalId);
 
-    /** 이름 부분 일치(대소문자 무시) · 장르 포함 — 둘 다 선택(null). 이름순 */
-    List<ArtistEntity> search(String nameContains, Genre genre, long offset, int limit);
+    /** 이름 부분 일치(대소문자 무시) · 장르 하나라도 포함 · ids 안 — 모두 선택(null · 빈 목록). sort 없으면 이름순 */
+    List<ArtistEntity> search(String nameContains, List<Genre> genres, List<Long> ids, ListSort sort, long offset, int limit);
 
     List<SourceHash> findHashes(String source, Collection<String> externalIds);
 

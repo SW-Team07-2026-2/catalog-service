@@ -236,13 +236,13 @@ Payment 는 바꾸지 않았습니다. Payment 가 내는 `payment.cancelled` �
 
 | 메서드 · 경로 | 변경 | 내용 |
 |---|---|---|
-| `GET /api/catalog/artists` | 변경 | `genre` 파라미터가 enum 값(`INDIE_ROCK` …). 응답 `genre`(문자열) → `genres`(배열) |
+| `GET /api/catalog/artists` | 변경 | `genre` 파라미터가 enum 값(`INDIE_ROCK` …). 응답 `genre`(문자열) → `genres`(배열) · ✏️ 11/19 팔로우 탭: `genre` 여러 개 · `ids`(최대 200)가 다른 조건 · 페이지와 함께 동작 · `sort=ARTIST_ORDER\|UPDATED` |
 | `GET /api/catalog/artists/{id}` | 변경 | `members` 삭제 · `genre` → `genres` · `lps` → `physicalAlbums` · `goods` 항목 모양 변경 |
 | `GET /api/catalog/albums` | 변경 | 항목에 `genres` 추가 |
 | `GET /api/catalog/albums/{id}` | 변경 | `cd` · `lps` 삭제 → `physicalAlbums`. 트랙에 `genres` · `tempo` · `moods` · `emotions` · `styles` |
 | `GET /api/catalog/lps` | **삭제** | → `GET /api/catalog/physical-albums` |
-| `GET /api/catalog/physical-albums` | **신규** | `?format=LP\|CD\|CASSETTE&from=&to=&page=&size=` — 발매일순 · ✏️ 11/18 항목에 `soldOut` |
-| `GET /api/catalog/goods` | 변경 | `category` 필터 추가 (`?artistId=&category=`). 항목에 `category` · `minPrice` · ✏️ 11/18 `soldOut` (상품 단위 `price` · `qty` 없음) |
+| `GET /api/catalog/physical-albums` | **신규** | `?format=LP\|CD\|CASSETTE&from=&to=&page=&size=` — 발매일순 · ✏️ 11/18 항목에 `soldOut` · ✏️ 11/19 팔로우 탭: `format` 여러 개 · `artistIds` · `q`(상품 · 앨범 · 아티스트 이름) · `minPrice` · `maxPrice`(최저가) · `sort` |
+| `GET /api/catalog/goods` | 변경 | `category` 필터 추가 (`?artistId=&category=`). 항목에 `category` · `minPrice` · ✏️ 11/18 `soldOut` (상품 단위 `price` · `qty` 없음) · ✏️ 11/19 팔로우 탭: `category` 여러 개 · `artistIds` · `q`(굿즈 · 아티스트 이름) · `minPrice` · `maxPrice`(최저가) · `sort` |
 | `GET /api/catalog/products/{id}` | 변경 | 상품 + `options[]`(옵션별 `price` · `qty` · `soldOut`). 상품 단위 `price` · `qty` 는 없음 |
 | `GET /api/catalog/products?ids=` | 변경 | 위와 같은 모양의 목록 |
 | `GET /api/catalog/search` | 유지 | 경로 · 응답 모양 그대로 (내부 구현만 바뀜) |

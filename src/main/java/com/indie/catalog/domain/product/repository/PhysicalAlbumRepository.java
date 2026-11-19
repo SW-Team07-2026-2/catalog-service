@@ -2,6 +2,7 @@ package com.indie.catalog.domain.product.repository;
 
 import com.indie.catalog.domain.product.entity.PhysicalAlbumEntity;
 import com.indie.catalog.domain.product.entity.PhysicalFormat;
+import com.indie.catalog.global.common.util.ListSort;
 import com.indie.catalog.global.common.util.SourceHash;
 
 import java.time.LocalDate;
@@ -17,10 +18,14 @@ public interface PhysicalAlbumRepository {
     /** 앨범들의 피지컬 앨범 — 발매일 최신순 */
     List<PhysicalAlbumEntity> findByAlbumIdIn(Collection<Long> albumIds);
 
-    /** 발매 목록 — 매체 · 발매일 구간 모두 선택(null). 발매일 최신순 · 발매일 없는 항목은 뒤로 */
-    List<PhysicalAlbumEntity> findReleased(PhysicalFormat format, LocalDate from, LocalDate to, long offset, int limit);
+    /** 발매 목록 — 조건은 모두 선택(null · 빈 목록). sort 없으면 발매일 최신순 · 발매일 없는 항목은 뒤로 */
+    List<PhysicalAlbumEntity> search(Filter filter, long offset, int limit);
 
     List<SourceHash> findHashes(String source, Collection<String> externalIds);
 
     PhysicalAlbumEntity save(PhysicalAlbumEntity physicalAlbum);
+
+    /** formats · artistIds(앨범의 아티스트) 는 하나라도 맞으면 · q 는 상품 이름 · 앨범 제목 · 아티스트 이름 · 가격은 최저가(원) 구간 */
+    record Filter(List<PhysicalFormat> formats, LocalDate from, LocalDate to, List<Long> artistIds, String q,
+                  Integer minPrice, Integer maxPrice, ListSort sort) {}
 }

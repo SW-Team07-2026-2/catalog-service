@@ -6,6 +6,7 @@ import com.indie.catalog.domain.artist.entity.Genre;
 import com.indie.catalog.domain.artist.service.ArtistService;
 import com.indie.catalog.global.common.response.ApiResponse;
 import com.indie.catalog.global.common.response.PageResult;
+import com.indie.catalog.global.common.util.ListSort;
 import com.indie.catalog.global.common.util.PageSize;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -28,18 +29,18 @@ public class ArtistController {
         this.pageSize = pageSize;
     }
 
-    /** ?ids=1,2,3 이 있으면 일괄 조회 (팔로우 목록 화면), 없으면 q · genre 필터 목록 */
+    /**
+     * q · genre(여러 개) · ids(그 아티스트만 · 최대 200) 를 함께 거르고 페이지로 — 11/19 팔로우 탭.
+     * 여러 값은 genre=A&genre=B 또는 genre=A,B. sort 없으면 가나다순 · ARTIST_ORDER 는 ids 순서 · UPDATED 는 최근 수정순
+     */
     @GetMapping("/api/catalog/artists")
     public ApiResponse<PageResult<ArtistItem>> list(@RequestParam(required = false) String q,
-                                                     @RequestParam(required = false) Genre genre,
+                                                     @RequestParam(required = false) List<Genre> genre,
                                                      @RequestParam(required = false) List<Long> ids,
+                                                     @RequestParam(required = false) ListSort sort,
                                                      @RequestParam(defaultValue = "0") @PositiveOrZero int page,
                                                      @RequestParam(required = false) Integer size) {
-        if (ids != null) {
-            pageSize.checkIds(ids);
-            return ApiResponse.onSuccess(PageResult.all(artistService.byIds(ids)));
-        }
-        return ApiResponse.onSuccess(artistService.list(q, genre, page, pageSize.resolve(size)));
+        return ApiResponse.onSuccess(artistService.list(q, genre, ids, sort, page, pageSize.resolve(size)));
     }
 
     @GetMapping("/api/catalog/artists/{id}")

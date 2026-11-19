@@ -1,9 +1,14 @@
 package com.indie.catalog.domain.product.repository;
 
-import com.indie.catalog.domain.product.entity.GoodsCategory;
 import com.indie.catalog.domain.product.entity.GoodsEntity;
+import com.indie.catalog.global.common.util.LikePattern;
+import com.indie.catalog.global.common.util.ListFilters;
+import com.indie.catalog.global.common.util.ListSort;
 import com.indie.catalog.global.common.util.SourceHash;
+import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import org.springframework.stereotype.Repository;
 
@@ -11,6 +16,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+import static com.indie.catalog.domain.artist.entity.QArtistEntity.artistEntity;
 import static com.indie.catalog.domain.product.entity.QGoodsEntity.goodsEntity;
 
 /** GoodsRepository 구현 — 단건 · 저장은 Spring Data, 목록 · 해시 조회는 QueryDSL */
@@ -31,14 +37,31 @@ public class GoodsRepositoryAdapter implements GoodsRepository {
     }
 
     @Override
-    public List<GoodsEntity> findLatest(Long artistId, GoodsCategory category, long offset, int limit) {
+    public List<GoodsEntity> search(Filter f, long offset, int limit) {
         return query.selectFrom(goodsEntity)
-                .where(artistId == null ? null : goodsEntity.artistId.eq(artistId),
-                        category == null ? null : goodsEntity.category.eq(category))
-                .orderBy(goodsEntity.id.desc())
+                .where(f.artistIds() == null || f.artistIds().isEmpty() ? null : goodsEntity.artistId.in(f.artistIds()),
+                        f.categories() == null || f.categories().isEmpty() ? null : goodsEntity.category.in(f.categories()),
+                        nameOrArtist(f.q()),
+                        ListFilters.lowestPriceBetween(goodsEntity.id, f.minPrice(), f.maxPrice()))
+                .orderBy(order(f))
                 .offset(offset)
                 .limit(limit)
                 .fetch();
+    }
+
+    private static BooleanExpression nameOrArtist(String q) {
+        if (q == null || q.isBlank()) return null;
+        String pattern = LikePattern.contains(q);
+        return goodsEntity.name.lower().like(pattern, LikePattern.ESCAPE).or(goodsEntity.artistId.in(
+                JPAExpressions.select(artistEntity.id).from(artistEntity).where(artistEntity.name.lower().like(pattern, LikePattern.ESCAPE))));
+    }
+
+    private static OrderSpecifier<?>[] order(Filter f) {
+        if (f.sort() == ListSort.ARTIST_ORDER) {
+            return new OrderSpecifier<?>[]{ListFilters.rank(goodsEntity.artistId, f.artistIds()).asc(), goodsEntity.id.desc()};
+        }
+        if (f.sort() == ListSort.UPDATED) return new OrderSpecifier<?>[]{goodsEntity.updatedAt.desc(), goodsEntity.id.desc()};
+        return new OrderSpecifier<?>[]{goodsEntity.id.desc()};
     }
 
     @Override

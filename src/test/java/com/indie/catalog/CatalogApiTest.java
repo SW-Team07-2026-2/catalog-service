@@ -212,6 +212,66 @@ class CatalogApiTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    /** 11/19 팔로우 탭 — 여러 값 필터(반복 · 쉼표) · 검색어 · 가격대 · ARTIST_ORDER(넘긴 순서) · UPDATED(최근 수정순) */
+    @Test
+    void followTabFiltersAndSorts() throws Exception {
+        long a = artist("ft-a", "에이밴드", Genre.SHOEGAZE, new GoodsUpsert("ft-a-tee", "h", "에이 티셔츠", GoodsCategory.TSHIRT, null,
+                List.of(new OptionUpsert("M", null, OptionSize.M, 30000, 1))));
+        long b = artist("ft-b", "비밴드", Genre.EMO, new GoodsUpsert("ft-b-cap", "h", "비 모자", GoodsCategory.HAT, null,
+                List.of(new OptionUpsert("FREE", null, OptionSize.FREE, 20000, 1))));
+        long c = artist("ft-c", "씨밴드", Genre.INDIE_ROCK, new GoodsUpsert("ft-c-bag", "h", "씨 에코백", GoodsCategory.BAG, null,
+                List.of(new OptionUpsert("기본", null, OptionSize.FREE, 60000, 1))));
+        album(a, "ft-a-album", "첫 노을", new PhysicalAlbumUpsert("ft-a-lp", "h", PhysicalFormat.LP, "첫 노을 LP", LocalDate.parse("2024-01-01"), null,
+                List.of(new OptionUpsert("블랙", VinylColor.BLACK, null, 40000, 1))));
+        album(b, "ft-b-album", "두번째 비", new PhysicalAlbumUpsert("ft-b-cd", "h", PhysicalFormat.CD, "두번째 비 CD", LocalDate.parse("2025-01-01"), null,
+                List.of(new OptionUpsert("기본", null, null, 15000, 1))));
+        album(c, "ft-c-album", "세번째 길", new PhysicalAlbumUpsert("ft-c-tape", "h", PhysicalFormat.CASSETTE, "세번째 길 카세트", LocalDate.parse("2023-01-01"), null,
+                List.of(new OptionUpsert("기본", null, null, 10000, 1))));
+
+        // 아티스트 — 장르 여러 개(반복 · 쉼표) · ids 순서대로 · ids 와 장르 함께
+        mvc.perform(get("/api/catalog/artists").param("genre", "SHOEGAZE").param("genre", "EMO")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.items[*].id").value(org.hamcrest.Matchers.contains((int) b, (int) a)));   // 가나다순
+        mvc.perform(get("/api/catalog/artists").param("genre", "SHOEGAZE,EMO")).andExpect(jsonPath("$.result.items", hasSize(2)));
+        mvc.perform(get("/api/catalog/artists").param("ids", c + "," + a + "," + b).param("sort", "ARTIST_ORDER"))
+                .andExpect(jsonPath("$.result.items[*].id").value(org.hamcrest.Matchers.contains((int) c, (int) a, (int) b)));
+        mvc.perform(get("/api/catalog/artists").param("ids", c + "," + a + "," + b).param("genre", "EMO,INDIE_ROCK").param("sort", "ARTIST_ORDER"))
+                .andExpect(jsonPath("$.result.items[*].id").value(org.hamcrest.Matchers.contains((int) c, (int) b)));
+        mvc.perform(get("/api/catalog/artists").param("sort", "ARTIST_ORDER")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/catalog/artists").param("sort", "POPULAR")).andExpect(status().isBadRequest());
+        jdbc.update("UPDATE artist SET updated_at = now() + interval '1 hour' WHERE id = ?", b);
+        mvc.perform(get("/api/catalog/artists").param("ids", a + "," + b).param("sort", "UPDATED"))
+                .andExpect(jsonPath("$.result.items[*].id").value(org.hamcrest.Matchers.contains((int) b, (int) a)));
+
+        // 굿즈 — 품목 여러 개 · 가격대(최저가) · 검색어(아티스트 이름) · 넘긴 순서
+        mvc.perform(get("/api/catalog/goods").param("category", "TSHIRT,HAT")).andExpect(jsonPath("$.result.items", hasSize(2)));
+        mvc.perform(get("/api/catalog/goods").param("minPrice", "20000").param("maxPrice", "30000"))
+                .andExpect(jsonPath("$.result.items[*].name").value(org.hamcrest.Matchers.containsInAnyOrder("에이 티셔츠", "비 모자")));
+        mvc.perform(get("/api/catalog/goods").param("q", "씨밴드")).andExpect(jsonPath("$.result.items[0].name").value("씨 에코백"));
+        mvc.perform(get("/api/catalog/goods").param("artistIds", b + "," + c + "," + a).param("sort", "ARTIST_ORDER"))
+                .andExpect(jsonPath("$.result.items[*].artistId").value(org.hamcrest.Matchers.contains((int) b, (int) c, (int) a)));
+        mvc.perform(get("/api/catalog/goods").param("artistId", String.valueOf(a)).param("artistIds", String.valueOf(b)))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get("/api/catalog/goods").param("minPrice", "50000").param("maxPrice", "10000")).andExpect(status().isBadRequest());
+
+        // 피지컬 — 매체 여러 개 · 검색어(앨범 제목) · 가격대 · 넘긴 순서 · 기존 단일 format 도 그대로
+        mvc.perform(get("/api/catalog/physical-albums").param("format", "LP").param("format", "CD"))
+                .andExpect(jsonPath("$.result.items[*].format").value(org.hamcrest.Matchers.contains("CD", "LP")));   // 발매일 최신순
+        mvc.perform(get("/api/catalog/physical-albums").param("q", "세번째")).andExpect(jsonPath("$.result.items[0].format").value("CASSETTE"));
+        mvc.perform(get("/api/catalog/physical-albums").param("maxPrice", "15000")).andExpect(jsonPath("$.result.items", hasSize(2)));
+        mvc.perform(get("/api/catalog/physical-albums").param("artistIds", c + "," + a).param("sort", "ARTIST_ORDER"))
+                .andExpect(jsonPath("$.result.items[*].artistId").value(org.hamcrest.Matchers.contains((int) c, (int) a)));
+    }
+
+    private long artist(String externalId, String name, Genre genre, GoodsUpsert goods) {
+        return ingest.upsertArtists(List.of(new ArtistUpsert("crawler", externalId, "h", name, List.of(genre), null, 2020, null,
+                List.of(goods)))).get(0).id();
+    }
+
+    private void album(long artistId, String externalId, String title, PhysicalAlbumUpsert physical) {
+        ingest.upsertAlbums(List.of(new AlbumUpsert("crawler", externalId, "h", artistId, title, AlbumEntity.Type.ALBUM, List.of(Genre.ETC),
+                physical.releasedAt(), null, List.of(), List.of(physical))));
+    }
+
     private static String token(String iss) throws Exception {
         SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), new JWTClaimsSet.Builder()
                 .issuer(iss).audience("catalog").expirationTime(Date.from(Instant.now().plusSeconds(60))).build());
