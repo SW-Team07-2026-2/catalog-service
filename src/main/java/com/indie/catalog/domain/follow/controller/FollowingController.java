@@ -51,10 +51,11 @@ public class FollowingController {
                                                                     @RequestParam(required = false) List<PhysicalFormat> format,
                                                                     @RequestParam(required = false) @PositiveOrZero Integer minPrice,
                                                                     @RequestParam(required = false) @PositiveOrZero Integer maxPrice,
+                                                                    @RequestParam(defaultValue = "false") boolean excludeSoldOut,
                                                                     @RequestParam(required = false) FollowSort sort,
                                                                     @RequestParam(defaultValue = "0") @PositiveOrZero int page,
                                                                     @RequestParam(required = false) Integer size) {
-        return ApiResponse.onSuccess(followingService.physicalAlbums(userId, q, format, minPrice, maxPrice, sort,
+        return ApiResponse.onSuccess(followingService.physicalAlbums(userId, q, format, minPrice, maxPrice, excludeSoldOut, sort,
                 page, pageSize.resolve(size)));
     }
 
@@ -64,9 +65,10 @@ public class FollowingController {
                                                     @RequestParam(required = false) List<GoodsCategory> category,
                                                     @RequestParam(required = false) @PositiveOrZero Integer minPrice,
                                                     @RequestParam(required = false) @PositiveOrZero Integer maxPrice,
+                                                    @RequestParam(defaultValue = "false") boolean excludeSoldOut,
                                                     @RequestParam(required = false) FollowSort sort,
                                                     @RequestParam(defaultValue = "0") @PositiveOrZero int page,
                                                     @RequestParam(required = false) Integer size) {
-        return ApiResponse.onSuccess(followingService.goods(userId, q, category, minPrice, maxPrice, sort, page, pageSize.resolve(size)));
+        return ApiResponse.onSuccess(followingService.goods(userId, q, category, minPrice, maxPrice, excludeSoldOut, sort, page, pageSize.resolve(size)));
     }
 }

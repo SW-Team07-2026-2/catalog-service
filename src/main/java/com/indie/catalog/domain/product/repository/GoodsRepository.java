@@ -25,5 +25,7 @@ public interface GoodsRepository {
     GoodsEntity save(GoodsEntity goods);
 
     /** artistIds · categories 는 하나라도 맞으면 · q 는 굿즈 이름 · 아티스트 이름 · 가격은 최저가(원) 구간 */
-    record Filter(List<Long> artistIds, List<GoodsCategory> categories, String q, Integer minPrice, Integer maxPrice, ListSort sort) {}
+    /** excludeSoldOut — 11/22 품절 안 보기 (살 수 있는 옵션이 하나라도 있는 것만) */
+    record Filter(List<Long> artistIds, List<GoodsCategory> categories, String q, Integer minPrice, Integer maxPrice,
+                  boolean excludeSoldOut, ListSort sort) {}
 }

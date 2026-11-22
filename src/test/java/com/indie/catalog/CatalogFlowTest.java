@@ -201,7 +201,7 @@ class CatalogFlowTest extends PostgresTest {
 
         assertThat(events("album.released")).isEmpty();
         assertThat(events("physical_album.released")).isEmpty();
-        assertThat(productService.physicalAlbums(List.of(PhysicalFormat.LP), null, null, null, null, null, null, null, 0, 10).items()).hasSize(1);
+        assertThat(productService.physicalAlbums(List.of(PhysicalFormat.LP), null, null, null, null, null, null, false, null, 0, 10).items()).hasSize(1);
     }
 
     /** ★ DB 가 못 막는 규칙 — 어긴 항목은 통째로 거절되고(그 항목의 앨범 · 상품도 저장되지 않음) 나머지 항목은 적재됩니다 */
@@ -255,12 +255,12 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(artistService.list(null, List.of(Genre.JAZZ), null, null, 0, 10).items()).isEmpty();
 
         LocalDate today = LocalDate.now();
-        assertThat(productService.physicalAlbums(List.of(PhysicalFormat.LP), today.minusDays(1), today, null, null, null, null, null, 0, 10).items())
+        assertThat(productService.physicalAlbums(List.of(PhysicalFormat.LP), today.minusDays(1), today, null, null, null, null, false, null, 0, 10).items())
                 .extracting(PhysicalAlbumItem::id).containsExactly(shop.lpId);
-        assertThat(productService.physicalAlbums(List.of(PhysicalFormat.CD), null, null, null, null, null, null, null, 0, 10).items()).isEmpty();
-        assertThat(productService.physicalAlbums(null, today.plusDays(1), null, null, null, null, null, null, 0, 10).items()).isEmpty();
-        assertThat(productService.goods(shop.artistId, null, List.of(GoodsCategory.TSHIRT), null, null, null, null, 0, 10).items()).extracting(GoodsItem::minPrice).containsExactly(35000);
-        assertThat(productService.goods(null, null, List.of(GoodsCategory.KEYRING), null, null, null, null, 0, 10).items()).isEmpty();
+        assertThat(productService.physicalAlbums(List.of(PhysicalFormat.CD), null, null, null, null, null, null, false, null, 0, 10).items()).isEmpty();
+        assertThat(productService.physicalAlbums(null, today.plusDays(1), null, null, null, null, null, false, null, 0, 10).items()).isEmpty();
+        assertThat(productService.goods(shop.artistId, null, List.of(GoodsCategory.TSHIRT), null, null, null, false, null, 0, 10).items()).extracting(GoodsItem::minPrice).containsExactly(35000);
+        assertThat(productService.goods(null, null, List.of(GoodsCategory.KEYRING), null, null, null, false, null, 0, 10).items()).isEmpty();
 
         ProductDetail lp = productService.product(shop.lpId);
         assertThat(lp.productType()).isEqualTo(ProductEntity.Type.PHYSICAL_ALBUM);
@@ -279,14 +279,19 @@ class CatalogFlowTest extends PostgresTest {
         assertCode(() -> productService.product(999_999L), CommonErrorCode.NOT_FOUND);
 
         // 11/18 목록의 품절 — 모든 옵션 재고가 0 이면 true (상세 soldOut 과 같은 기준). 아티스트 상세의 목록도 같은 항목
-        assertThat(productService.goods(shop.artistId, null, null, null, null, null, null, 0, 10).items()).extracting(GoodsItem::soldOut).containsExactly(false);
-        assertThat(productService.physicalAlbums(null, null, null, null, null, null, null, null, 0, 10).items()).extracting(PhysicalAlbumItem::soldOut).containsExactly(false);
+        assertThat(productService.goods(shop.artistId, null, null, null, null, null, false, null, 0, 10).items()).extracting(GoodsItem::soldOut).containsExactly(false);
+        assertThat(productService.physicalAlbums(null, null, null, null, null, null, null, false, null, 0, 10).items()).extracting(PhysicalAlbumItem::soldOut).containsExactly(false);
         admin.setStock(shop.goodsOption, 0, "품절 확인", "7");
-        assertThat(productService.goods(shop.artistId, null, null, null, null, null, null, 0, 10).items()).extracting(GoodsItem::soldOut).containsExactly(true);
+        assertThat(productService.goods(shop.artistId, null, null, null, null, null, false, null, 0, 10).items()).extracting(GoodsItem::soldOut).containsExactly(true);
+        // 11/22 품절 안 보기 — 품절 굿즈는 빠지고, 판매 중인 LP 는 남음
+        assertThat(productService.goods(shop.artistId, null, null, null, null, null, true, null, 0, 10).items()).isEmpty();
+        assertThat(productService.physicalAlbums(null, null, null, null, null, null, null, true, null, 0, 10).items())
+                .extracting(PhysicalAlbumItem::id).containsExactly(shop.lpId);
         assertThat(artistService.detail(shop.artistId).goods()).extracting(GoodsItem::soldOut).containsExactly(true);
         assertThat(artistService.detail(shop.artistId).physicalAlbums()).extracting(PhysicalAlbumItem::soldOut).containsExactly(false);
         admin.setStock(shop.goodsOption, 1, "다시 입고", "7");
-        assertThat(productService.goods(shop.artistId, null, null, null, null, null, null, 0, 10).items()).extracting(GoodsItem::soldOut).containsExactly(false);
+        assertThat(productService.goods(shop.artistId, null, null, null, null, null, false, null, 0, 10).items()).extracting(GoodsItem::soldOut).containsExactly(false);
+        assertThat(productService.goods(shop.artistId, null, null, null, null, null, true, null, 0, 10).items()).extracting(GoodsItem::id).containsExactly(shop.goodsId);
     }
 
     // ── 장바구니 ────────────────────────────────────────────────────────────────────────────────

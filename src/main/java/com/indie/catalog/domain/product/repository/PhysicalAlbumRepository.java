@@ -26,6 +26,7 @@ public interface PhysicalAlbumRepository {
     PhysicalAlbumEntity save(PhysicalAlbumEntity physicalAlbum);
 
     /** formats · artistIds(앨범의 아티스트) 는 하나라도 맞으면 · q 는 상품 이름 · 앨범 제목 · 아티스트 이름 · 가격은 최저가(원) 구간 */
+    /** excludeSoldOut — 11/22 품절 안 보기 (살 수 있는 옵션이 하나라도 있는 것만) */
     record Filter(List<PhysicalFormat> formats, LocalDate from, LocalDate to, List<Long> artistIds, String q,
-                  Integer minPrice, Integer maxPrice, ListSort sort) {}
+                  Integer minPrice, Integer maxPrice, boolean excludeSoldOut, ListSort sort) {}
 }

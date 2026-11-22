@@ -55,7 +55,8 @@ public class PhysicalAlbumRepositoryAdapter implements PhysicalAlbumRepository {
                         f.to() == null ? null : physicalAlbumEntity.releasedAt.loe(f.to()),
                         f.artistIds() == null || f.artistIds().isEmpty() ? null : albumEntity.artistId.in(f.artistIds()),
                         nameAlbumOrArtist(f.q()),
-                        ListFilters.lowestPriceBetween(physicalAlbumEntity.id, f.minPrice(), f.maxPrice()))
+                        ListFilters.lowestPriceBetween(physicalAlbumEntity.id, f.minPrice(), f.maxPrice()),
+                        ListFilters.inStock(physicalAlbumEntity.id, f.excludeSoldOut()))
                 .orderBy(order(f))
                 .offset(offset)
                 .limit(limit)

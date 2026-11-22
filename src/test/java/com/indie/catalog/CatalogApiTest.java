@@ -344,6 +344,19 @@ class CatalogApiTest {
         jdbc.update("UPDATE product SET updated_at = now() + interval '1 hour' WHERE external_id = 'fw-b-cap'");
         mvc.perform(get("/api/catalog/following/goods").header(USER, "7").param("sort", "UPDATED"))
                 .andExpect(jsonPath("$.result.items[0].name").value("비 모자"));
+        // 11/22 품절 안 보기 — 기본은 품절 · 판매중 전부, excludeSoldOut=true 면 재고 남은 옵션이 있는 것만 (목록 · 검색 · 팔로우 같음)
+        jdbc.update("UPDATE stock SET qty = 0 WHERE option_id IN (SELECT o.id FROM product_option o JOIN product p ON p.id = o.product_id "
+                + "WHERE p.external_id IN ('fw-c-bag', 'fw-b-cd'))");
+        mvc.perform(get("/api/catalog/search/goods").param("q", "씨")).andExpect(jsonPath("$.result.items[0].soldOut").value(true));
+        mvc.perform(get("/api/catalog/search/goods").param("q", "씨").param("excludeSoldOut", "true")).andExpect(jsonPath("$.result.items", hasSize(0)));
+        mvc.perform(get("/api/catalog/goods").param("artistIds", String.valueOf(c)).param("excludeSoldOut", "true")).andExpect(jsonPath("$.result.items", hasSize(0)));
+        mvc.perform(get("/api/catalog/following/goods").header(USER, "7").param("excludeSoldOut", "true"))
+                .andExpect(jsonPath("$.result.items[*].artistId").value(contains((int) a, (int) b)));
+        mvc.perform(get("/api/catalog/search/physical-albums").param("format", "CD").param("excludeSoldOut", "true"))
+                .andExpect(jsonPath("$.result.items[*].name").value(contains("디 앨범 CD")));
+        mvc.perform(get("/api/catalog/physical-albums").param("excludeSoldOut", "true").param("q", "두번째")).andExpect(jsonPath("$.result.items", hasSize(0)));
+        mvc.perform(get("/api/catalog/following/physical-albums").header(USER, "7").param("excludeSoldOut", "true"))
+                .andExpect(jsonPath("$.result.items[*].name").value(contains("첫 노을 LP")));
         mvc.perform(get("/api/catalog/following/physical-albums").header(USER, "7").param("sort", "FOLLOWERS"))
                 .andExpect(jsonPath("$.result.items[*].name").value(contains("첫 노을 LP", "두번째 비 CD")));
         mvc.perform(get("/api/catalog/following/physical-albums").header(USER, "7").param("format", "CD").param("q", "두번째"))
