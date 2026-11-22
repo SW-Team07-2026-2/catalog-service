@@ -213,6 +213,7 @@ Payment 는 바꾸지 않았습니다. Payment 가 내는 `payment.cancelled` �
 - 항목마다 트랜잭션입니다. 한 건이 실패해도 나머지는 적재되고, 결과에 `FAILED` 와 이유가 나옵니다.
 - **트랙은 `track_no` 기준으로 맞춥니다.** 같은 번호는 행을 유지한 채 값만 바꾸고, 요청에 없는 번호는 지웁니다. 통째로 지우고 다시 넣지 않는 이유는 member 의 행동 메트릭이 트랙 id 를 들고 있기 때문입니다.
 - 옵션은 (상품, 이름)이 같으면 갱신, 새 이름이면 새 옵션입니다. `qty` 는 입고 수량(절대값)이고 null 이면 수량을 건드리지 않습니다.
+- **(11/18) 관리자가 넣는 값은 null 이면 저장된 값을 유지합니다** — 이미지(`profile_url` · 앨범 · 피지컬 · 굿즈 `thumbnail_url`), 트랙 `genres` · `tempo` · `moods` · `emotions` · `styles`, 옵션 `price`. 빈 배열 `[]` 은 "비움"입니다. 새 옵션은 `price` 가 있어야 하고 없으면 그 항목이 `FAILED`("새 옵션 'X' 의 판매가가 필요합니다")입니다. 이유: 크롤러 후보를 다시 승인할 때 관리자가 Studio 에서 넣은 이미지 · 태그 · 판매가가 지워지지 않게 (`IngestService.keep` · `tags` · `CatalogFlowTest.adminImagesAndTrackTagsSurviveReingest`). 피지컬 이미지가 없으면 앨범 표지를 씁니다(전과 같음).
 - 이벤트는 실제로 값이 바뀐 경우에만 나갑니다 (8장).
 
 ## 6. 마이그레이션 (V1 구조 · V2 값)
@@ -279,15 +280,17 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 | 상품 수정 | `{ name?, thumbnailUrl?, category?(굿즈), releasedAt?(피지컬) }` | 보낸 값만 바꿉니다. ✏️ 11/18 등록 · 수정 · 상품 상세에서 `purchaseUrl` 을 뺐습니다(보내면 무시). 매체 · 연결된 앨범 · 아티스트는 바꾸지 않습니다 |
 | 옵션 | `{ options: [{ id?, name, vinylColor?, size?, price }] }` | `id` 가 있으면 그 옵션을 고치고 이름도 바꿉니다. 없으면 이름으로 찾아 고치거나 새로 만듭니다(재고 0). 요청에 없는 옵션은 그대로 둡니다 |
 | 재고 조정 | `{ delta, reason }` | `{ optionId, qty, updatedAt }`. 입고 +, 회수 · 파손 −. 주문 차감과 같은 조건부 UPDATE 라 0 아래로 내려가지 않습니다 (모자라면 409 `OUT_OF_STOCK`) |
+| 아티스트 사진 (11/18) | `PATCH /internal/admin/catalog/artists/{id}` `{ profileUrl }` | 아티스트 상세. `artist.updated` 를 냅니다 (concert 복제본 갱신) |
+| 앨범 표지 · 트랙 태그 (11/18) | `PATCH /internal/admin/catalog/albums/{id}` `{ thumbnailUrl?, tracks?: [{ trackNo, genres?, tempo?, moods?, emotions?, styles? }] }` | 앨범 상세. 보낸 값만 (트랙 태그도 null 은 그대로 · `[]` 은 비움) · 없는 `trackNo` 는 400 · `album.updated`(`changedFields`) · 캐시 지움 (`AdminEditService`) |
 | 재고 설정 (11/18) | `PUT` `{ qty, reason }` (qty 0 이상) | `{ optionId, qty, updatedAt }`. 재고를 qty 개로 맞춥니다. 수집 입고와 같은 행 락이라 주문 차감과 엇갈리지 않습니다. 수집 · 시드로 들어온 상품은 qty 없이 들어와 재고 0 이고, 관리자가 여기서 정합니다 |
 | 회원 주문 목록 | `?cursor=&size=` | 내 주문 목록(C10)과 같은 모양 |
 | 주문 취소 대행 | `{ reason }` (Studio 작업 기록용 · catalog 는 읽지 않음) | 주문 상세. 회원 본인 취소(C12)와 같은 흐름이고 Payment 에 남는 사유만 `ADMIN_CANCEL` 입니다 |
 
 - **내부 토큰 발급자는 경로로 나눕니다.** `/internal/admin/**` 는 `app.internal.admin-issuers`(`studio`)만, 수집 3경로는 Gateway 수집 토큰만 받습니다. 관리자 토큰으로 수집 API 를 부를 수 없습니다. 쓰이지 않던 `allowed-issuers: [assistant]` 는 지웠습니다.
-- 🔴 수집으로 들어온 상품을 관리자가 고치면, 수집기가 그 상품의 원본이 바뀐 것을 다음에 가져올 때 다시 덮어씁니다.
+- 🔴 수집으로 들어온 상품을 관리자가 고치면, 수집기가 그 상품의 원본이 바뀐 것을 다음에 가져올 때 다시 덮어씁니다. ✏️ 11/18 단 이미지 · 트랙 태그 · 판매가는 크롤러가 null 로 보내므로 지워지지 않습니다 (5.6).
 - 🔴 운영에서는 catalog 의 NetworkPolicy 가 Studio(`app: studio`)를 아직 허용하지 않습니다. Studio 매니페스트를 만들 때 함께 엽니다 (KT 클라우드 준비 뒤). `manifests` 의 `services/catalog/networkpolicy.yaml` 에 TODO 주석으로 남겼습니다.
 
-**이미지 URL (2026-11-13 결정).** 크롤링 데이터의 이미지(`thumbnail_url` · `profile_url` 등)는 **수집기가 S3 에 올리고 그 URL 을 넘깁니다.** catalog 는 URL 문자열만 저장하고 파일을 받거나 올리지 않습니다. 관리자 상품 등록(위 표)도 URL 을 받습니다.
+**이미지 URL.** ~~(2026-11-13 결정) 크롤링 데이터의 이미지는 **수집기가 S3 에 올리고 그 URL 을 넘깁니다.**~~ ✏️ 11/18 결정: 이미지는 **관리자가 Studio 로 올리고**(S3 업로드 주소 · `https://img.indig.co.kr/…` · Studio 가 저장 전에 파일이 있는지 확인), 크롤러는 null 을 보냅니다. catalog 는 URL 문자열만 저장하고 파일을 받거나 올리지 않습니다.
 
 ### 7.3 수집 적재 본문 (snake_case)
 

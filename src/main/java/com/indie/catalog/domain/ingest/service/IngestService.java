@@ -55,6 +55,8 @@ import java.util.stream.Collectors;
  *   <li>항목마다 트랜잭션 — 한 건이 실패해도 나머지는 적재되고, 결과에 FAILED 로 표시합니다</li>
  *   <li>이벤트는 실제로 값이 바뀐 경우에만 — 같은 값을 다시 넣으면 아무것도 나가지 않습니다</li>
  *   <li>발매 알림 이벤트는 새로 생긴 것만 · 음반은 발매일이 최근(app.event.release-window-days)일 때만</li>
+ *   <li>이미지(profile_url · thumbnail_url) · 트랙 태그(genres · tempo · moods · emotions · styles)는 null 이면 저장된 값을 그대로 둡니다
+ *       — 11/18 결정: 관리자가 넣는 값이라, 크롤러 후보를 다시 승인해도 지워지지 않게. 지우려면 태그는 빈 배열을 보냅니다</li>
  * </ul>
  */
 @Service
@@ -145,8 +147,8 @@ public class IngestService {
         if (created) artist = new ArtistEntity(u.source(), u.externalId());
         Long labelId = u.label() == null || u.label().isBlank() ? null : labelRepository.findByName(u.label().strip())
                 .orElseGet(() -> labelRepository.save(new LabelEntity(u.label().strip()))).getId();
-        boolean changed = artist.apply(u.name().strip(), distinct(u.genres()), labelId, u.debutYear(), u.profileUrl(),
-                u.gender(), u.composition(), u.sourceHash(), now);
+        boolean changed = artist.apply(u.name().strip(), distinct(u.genres()), labelId, u.debutYear(),
+                keep(u.profileUrl(), artist.getProfileUrl()), u.gender(), u.composition(), u.sourceHash(), now);
         artist = artistRepository.save(artist);
         if (created || changed) events.artistUpdated(artist);
 
@@ -163,12 +165,13 @@ public class IngestService {
         GoodsEntity goods = goodsRepository.findBySourceAndExternalId(source, g.externalId())
                 .orElseGet(() -> new GoodsEntity(source, g.externalId()));
         boolean created = goods.getId() == null;
-        boolean changed = goods.apply(artist.getId(), g.category(), g.name().strip(), g.thumbnailUrl(),
+        boolean changed = goods.apply(artist.getId(), g.category(), g.name().strip(), keep(g.thumbnailUrl(), goods.getThumbnailUrl()),
                 g.sourceHash(), now);
         goods = goodsRepository.save(goods);
         ProductService.OptionsResult options = productService.upsertOptions(goods.getId(), null, inputs(g.options()));
         if (created) {
-            events.goodsReleased(goods, artist, g.options().stream().mapToInt(OptionUpsert::price).min().orElseThrow());
+            events.goodsReleased(goods, artist, g.options().stream().map(OptionUpsert::price).filter(Objects::nonNull)
+                    .mapToInt(Integer::intValue).min().orElseThrow());   // 새 상품은 옵션마다 판매가가 있어야 저장됩니다 (upsertOptions)
         }
         return created || changed || options.changed();
     }
@@ -185,7 +188,7 @@ public class IngestService {
         if (created) album = new AlbumEntity(u.source(), u.externalId());
         Long previousArtistId = album.getArtistId();
         List<String> changed = album.apply(artist.getId(), u.title().strip(), u.type(), distinct(u.genres()), u.releasedAt(),
-                u.thumbnailUrl(), u.sourceHash(), now);
+                keep(u.thumbnailUrl(), album.getThumbnailUrl()), u.sourceHash(), now);
         album = albumRepository.save(album);
 
         if (u.tracks() != null && syncTracks(album.getId(), u.tracks())) changed.add("tracks");
@@ -223,8 +226,8 @@ public class IngestService {
             TrackEntity track = existing.remove(t.trackNo());
             boolean isNew = track == null;
             if (isNew) track = new TrackEntity(albumId, t.trackNo());
-            changed |= track.apply(t.title().strip(), distinct(t.genres()), t.tempo(), distinct(t.moods()),
-                    distinct(t.emotions()), distinct(t.styles())) || isNew;
+            changed |= track.apply(t.title().strip(), tags(t.genres(), track.getGenres()), keep(t.tempo(), track.getTempo()),
+                    tags(t.moods(), track.getMoods()), tags(t.emotions(), track.getEmotions()), tags(t.styles(), track.getStyles())) || isNew;
             trackRepository.save(track);
         }
         if (!existing.isEmpty()) {
@@ -240,7 +243,7 @@ public class IngestService {
                 .orElseGet(() -> new PhysicalAlbumEntity(source, u.externalId()));
         boolean created = physicalAlbum.getId() == null;
         boolean changed = physicalAlbum.apply(album.getId(), u.format(), u.releasedAt(), u.name().strip(),
-                u.thumbnailUrl() == null ? album.getThumbnailUrl() : u.thumbnailUrl(), u.sourceHash(), now);
+                keep(u.thumbnailUrl(), keep(physicalAlbum.getThumbnailUrl(), album.getThumbnailUrl())), u.sourceHash(), now);
         physicalAlbum = physicalAlbumRepository.save(physicalAlbum);
         ProductService.OptionsResult options = productService.upsertOptions(physicalAlbum.getId(), u.format(), inputs(u.options()));
         // 새 상품은 발매일이 최근이거나 모를 때만 · 이미 있던 상품에 옵션(컬러반 등)이 새로 생기면 그 옵션만 실어 보냅니다
@@ -263,6 +266,16 @@ public class IngestService {
     /** 배열 값 — null 은 빈 배열로, 같은 값이 두 번 오면 하나로 (순서는 유지 · 첫 값이 대표) */
     private static <E> List<E> distinct(List<E> values) {
         return values == null ? List.of() : values.stream().distinct().toList();
+    }
+
+    /** 관리자가 넣는 값 — null 이면 저장된 값 그대로 (새 행이면 저장된 값도 null) */
+    private static <T> T keep(T incoming, T stored) {
+        return incoming != null ? incoming : stored;
+    }
+
+    /** 트랙 태그 — null 이면 그대로, 빈 배열이면 지움, 값이 있으면 중복을 빼고 그 값으로 */
+    private static <E> List<E> tags(List<E> incoming, List<E> stored) {
+        return incoming == null ? (stored == null ? List.of() : stored) : distinct(incoming);
     }
 
     private static boolean sameHash(String incoming, String stored) {
