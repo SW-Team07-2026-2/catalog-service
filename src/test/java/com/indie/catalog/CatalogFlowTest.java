@@ -11,6 +11,8 @@ import com.indie.catalog.domain.album.entity.Tempo;
 import com.indie.catalog.domain.album.service.AlbumService;
 import com.indie.catalog.domain.artist.dto.response.ArtistDetail;
 import com.indie.catalog.domain.artist.dto.response.ArtistItem;
+import com.indie.catalog.domain.artist.entity.ArtistComposition;
+import com.indie.catalog.domain.artist.entity.ArtistGender;
 import com.indie.catalog.domain.artist.entity.Genre;
 import com.indie.catalog.domain.artist.service.ArtistService;
 import com.indie.catalog.domain.cart.dto.response.CartLine;
@@ -32,6 +34,7 @@ import com.indie.catalog.domain.ingest.dto.response.ItemResult.Result;
 import com.indie.catalog.domain.ingest.service.IngestService;
 import com.indie.catalog.domain.ingest.service.AdminEditService;
 import com.indie.catalog.domain.ingest.dto.request.AdminAlbumUpdate;
+import com.indie.catalog.domain.ingest.dto.request.AdminArtistUpdate;
 import com.indie.catalog.domain.order.dto.response.OrderCreated;
 import com.indie.catalog.domain.order.dto.response.OrderDetail;
 import com.indie.catalog.domain.order.dto.response.OrderItemView;
@@ -210,8 +213,16 @@ class CatalogFlowTest extends PostgresTest {
 
         // 관리자가 이미지 · 태그를 넣음
         String img = "https://img.indig.co.kr/";
-        assertThat(edit.updateArtist(artistId, img + "artist/1.jpg").profileUrl()).isEqualTo(img + "artist/1.jpg");
+        assertThat(edit.updateArtist(artistId, new AdminArtistUpdate(img + "artist/1.jpg", null, null)).profileUrl()).isEqualTo(img + "artist/1.jpg");
         assertThat(events("artist.updated").get(1).path("profileUrl").asText()).isEqualTo(img + "artist/1.jpg");   // Concert 복제본에도 감
+        // 11/22 성별 · 구성만 보내면 이미지는 그대로
+        assertThat(edit.updateArtist(artistId, new AdminArtistUpdate(null, ArtistGender.MALE, ArtistComposition.GROUP)).profileUrl())
+                .isEqualTo(img + "artist/1.jpg");
+        assertThat(jdbc.queryForMap("SELECT gender, composition FROM artist WHERE id = ?", artistId))
+                .containsEntry("gender", "MALE").containsEntry("composition", "GROUP");
+        int artistEvents = events("artist.updated").size();
+        edit.updateArtist(artistId, new AdminArtistUpdate(null, ArtistGender.MALE, null));                // 바뀐 게 없으면 이벤트도 없음
+        assertThat(events("artist.updated")).hasSize(artistEvents);
         AlbumDetail tagged = edit.updateAlbum(albumId, new AdminAlbumUpdate(img + "album/1.jpg",
                 List.of(new AdminAlbumUpdate.TrackTags(1, List.of(Genre.INDIE_ROCK), Tempo.MID, List.of(Mood.DREAMY), null, null))));
         assertThat(tagged.thumbnailUrl()).isEqualTo(img + "album/1.jpg");
@@ -232,6 +243,8 @@ class CatalogFlowTest extends PostgresTest {
                         List.of(opt("기본", null, null, 15000, null)))))));
 
         assertThat(artistService.detail(artistId).profileUrl()).isEqualTo(img + "artist/1.jpg");
+        assertThat(jdbc.queryForMap("SELECT gender, composition FROM artist WHERE id = ?", artistId))
+                .containsEntry("gender", "MALE").containsEntry("composition", "GROUP");                  // 수집 null 은 관리자 값 그대로
         AlbumDetail after = albumService.detail(albumId);
         assertThat(after.thumbnailUrl()).isEqualTo(img + "album/1.jpg");
         assertThat(after.tracks().get(0).tempo()).isEqualTo(Tempo.MID);

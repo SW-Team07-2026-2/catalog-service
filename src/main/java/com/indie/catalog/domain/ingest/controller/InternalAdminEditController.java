@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 관리자(Studio)가 넣는 값 — 아티스트 이미지 · 앨범 이미지 · 트랙 태그 (11/18). 상품 이미지는 PATCH /internal/admin/catalog/products/{id}.
+ * 관리자(Studio)가 넣는 값 — 아티스트 이미지 · 성별 · 구성(11/22) · 앨범 이미지 · 트랙 태그 (11/18). 상품 이미지는 PATCH /internal/admin/catalog/products/{id}.
  * 토큰 규칙은 다른 /internal/admin/** 와 같습니다 (iss=studio).
  */
 @RestController
@@ -28,7 +28,7 @@ public class InternalAdminEditController {
 
     @PatchMapping("/internal/admin/catalog/artists/{id}")
     public ApiResponse<ArtistDetail> updateArtist(@PathVariable @Positive long id, @Valid @RequestBody AdminArtistUpdate request) {
-        return ApiResponse.onSuccess(adminEditService.updateArtist(id, request.profileUrl()));
+        return ApiResponse.onSuccess(adminEditService.updateArtist(id, request));
     }
 
     @PatchMapping("/internal/admin/catalog/albums/{id}")
