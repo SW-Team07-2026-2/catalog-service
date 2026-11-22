@@ -186,8 +186,11 @@ public class ProductService {
             if (isNew && freed.contains(input.name())) {   // INSERT 가 이름 변경(UPDATE)보다 먼저 나가 UNIQUE 에 걸립니다
                 throw new GeneralException(CommonErrorCode.INVALID_REQUEST, "같은 요청에서 바꾼 옵션 이름 '" + input.name() + "' 은 다시 쓸 수 없습니다");
             }
+            if (isNew && input.price() == null) {
+                throw new GeneralException(CommonErrorCode.INVALID_REQUEST, "새 옵션 '" + input.name() + "' 의 판매가가 필요합니다");
+            }
             if (isNew) option = new ProductOptionEntity(productId, input.name(), now);
-            changed |= option.apply(input.vinylColor(), input.size(), input.price()) || isNew;
+            changed |= option.apply(input.vinylColor(), input.size(), input.price() == null ? option.getPrice() : input.price()) || isNew;
             option = optionRepository.save(option);
             if (isNew) {
                 created.add(option);
@@ -297,7 +300,8 @@ public class ProductService {
     public record Sellable(ProductOptionEntity option, ProductEntity product) {}
 
     /** id — 관리자가 기존 옵션을 가리킬 때만 (수집은 null · 이름이 식별자) */
-    public record OptionInput(Long id, String name, VinylColor vinylColor, OptionSize size, int price, Integer qty) {}
+    /** price null — 기존 옵션은 판매가 그대로 · 새 옵션이면 거절 (수집 적재만 null 을 보냄) */
+    public record OptionInput(Long id, String name, VinylColor vinylColor, OptionSize size, Integer price, Integer qty) {}
 
     /** created — 이번에 새로 생긴 옵션 (피지컬 앨범 발매 알림에 싣습니다) */
     public record OptionsResult(boolean changed, List<ProductOptionEntity> created) {}

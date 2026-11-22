@@ -30,6 +30,8 @@ import com.indie.catalog.domain.ingest.dto.response.DiffResult;
 import com.indie.catalog.domain.ingest.dto.response.ItemResult;
 import com.indie.catalog.domain.ingest.dto.response.ItemResult.Result;
 import com.indie.catalog.domain.ingest.service.IngestService;
+import com.indie.catalog.domain.ingest.service.AdminEditService;
+import com.indie.catalog.domain.ingest.dto.request.AdminAlbumUpdate;
 import com.indie.catalog.domain.order.dto.response.OrderCreated;
 import com.indie.catalog.domain.order.dto.response.OrderDetail;
 import com.indie.catalog.domain.order.dto.response.OrderItemView;
@@ -86,6 +88,7 @@ class CatalogFlowTest extends PostgresTest {
     @Autowired CartService cartService;
     @Autowired OrderService orderService;
     @Autowired AdminProductService admin;
+    @Autowired AdminEditService edit;
     @Autowired FakePayment payment;
     @Autowired ObjectMapper objectMapper;
     @Autowired JdbcTemplate jdbc;
@@ -188,6 +191,71 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(diff.unchanged()).containsExactly("lp-1");
         assertThat(diff.changed()).containsExactly("cd-1");
         assertThat(diff.created()).containsExactly("lp-9");
+    }
+
+    /** 11/18 — 이미지 · 트랙 태그는 관리자가 넣는 값: 크롤러가 null 로 다시 보내도 지워지지 않고, 빈 배열은 지웁니다 */
+    @Test
+    void adminImagesAndTrackTagsSurviveReingest() {
+        ArtistUpsert artist = new ArtistUpsert("crawler", "ar-keep", "h1", "혁오", List.of(Genre.INDIE_ROCK), null, 2014, null, null, null,
+                List.of(new GoodsUpsert("gd-keep", "g1", "투어 티셔츠", GoodsCategory.TSHIRT, null,
+                        List.of(opt("M", null, OptionSize.M, 30000, null)))));
+        long artistId = ingest.upsertArtists(List.of(artist)).get(0).id();
+        TrackUpsert bare = new TrackUpsert(1, "위잉위잉", null, null, null, null, null);
+        AlbumUpsert album = new AlbumUpsert("crawler", "al-keep", "a1", artistId, "20", AlbumEntity.Type.EP, null, null, null,
+                List.of(bare), List.of(new PhysicalAlbumUpsert("cd-keep", "p1", PhysicalFormat.CD, "20 CD", null, null,
+                        List.of(opt("기본", null, null, 15000, null)))));
+        long albumId = ingest.upsertAlbums(List.of(album)).get(0).id();
+        long goodsId = jdbc.queryForObject("SELECT id FROM product WHERE external_id = 'gd-keep'", Long.class);
+        long cdId = jdbc.queryForObject("SELECT id FROM product WHERE external_id = 'cd-keep'", Long.class);
+
+        // 관리자가 이미지 · 태그를 넣음
+        String img = "https://img.indig.co.kr/";
+        assertThat(edit.updateArtist(artistId, img + "artist/1.jpg").profileUrl()).isEqualTo(img + "artist/1.jpg");
+        assertThat(events("artist.updated").get(1).path("profileUrl").asText()).isEqualTo(img + "artist/1.jpg");   // Concert 복제본에도 감
+        AlbumDetail tagged = edit.updateAlbum(albumId, new AdminAlbumUpdate(img + "album/1.jpg",
+                List.of(new AdminAlbumUpdate.TrackTags(1, List.of(Genre.INDIE_ROCK), Tempo.MID, List.of(Mood.DREAMY), null, null))));
+        assertThat(tagged.thumbnailUrl()).isEqualTo(img + "album/1.jpg");
+        assertThat(tagged.tracks().get(0).tempo()).isEqualTo(Tempo.MID);
+        assertThat(texts(events("album.updated").get(0).path("changedFields"))).containsExactly("thumbnailUrl", "tracks");
+        admin.update(goodsId, new AdminProductUpdate(null, img + "goods/1.jpg", null, null));
+        admin.update(cdId, new AdminProductUpdate(null, img + "physical/1.jpg", null, null));
+        assertCode(() -> edit.updateAlbum(albumId, new AdminAlbumUpdate(null,
+                List.of(new AdminAlbumUpdate.TrackTags(9, null, Tempo.FAST, null, null, null)))), CommonErrorCode.INVALID_REQUEST);
+
+        // 크롤러가 바뀐 후보를 다시 보냄 (새 트랙 · 이미지 · 태그는 null) → 관리자 값 그대로
+        ingest.upsertArtists(List.of(new ArtistUpsert("crawler", "ar-keep", "h2", "혁오", List.of(Genre.INDIE_ROCK), null, 2014, null, null, null,
+                List.of(new GoodsUpsert("gd-keep", "g2", "투어 티셔츠", GoodsCategory.TSHIRT, null,
+                        List.of(opt("M", null, OptionSize.M, 30000, null)))))));
+        ingest.upsertAlbums(List.of(new AlbumUpsert("crawler", "al-keep", "a2", artistId, "20", AlbumEntity.Type.EP, null, null, null,
+                List.of(bare, new TrackUpsert(2, "와리가리", null, null, null, null, null)),
+                List.of(new PhysicalAlbumUpsert("cd-keep", "p2", PhysicalFormat.CD, "20 CD", null, null,
+                        List.of(opt("기본", null, null, 15000, null)))))));
+
+        assertThat(artistService.detail(artistId).profileUrl()).isEqualTo(img + "artist/1.jpg");
+        AlbumDetail after = albumService.detail(albumId);
+        assertThat(after.thumbnailUrl()).isEqualTo(img + "album/1.jpg");
+        assertThat(after.tracks().get(0).tempo()).isEqualTo(Tempo.MID);
+        assertThat(after.tracks().get(0).moods()).containsExactly(Mood.DREAMY);
+        assertThat(after.tracks().get(1).moods()).isEmpty();                                     // 새 트랙은 빈 값
+        assertThat(productService.product(goodsId).thumbnailUrl()).isEqualTo(img + "goods/1.jpg");
+        assertThat(productService.product(cdId).thumbnailUrl()).isEqualTo(img + "physical/1.jpg");
+
+        // 판매가 null → 저장된 값 그대로 · 새 옵션은 판매가가 있어야 함 (그 항목만 FAILED)
+        ingest.upsertArtists(List.of(new ArtistUpsert("crawler", "ar-keep", "h3", "혁오", List.of(Genre.INDIE_ROCK), null, 2014, null, null, null,
+                List.of(new GoodsUpsert("gd-keep", "g3", "투어 티셔츠", GoodsCategory.TSHIRT, null,
+                        List.of(new OptionUpsert("M", null, OptionSize.M, null, null)))))));
+        assertThat(productService.product(goodsId).options()).extracting(OptionView::price).containsExactly(30000);
+        ItemResult noPrice = ingest.upsertArtists(List.of(new ArtistUpsert("crawler", "ar-keep", "h4", "혁오", List.of(Genre.INDIE_ROCK),
+                null, 2014, null, null, null, List.of(new GoodsUpsert("gd-keep", "g4", "투어 티셔츠", GoodsCategory.TSHIRT, null,
+                        List.of(new OptionUpsert("L", null, OptionSize.L, null, null))))))).get(0);
+        assertThat(noPrice.result()).isEqualTo(Result.FAILED);
+        assertThat(noPrice.error()).contains("판매가");
+
+        // 빈 배열은 지움
+        ingest.upsertAlbums(List.of(new AlbumUpsert("crawler", "al-keep", "a3", artistId, "20", AlbumEntity.Type.EP, null, null, null,
+                List.of(new TrackUpsert(1, "위잉위잉", null, null, List.of(), null, null)), null)));
+        assertThat(albumService.detail(albumId).tracks().get(0).moods()).isEmpty();
+        assertThat(albumService.detail(albumId).tracks().get(0).tempo()).isEqualTo(Tempo.MID);
     }
 
     /** 옛 음반을 처음 수집할 때 발매 알림이 나가지 않습니다 */
