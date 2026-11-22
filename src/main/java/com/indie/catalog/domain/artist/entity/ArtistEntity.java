@@ -30,6 +30,10 @@ public class ArtistEntity {
     private List<Genre> genres = List.of();
     private Integer debutYear;
     private String profileUrl;
+    @Enumerated(EnumType.STRING)
+    private ArtistGender gender;
+    @Enumerated(EnumType.STRING)
+    private ArtistComposition composition;
     private String source;
     private String externalId;
     private String sourceHash;
@@ -42,17 +46,24 @@ public class ArtistEntity {
         this.externalId = externalId;
     }
 
-    /** 값을 덮어쓰고 바뀐 게 있으면 true — artist.updated 발행 판단 */
+    /**
+     * 값을 덮어쓰고 바뀐 게 있으면 true — artist.updated 발행 판단.
+     * 11/22 성별 · 구성은 null 이면 저장된 값을 그대로 둡니다 (수집기는 모름 · 관리자가 넣은 값 유지)
+     */
     public boolean apply(String name, List<Genre> genres, Long labelId, Integer debutYear, String profileUrl,
-                         String sourceHash, OffsetDateTime now) {
+                         ArtistGender gender, ArtistComposition composition, String sourceHash, OffsetDateTime now) {
+        ArtistGender nextGender = gender != null ? gender : this.gender;
+        ArtistComposition nextComposition = composition != null ? composition : this.composition;
         boolean changed = !Objects.equals(this.name, name) || !this.genres.equals(genres)
                 || !Objects.equals(this.labelId, labelId) || !Objects.equals(this.debutYear, debutYear)
-                || !Objects.equals(this.profileUrl, profileUrl);
+                || !Objects.equals(this.profileUrl, profileUrl) || this.gender != nextGender || this.composition != nextComposition;
         this.name = name;
         this.genres = List.copyOf(genres);
         this.labelId = labelId;
         this.debutYear = debutYear;
         this.profileUrl = profileUrl;
+        this.gender = nextGender;
+        this.composition = nextComposition;
         this.sourceHash = sourceHash;
         if (changed || this.updatedAt == null) this.updatedAt = now;
         return changed;

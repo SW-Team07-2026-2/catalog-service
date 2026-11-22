@@ -5,6 +5,8 @@ import com.indie.catalog.domain.album.service.AlbumService;
 import com.indie.catalog.domain.artist.dto.response.ArtistDetail;
 import com.indie.catalog.domain.artist.dto.response.ArtistItem;
 import com.indie.catalog.domain.artist.entity.ArtistEntity;
+import com.indie.catalog.domain.artist.entity.ArtistComposition;
+import com.indie.catalog.domain.artist.entity.ArtistGender;
 import com.indie.catalog.domain.artist.entity.Genre;
 import com.indie.catalog.domain.artist.entity.LabelEntity;
 import com.indie.catalog.domain.artist.repository.ArtistCache;
@@ -45,14 +47,16 @@ public class ArtistService {
 
     /** C2 — 이름 · 장르(여러 개) · ids 필터 (FR-CAT-01 · 02). 기본 이름순 · 11/19 sort. 관련도 검색은 C1 */
     @Transactional(readOnly = true)
-    public PageResult<ArtistItem> list(String q, List<Genre> genres, List<Long> ids, ListSort sort, int page, int size) {
-        return listOf(q, genres, ListFilters.artistIds(ids, sort), sort, page, size);
+    public PageResult<ArtistItem> list(String q, List<Genre> genres, List<ArtistGender> genders, List<ArtistComposition> compositions,
+                                       List<Long> ids, ListSort sort, int page, int size) {
+        return listOf(q, genres, genders, compositions, ListFilters.artistIds(ids, sort), sort, page, size);
     }
 
     /** 검증을 마친 아티스트 ID 목록으로 — 팔로우 탭은 Member 에서 받은 순서를 그대로 넘깁니다 (상한 200 은 쿼리 문자열용) */
     @Transactional(readOnly = true)
-    public PageResult<ArtistItem> listOf(String q, List<Genre> genres, List<Long> artistIds, ListSort sort, int page, int size) {
-        return PageResult.of(artistRepository.search(q, genres, artistIds, sort, (long) page * size, size + 1), page, size,
+    public PageResult<ArtistItem> listOf(String q, List<Genre> genres, List<ArtistGender> genders, List<ArtistComposition> compositions,
+                                         List<Long> artistIds, ListSort sort, int page, int size) {
+        return PageResult.of(artistRepository.search(q, genres, genders, compositions, artistIds, sort, (long) page * size, size + 1), page, size,
                 artists -> artists.stream().map(ArtistService::item).toList());
     }
 

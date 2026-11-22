@@ -2,6 +2,8 @@ package com.indie.catalog.domain.artist.controller;
 
 import com.indie.catalog.domain.artist.dto.response.ArtistDetail;
 import com.indie.catalog.domain.artist.dto.response.ArtistItem;
+import com.indie.catalog.domain.artist.entity.ArtistComposition;
+import com.indie.catalog.domain.artist.entity.ArtistGender;
 import com.indie.catalog.domain.artist.entity.Genre;
 import com.indie.catalog.domain.artist.service.ArtistService;
 import com.indie.catalog.global.common.response.ApiResponse;
@@ -36,20 +38,24 @@ public class ArtistController {
     @GetMapping("/api/catalog/artists")
     public ApiResponse<PageResult<ArtistItem>> list(@RequestParam(required = false) String q,
                                                      @RequestParam(required = false) List<Genre> genre,
+                                                     @RequestParam(required = false) List<ArtistGender> gender,
+                                                     @RequestParam(required = false) List<ArtistComposition> composition,
                                                      @RequestParam(required = false) List<Long> ids,
                                                      @RequestParam(required = false) ListSort sort,
                                                      @RequestParam(defaultValue = "0") @PositiveOrZero int page,
                                                      @RequestParam(required = false) Integer size) {
-        return ApiResponse.onSuccess(artistService.list(q, genre, ids, sort, page, pageSize.resolve(size)));
+        return ApiResponse.onSuccess(artistService.list(q, genre, gender, composition, ids, sort, page, pageSize.resolve(size)));
     }
 
     /** 11/19 전체 검색 (프론트 요구 1-3 · 2-1) — 아티스트 이름 LIKE + 장르(여러 개 · OR). q 가 없으면 칩만으로 · 가나다순 */
     @GetMapping("/api/catalog/search/artists")
     public ApiResponse<PageResult<ArtistItem>> search(@RequestParam(required = false) String q,
                                                        @RequestParam(required = false) List<Genre> genre,
+                                                       @RequestParam(required = false) List<ArtistGender> gender,
+                                                       @RequestParam(required = false) List<ArtistComposition> composition,
                                                        @RequestParam(defaultValue = "0") @PositiveOrZero int page,
                                                        @RequestParam(required = false) Integer size) {
-        return ApiResponse.onSuccess(artistService.list(q, genre, null, null, page, pageSize.resolve(size)));
+        return ApiResponse.onSuccess(artistService.list(q, genre, gender, composition, null, null, page, pageSize.resolve(size)));
     }
 
     @GetMapping("/api/catalog/artists/{id}")

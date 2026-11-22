@@ -36,3 +36,7 @@ ALTER TABLE product_option ADD CONSTRAINT ck_product_option_size CHECK (size IN 
 
 -- ── 주문 (OrderStatus) ──
 ALTER TABLE purchase_order ADD CONSTRAINT ck_order_status CHECK (status IN ('PENDING','CONFIRMED','CANCELLED','REFUNDED'));
+
+-- ── 아티스트 성별 · 구성 (ArtistGender · ArtistComposition · 11/22 프론트 필터) ──
+ALTER TABLE artist ADD CONSTRAINT ck_artist_gender CHECK (gender IN ('MALE','FEMALE','MIXED'));
+ALTER TABLE artist ADD CONSTRAINT ck_artist_composition CHECK (composition IN ('SOLO','GROUP'));

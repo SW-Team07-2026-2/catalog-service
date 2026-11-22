@@ -146,7 +146,7 @@ public class IngestService {
         Long labelId = u.label() == null || u.label().isBlank() ? null : labelRepository.findByName(u.label().strip())
                 .orElseGet(() -> labelRepository.save(new LabelEntity(u.label().strip()))).getId();
         boolean changed = artist.apply(u.name().strip(), distinct(u.genres()), labelId, u.debutYear(), u.profileUrl(),
-                u.sourceHash(), now);
+                u.gender(), u.composition(), u.sourceHash(), now);
         artist = artistRepository.save(artist);
         if (created || changed) events.artistUpdated(artist);
 
