@@ -14,7 +14,7 @@ import java.util.List;
 
 /**
  * 피지컬 앨범 (LP · CD · 카세트) — 한 앨범에 같은 매체를 여러 개 넣을 수 있습니다 (초판 · 재판 · N차는 name 으로 구분).
- * thumbnail_url 이 없으면 앨범 이미지를 씁니다.
+ * thumbnail_url 이 없으면 저장된 이미지를, 그것도 없으면 앨범 이미지를 씁니다.
  */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record PhysicalAlbumUpsert(@NotBlank @Size(max = 128) String externalId,
