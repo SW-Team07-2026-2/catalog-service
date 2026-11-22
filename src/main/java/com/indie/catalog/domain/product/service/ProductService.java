@@ -89,9 +89,10 @@ public class ProductService {
     /** C7 — 굿즈 목록 (최신 등록순) */
     @Transactional(readOnly = true)
     public PageResult<GoodsItem> goods(Long artistId, List<Long> artistIds, List<GoodsCategory> categories, String q,
-                                       Integer minPrice, Integer maxPrice, ListSort sort, int page, int size) {
+                                       Integer minPrice, Integer maxPrice, boolean excludeSoldOut, ListSort sort, int page, int size) {
         ListFilters.checkPrice(minPrice, maxPrice);
-        return goods(new GoodsRepository.Filter(ListFilters.artistIds(artistId, artistIds, sort), categories, q, minPrice, maxPrice, sort),
+        return goods(new GoodsRepository.Filter(ListFilters.artistIds(artistId, artistIds, sort), categories, q, minPrice, maxPrice,
+                        excludeSoldOut, sort),
                 page, size);
     }
 
@@ -109,13 +110,14 @@ public class ProductService {
     /** C6 — 피지컬 앨범 발매 목록 (발매일 기준 · FR-CAT-12). 매체 · 구간을 안 주면 전체 */
     @Transactional(readOnly = true)
     public PageResult<PhysicalAlbumItem> physicalAlbums(List<PhysicalFormat> formats, LocalDate from, LocalDate to, List<Long> artistIds,
-                                                        String q, Integer minPrice, Integer maxPrice, ListSort sort, int page, int size) {
+                                                        String q, Integer minPrice, Integer maxPrice, boolean excludeSoldOut, ListSort sort,
+                                                        int page, int size) {
         if (from != null && to != null && from.isAfter(to)) {
             throw new GeneralException(CommonErrorCode.INVALID_REQUEST, "from 은 to 보다 이후일 수 없습니다");
         }
         ListFilters.checkPrice(minPrice, maxPrice);
         return physicalAlbums(new PhysicalAlbumRepository.Filter(formats, from, to, ListFilters.artistIds(artistIds, sort), q,
-                minPrice, maxPrice, sort), page, size);
+                minPrice, maxPrice, excludeSoldOut, sort), page, size);
     }
 
     /** 검증을 마친 필터로 — 팔로우 탭 */

@@ -42,7 +42,8 @@ public class GoodsRepositoryAdapter implements GoodsRepository {
                 .where(f.artistIds() == null || f.artistIds().isEmpty() ? null : goodsEntity.artistId.in(f.artistIds()),
                         f.categories() == null || f.categories().isEmpty() ? null : goodsEntity.category.in(f.categories()),
                         nameOrArtist(f.q()),
-                        ListFilters.lowestPriceBetween(goodsEntity.id, f.minPrice(), f.maxPrice()))
+                        ListFilters.lowestPriceBetween(goodsEntity.id, f.minPrice(), f.maxPrice()),
+                        ListFilters.inStock(goodsEntity.id, f.excludeSoldOut()))
                 .orderBy(order(f))
                 .offset(offset)
                 .limit(limit)

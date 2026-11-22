@@ -12,6 +12,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 
 import static com.indie.catalog.domain.product.entity.QProductOptionEntity.productOptionEntity;
+import static com.indie.catalog.domain.product.entity.QStockEntity.stockEntity;
 
 /** 목록 필터 공통 (11/19 팔로우 탭) — 아티스트 ID 목록 · 가격대 */
 public final class ListFilters {
@@ -67,5 +68,13 @@ public final class ListFilters {
         if (minPrice == null) return lowest.loe(maxPrice);
         if (maxPrice == null) return lowest.goe(minPrice);
         return lowest.between(minPrice, maxPrice);
+    }
+
+    /** 11/22 품절 안 보기 — 재고가 남은 옵션이 하나라도 있는 상품만 (목록 soldOut 이 false 인 것과 같은 기준). false 면 조건 없음 */
+    public static BooleanExpression inStock(NumberExpression<Long> productId, boolean excludeSoldOut) {
+        if (!excludeSoldOut) return null;
+        return JPAExpressions.selectOne().from(productOptionEntity, stockEntity)
+                .where(productOptionEntity.productId.eq(productId), stockEntity.optionId.eq(productOptionEntity.id), stockEntity.qty.gt(0))
+                .exists();
     }
 }

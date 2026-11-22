@@ -46,10 +46,11 @@ public class ProductController {
             @RequestParam(required = false) String q,
             @RequestParam(required = false) @PositiveOrZero Integer minPrice,
             @RequestParam(required = false) @PositiveOrZero Integer maxPrice,
+            @RequestParam(defaultValue = "false") boolean excludeSoldOut,
             @RequestParam(required = false) ListSort sort,
             @RequestParam(defaultValue = "0") @PositiveOrZero int page,
             @RequestParam(required = false) Integer size) {
-        return ApiResponse.onSuccess(productService.physicalAlbums(format, from, to, artistIds, q, minPrice, maxPrice, sort,
+        return ApiResponse.onSuccess(productService.physicalAlbums(format, from, to, artistIds, q, minPrice, maxPrice, excludeSoldOut, sort,
                 page, pageSize.resolve(size)));
     }
 
@@ -61,10 +62,11 @@ public class ProductController {
                                                     @RequestParam(required = false) String q,
                                                     @RequestParam(required = false) @PositiveOrZero Integer minPrice,
                                                     @RequestParam(required = false) @PositiveOrZero Integer maxPrice,
+                                                    @RequestParam(defaultValue = "false") boolean excludeSoldOut,
                                                     @RequestParam(required = false) ListSort sort,
                                                     @RequestParam(defaultValue = "0") @PositiveOrZero int page,
                                                     @RequestParam(required = false) Integer size) {
-        return ApiResponse.onSuccess(productService.goods(artistId, artistIds, category, q, minPrice, maxPrice, sort,
+        return ApiResponse.onSuccess(productService.goods(artistId, artistIds, category, q, minPrice, maxPrice, excludeSoldOut, sort,
                 page, pageSize.resolve(size)));
     }
 
@@ -74,9 +76,10 @@ public class ProductController {
                                                                           @RequestParam(required = false) List<PhysicalFormat> format,
                                                                           @RequestParam(required = false) @PositiveOrZero Integer minPrice,
                                                                           @RequestParam(required = false) @PositiveOrZero Integer maxPrice,
+                                                                          @RequestParam(defaultValue = "false") boolean excludeSoldOut,
                                                                           @RequestParam(defaultValue = "0") @PositiveOrZero int page,
                                                                           @RequestParam(required = false) Integer size) {
-        return ApiResponse.onSuccess(productService.physicalAlbums(format, null, null, null, q, minPrice, maxPrice, null,
+        return ApiResponse.onSuccess(productService.physicalAlbums(format, null, null, null, q, minPrice, maxPrice, excludeSoldOut, null,
                 page, pageSize.resolve(size)));
     }
 
@@ -86,9 +89,10 @@ public class ProductController {
                                                           @RequestParam(required = false) List<GoodsCategory> category,
                                                           @RequestParam(required = false) @PositiveOrZero Integer minPrice,
                                                           @RequestParam(required = false) @PositiveOrZero Integer maxPrice,
+                                                          @RequestParam(defaultValue = "false") boolean excludeSoldOut,
                                                           @RequestParam(defaultValue = "0") @PositiveOrZero int page,
                                                           @RequestParam(required = false) Integer size) {
-        return ApiResponse.onSuccess(productService.goods(null, null, category, q, minPrice, maxPrice, null,
+        return ApiResponse.onSuccess(productService.goods(null, null, category, q, minPrice, maxPrice, excludeSoldOut, null,
                 page, pageSize.resolve(size)));
     }
 
