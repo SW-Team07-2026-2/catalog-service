@@ -1,6 +1,8 @@
 package com.indie.catalog.domain.follow.service;
 
 import com.indie.catalog.domain.artist.dto.response.ArtistItem;
+import com.indie.catalog.domain.artist.entity.ArtistComposition;
+import com.indie.catalog.domain.artist.entity.ArtistGender;
 import com.indie.catalog.domain.artist.entity.Genre;
 import com.indie.catalog.domain.artist.service.ArtistService;
 import com.indie.catalog.domain.follow.client.ConcertClient;
@@ -53,11 +55,12 @@ public class FollowingService {
         this.productService = productService;
     }
 
-    public PageResult<ArtistItem> artists(long userId, String q, List<Genre> genres, FollowSort sort, int page, int size) {
+    public PageResult<ArtistItem> artists(long userId, String q, List<Genre> genres, List<ArtistGender> genders,
+                                          List<ArtistComposition> compositions, FollowSort sort, int page, int size) {
         List<Long> ids = artistOrder(follows(userId), sort);
         if (ids.isEmpty()) return empty(page, size);
         if (sort == FollowSort.UPDATED) ids = byLatestNews(ids);
-        return artistService.listOf(q, genres, ids, ListSort.ARTIST_ORDER, page, size);
+        return artistService.listOf(q, genres, genders, compositions, ids, ListSort.ARTIST_ORDER, page, size);
     }
 
     public PageResult<PhysicalAlbumItem> physicalAlbums(long userId, String q, List<PhysicalFormat> formats, Integer minPrice,

@@ -104,7 +104,7 @@ class CatalogFlowTest extends PostgresTest {
     @Test
     void ingestCreatesCatalogAndPublishesEventsOnlyForRealChanges() {
         ArtistUpsert artist = new ArtistUpsert("crawler", "ar-1", "a-h1", " 실리카겔 ",
-                List.of(Genre.PSYCHEDELIC, Genre.INDIE_ROCK, Genre.PSYCHEDELIC), "매직스트로베리사운드", 2013, null,
+                List.of(Genre.PSYCHEDELIC, Genre.INDIE_ROCK, Genre.PSYCHEDELIC), "매직스트로베리사운드", 2013, null, null, null,
                 List.of(tshirt("gd-1", opt("M", null, OptionSize.M, 35000, 3), opt("L", null, OptionSize.L, 33000, 0))));
         ItemResult created = ingest.upsertArtists(List.of(artist)).get(0);
         long artistId = created.id();
@@ -231,9 +231,9 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(events("album.released")).hasSize(1);
 
         List<ItemResult> goods = ingest.upsertArtists(List.of(
-                new ArtistUpsert("crawler", "goods-no-size", "h", "밴드A", null, null, null, null,
+                new ArtistUpsert("crawler", "goods-no-size", "h", "밴드A", null, null, null, null, null, null,
                         List.of(tshirt("g1", opt("기본", null, null, 30000, 1)))),
-                new ArtistUpsert("crawler", "goods-with-color", "h", "밴드B", null, null, null, null,
+                new ArtistUpsert("crawler", "goods-with-color", "h", "밴드B", null, null, null, null, null, null,
                         List.of(tshirt("g2", opt("M", VinylColor.COLOR, OptionSize.M, 30000, 1))))));
         assertThat(goods).extracting(ItemResult::result).containsExactly(Result.FAILED, Result.FAILED);
         assertThat(jdbc.queryForList("SELECT external_id FROM artist", String.class)).containsExactly("ar-rule");
@@ -251,8 +251,8 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(artist.albums()).hasSize(1);
         assertThat(artist.physicalAlbums()).extracting(PhysicalAlbumItem::id).containsExactly(shop.lpId);
         assertThat(artist.goods()).extracting(GoodsItem::id).containsExactly(shop.goodsId);
-        assertThat(artistService.list(null, List.of(Genre.SHOEGAZE), null, null, 0, 10).items()).extracting(ArtistItem::id).containsExactly(shop.artistId);
-        assertThat(artistService.list(null, List.of(Genre.JAZZ), null, null, 0, 10).items()).isEmpty();
+        assertThat(artistService.list(null, List.of(Genre.SHOEGAZE), null, null, null, null, 0, 10).items()).extracting(ArtistItem::id).containsExactly(shop.artistId);
+        assertThat(artistService.list(null, List.of(Genre.JAZZ), null, null, null, null, 0, 10).items()).isEmpty();
 
         LocalDate today = LocalDate.now();
         assertThat(productService.physicalAlbums(List.of(PhysicalFormat.LP), today.minusDays(1), today, null, null, null, null, false, null, 0, 10).items())
@@ -541,7 +541,7 @@ class CatalogFlowTest extends PostgresTest {
     /** 아티스트 1 · 앨범 1 · LP 1 (블랙 42,000원 · 5장) · 티셔츠 1 (M 35,000원 · 3장) */
     private Shop shop() {
         long artistId = ingest.upsertArtists(List.of(new ArtistUpsert("crawler", "shop-artist", "h", "파란노을",
-                List.of(Genre.SHOEGAZE), "인디레이블", 2018, null, List.of(tshirt("shop-goods", opt("M", null, OptionSize.M, 35000, 3)))))).get(0).id();
+                List.of(Genre.SHOEGAZE), "인디레이블", 2018, null, null, null, List.of(tshirt("shop-goods", opt("M", null, OptionSize.M, 35000, 3)))))).get(0).id();
         long albumId = ingest.upsertAlbums(List.of(new AlbumUpsert("crawler", "shop-album", "h", artistId, "슬로우 다이브",
                 AlbumEntity.Type.ALBUM, List.of(Genre.SHOEGAZE), LocalDate.now(), "https://img/album.jpg", List.of(track(1, "아름다운 세상")),
                 List.of(new PhysicalAlbumUpsert("shop-lp", "h", PhysicalFormat.LP, "슬로우 다이브 LP", LocalDate.now(), null,
@@ -566,7 +566,7 @@ class CatalogFlowTest extends PostgresTest {
     }
 
     private long artist(String externalId) {
-        return ingest.upsertArtists(List.of(new ArtistUpsert("crawler", externalId, "h", "밴드", null, null, null, null, null))).get(0).id();
+        return ingest.upsertArtists(List.of(new ArtistUpsert("crawler", externalId, "h", "밴드", null, null, null, null, null, null, null))).get(0).id();
     }
 
     private static AlbumUpsert album(String externalId, String hash, long artistId, LocalDate releasedAt, List<TrackUpsert> tracks,

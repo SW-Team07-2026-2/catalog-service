@@ -1,6 +1,8 @@
 package com.indie.catalog.domain.follow.controller;
 
 import com.indie.catalog.domain.artist.dto.response.ArtistItem;
+import com.indie.catalog.domain.artist.entity.ArtistComposition;
+import com.indie.catalog.domain.artist.entity.ArtistGender;
 import com.indie.catalog.domain.artist.entity.Genre;
 import com.indie.catalog.domain.follow.dto.request.FollowSort;
 import com.indie.catalog.domain.follow.service.FollowingService;
@@ -39,10 +41,12 @@ public class FollowingController {
     public ApiResponse<PageResult<ArtistItem>> artists(@CurrentUser Long userId,
                                                         @RequestParam(required = false) String q,
                                                         @RequestParam(required = false) List<Genre> genre,
+                                                        @RequestParam(required = false) List<ArtistGender> gender,
+                                                        @RequestParam(required = false) List<ArtistComposition> composition,
                                                         @RequestParam(required = false) FollowSort sort,
                                                         @RequestParam(defaultValue = "0") @PositiveOrZero int page,
                                                         @RequestParam(required = false) Integer size) {
-        return ApiResponse.onSuccess(followingService.artists(userId, q, genre, sort, page, pageSize.resolve(size)));
+        return ApiResponse.onSuccess(followingService.artists(userId, q, genre, gender, composition, sort, page, pageSize.resolve(size)));
     }
 
     @GetMapping("/api/catalog/following/physical-albums")

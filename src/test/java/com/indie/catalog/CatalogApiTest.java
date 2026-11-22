@@ -3,6 +3,8 @@ package com.indie.catalog;
 import com.indie.catalog.domain.album.entity.AlbumEntity;
 import com.indie.catalog.domain.album.entity.Mood;
 import com.indie.catalog.domain.album.entity.Tempo;
+import com.indie.catalog.domain.artist.entity.ArtistComposition;
+import com.indie.catalog.domain.artist.entity.ArtistGender;
 import com.indie.catalog.domain.artist.entity.Genre;
 import com.indie.catalog.domain.follow.client.ConcertClient;
 import com.indie.catalog.domain.follow.client.MemberClient;
@@ -100,7 +102,7 @@ class CatalogApiTest {
     @Test
     void publicApisCartAndOrderOverHttp() throws Exception {
         long artistId = ingest.upsertArtists(List.of(new ArtistUpsert("crawler", "api-artist", "h", "파란노을",
-                List.of(Genre.SHOEGAZE, Genre.EMO), "인디레이블", 2018, null,
+                List.of(Genre.SHOEGAZE, Genre.EMO), "인디레이블", 2018, null, null, null,
                 List.of(new GoodsUpsert("api-goods", "h", "로고 티셔츠", GoodsCategory.TSHIRT, null,
                         List.of(new OptionUpsert("M", null, OptionSize.M, 35000, 3))))))).get(0).id();
         long albumId = ingest.upsertAlbums(List.of(new AlbumUpsert("crawler", "api-album", "h", artistId, "슬로우 다이브",
@@ -274,6 +276,34 @@ class CatalogApiTest {
                 .andExpect(jsonPath("$.result.items[*].artistId").value(org.hamcrest.Matchers.contains((int) c, (int) a)));
     }
 
+    /** 11/22 아티스트 성별 · 구성 필터 — 목록 · 전체 검색 · 팔로우 같음 · 여러 개 OR · 서로 AND · 수집에서 null 이면 값 유지 */
+    @Test
+    void artistGenderCompositionFilters() throws Exception {
+        long male = artist("gc-m", "h", "성별남팀", Genre.INDIE_ROCK, ArtistGender.MALE, ArtistComposition.GROUP, null);
+        long female = artist("gc-f", "h", "성별여솔로", Genre.FOLK, ArtistGender.FEMALE, ArtistComposition.SOLO, null);
+        long mixed = artist("gc-x", "h", "성별혼성팀", Genre.INDIE_POP, ArtistGender.MIXED, ArtistComposition.GROUP, null);
+        long unknown = artist("gc-u", "h", "성별모름", Genre.INDIE_POP, null, null, null);
+
+        mvc.perform(get("/api/catalog/search/artists").param("q", "성별")).andExpect(jsonPath("$.result.items", hasSize(4)));   // 전체 = 조건 없음
+        mvc.perform(get("/api/catalog/search/artists").param("q", "성별").param("gender", "FEMALE"))
+                .andExpect(jsonPath("$.result.items[*].id").value(contains((int) female)));
+        mvc.perform(get("/api/catalog/search/artists").param("q", "성별").param("gender", "MALE,MIXED"))
+                .andExpect(jsonPath("$.result.items[*].id").value(containsInAnyOrder((int) male, (int) mixed)));
+        mvc.perform(get("/api/catalog/search/artists").param("q", "성별").param("composition", "GROUP").param("gender", "MIXED"))
+                .andExpect(jsonPath("$.result.items[*].id").value(contains((int) mixed)));
+        mvc.perform(get("/api/catalog/artists").param("q", "성별").param("composition", "SOLO"))
+                .andExpect(jsonPath("$.result.items[*].id").value(contains((int) female)));
+        when(memberClient.follows(11L)).thenReturn(List.of(new FollowedArtist(unknown, OffsetDateTime.now(), 1),
+                new FollowedArtist(mixed, OffsetDateTime.now().minusDays(1), 1), new FollowedArtist(male, OffsetDateTime.now().minusDays(2), 1)));
+        mvc.perform(get("/api/catalog/following/artists").header(USER, "11").param("composition", "GROUP"))
+                .andExpect(jsonPath("$.result.items[*].id").value(contains((int) mixed, (int) male)));   // 최근 팔로우순 유지
+        mvc.perform(get("/api/catalog/search/artists").param("gender", "BOTH")).andExpect(status().isBadRequest());
+
+        artist("gc-f", "h2", "성별여솔로", Genre.FOLK, null, null, null);                                   // 수집기가 다시 보냄 (값 없음)
+        mvc.perform(get("/api/catalog/search/artists").param("q", "성별").param("gender", "FEMALE").param("composition", "SOLO"))
+                .andExpect(jsonPath("$.result.items[*].id").value(contains((int) female)));
+    }
+
     /** 11/19 전체 검색 · 팔로우 탭 (프론트 요구 1-1 ~ 1-4) — 팔로우 목록은 Member 대역 */
     @Test
     void searchAndFollowingApis() throws Exception {
@@ -374,8 +404,13 @@ class CatalogApiTest {
     }
 
     private long artist(String externalId, String name, Genre genre, GoodsUpsert goods) {
-        return ingest.upsertArtists(List.of(new ArtistUpsert("crawler", externalId, "h", name, List.of(genre), null, 2020, null,
-                List.of(goods)))).get(0).id();
+        return artist(externalId, "h", name, genre, null, null, List.of(goods));
+    }
+
+    private long artist(String externalId, String hash, String name, Genre genre, ArtistGender gender, ArtistComposition composition,
+                        List<GoodsUpsert> goods) {
+        return ingest.upsertArtists(List.of(new ArtistUpsert("crawler", externalId, hash, name, List.of(genre), null, 2020, null,
+                gender, composition, goods))).get(0).id();
     }
 
     private void album(long artistId, String externalId, String title, PhysicalAlbumUpsert physical) {
