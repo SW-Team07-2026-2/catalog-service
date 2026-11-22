@@ -14,6 +14,7 @@ import com.indie.catalog.domain.artist.service.ArtistService;
 import com.indie.catalog.domain.ingest.dto.event.CatalogEvents;
 import com.indie.catalog.domain.ingest.dto.request.AdminAlbumUpdate;
 import com.indie.catalog.domain.ingest.dto.request.AdminAlbumUpdate.TrackTags;
+import com.indie.catalog.domain.ingest.dto.request.AdminArtistUpdate;
 import com.indie.catalog.global.common.exception.CommonErrorCode;
 import com.indie.catalog.global.common.exception.GeneralException;
 import org.springframework.stereotype.Service;
@@ -28,7 +29,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 관리자(Studio)가 이미 들어간 아티스트 · 앨범에 넣는 값 — 이미지 · 트랙 태그 (11/18 결정: 크롤러는 비워 두고 관리자가 넣음).
+ * 관리자(Studio)가 이미 들어간 아티스트 · 앨범에 넣는 값 — 이미지 · 트랙 태그 (11/18 결정: 크롤러는 비워 두고 관리자가 넣음) · 아티스트 성별 · 구성 (11/22).
  * 수집 적재와 같은 엔티티 apply · 같은 이벤트(artist.updated · album.updated) · 같은 캐시 삭제를 씁니다.
  * 수집 출처의 해시(source_hash)는 그대로 둡니다 — 다음 수집이 이 값을 지우지 않는 건 적재의 "null 이면 그대로" 규칙 덕분입니다.
  * 응답은 커밋 뒤에 다시 읽습니다 (캐시를 커밋 뒤에 지우므로).
@@ -60,11 +61,12 @@ public class AdminEditService {
         this.clock = clock;
     }
 
-    public ArtistDetail updateArtist(long id, String profileUrl) {
+    public ArtistDetail updateArtist(long id, AdminArtistUpdate r) {
         tx.executeWithoutResult(s -> {
             ArtistEntity a = artistRepository.findById(id).orElseThrow(() -> new GeneralException(CommonErrorCode.NOT_FOUND));
-            if (a.apply(a.getName(), a.getGenres(), a.getLabelId(), a.getDebutYear(), profileUrl, null, null, a.getSourceHash(),   // 성별 · 구성 null = 그대로
-                    OffsetDateTime.now(clock))) {
+            String profileUrl = r.profileUrl() != null ? r.profileUrl() : a.getProfileUrl();
+            if (a.apply(a.getName(), a.getGenres(), a.getLabelId(), a.getDebutYear(), profileUrl, r.gender(), r.composition(),   // 성별 · 구성 null = 그대로
+                    a.getSourceHash(), OffsetDateTime.now(clock))) {
                 artistRepository.save(a);
                 events.artistUpdated(a);
                 artistCache.evictAfterCommit(id);
