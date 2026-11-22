@@ -61,20 +61,20 @@ public class FollowingService {
     }
 
     public PageResult<PhysicalAlbumItem> physicalAlbums(long userId, String q, List<PhysicalFormat> formats, Integer minPrice,
-                                                        Integer maxPrice, FollowSort sort, int page, int size) {
+                                                        Integer maxPrice, boolean excludeSoldOut, FollowSort sort, int page, int size) {
         ListFilters.checkPrice(minPrice, maxPrice);
         List<Long> ids = artistOrder(follows(userId), sort);
         if (ids.isEmpty()) return empty(page, size);
         return productService.physicalAlbums(new PhysicalAlbumRepository.Filter(formats, null, null, ids, q, minPrice, maxPrice,
-                itemSort(sort)), page, size);
+                excludeSoldOut, itemSort(sort)), page, size);
     }
 
     public PageResult<GoodsItem> goods(long userId, String q, List<GoodsCategory> categories, Integer minPrice, Integer maxPrice,
-                                       FollowSort sort, int page, int size) {
+                                       boolean excludeSoldOut, FollowSort sort, int page, int size) {
         ListFilters.checkPrice(minPrice, maxPrice);
         List<Long> ids = artistOrder(follows(userId), sort);
         if (ids.isEmpty()) return empty(page, size);
-        return productService.goods(new GoodsRepository.Filter(ids, categories, q, minPrice, maxPrice, itemSort(sort)), page, size);
+        return productService.goods(new GoodsRepository.Filter(ids, categories, q, minPrice, maxPrice, excludeSoldOut, itemSort(sort)), page, size);
     }
 
     /** Member 는 최근 팔로우순으로 줍니다 — 팔로워순만 다시 정렬 (같은 수면 최근 팔로우순 유지) */
