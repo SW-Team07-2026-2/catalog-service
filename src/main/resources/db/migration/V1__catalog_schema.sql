@@ -21,6 +21,8 @@ CREATE TABLE artist (
     genres      VARCHAR(32)[] NOT NULL DEFAULT '{}',
     debut_year  INTEGER,
     profile_url VARCHAR(512),
+    gender      VARCHAR(16),                             -- 11/22 성별 MALE · FEMALE · MIXED(혼성) · 모르면 null (값 목록 V2)
+    composition VARCHAR(16),                             -- 11/22 구성 SOLO · GROUP(팀) · 모르면 null
     source      VARCHAR(32)  NOT NULL,                   -- 수집 출처
     external_id VARCHAR(128) NOT NULL,                   -- 출처 안의 식별자
     source_hash VARCHAR(128),                            -- 본문 정규화 해시 · 증분 판정

@@ -1,6 +1,8 @@
 package com.indie.catalog.domain.artist.repository;
 
 import com.indie.catalog.domain.artist.entity.ArtistEntity;
+import com.indie.catalog.domain.artist.entity.ArtistComposition;
+import com.indie.catalog.domain.artist.entity.ArtistGender;
 import com.indie.catalog.domain.artist.entity.Genre;
 import com.indie.catalog.global.common.util.LikePattern;
 import com.indie.catalog.global.common.util.ListFilters;
@@ -61,13 +63,16 @@ public class ArtistRepositoryAdapter implements ArtistRepository {
 
     /** 이름은 idx_artist_name_trgm (lower(name)), 장르는 idx_artist_genres (genres @> …) 를 탑니다 */
     @Override
-    public List<ArtistEntity> search(String nameContains, List<Genre> genres, List<Long> ids, ListSort sort, long offset, int limit) {
+    public List<ArtistEntity> search(String nameContains, List<Genre> genres, List<ArtistGender> genders, List<ArtistComposition> compositions,
+                                     List<Long> ids, ListSort sort, long offset, int limit) {
         return query.selectFrom(artistEntity)
                 .where(nameContains == null || nameContains.isBlank() ? null
                                 : artistEntity.name.lower().like(LikePattern.contains(nameContains), LikePattern.ESCAPE),
                         genres == null || genres.isEmpty() ? null : ExpressionUtils.anyOf(genres.stream()
                                 .map(g -> (Predicate) Expressions.booleanTemplate("array_contains({0}, {1})", artistEntity.genres, g))
                                 .toList()),
+                        genders == null || genders.isEmpty() ? null : artistEntity.gender.in(genders),
+                        compositions == null || compositions.isEmpty() ? null : artistEntity.composition.in(compositions),
                         ids == null || ids.isEmpty() ? null : artistEntity.id.in(ids))
                 .orderBy(order(sort, ids))
                 .offset(offset)
