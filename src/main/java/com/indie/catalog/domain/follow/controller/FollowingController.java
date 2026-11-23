@@ -15,6 +15,7 @@ import com.indie.catalog.global.common.response.ApiResponse;
 import com.indie.catalog.global.common.response.PageResult;
 import com.indie.catalog.global.common.util.PageSize;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,7 +40,7 @@ public class FollowingController {
 
     @GetMapping("/api/catalog/following/artists")
     public ApiResponse<PageResult<ArtistItem>> artists(@CurrentUser Long userId,
-                                                        @RequestParam(required = false) String q,
+                                                        @RequestParam(required = false) @Size(max = 100) String q,
                                                         @RequestParam(required = false) List<Genre> genre,
                                                         @RequestParam(required = false) List<ArtistGender> gender,
                                                         @RequestParam(required = false) List<ArtistComposition> composition,
@@ -51,7 +52,7 @@ public class FollowingController {
 
     @GetMapping("/api/catalog/following/physical-albums")
     public ApiResponse<PageResult<PhysicalAlbumItem>> physicalAlbums(@CurrentUser Long userId,
-                                                                    @RequestParam(required = false) String q,
+                                                                    @RequestParam(required = false) @Size(max = 100) String q,
                                                                     @RequestParam(required = false) List<PhysicalFormat> format,
                                                                     @RequestParam(required = false) @PositiveOrZero Integer minPrice,
                                                                     @RequestParam(required = false) @PositiveOrZero Integer maxPrice,
@@ -65,7 +66,7 @@ public class FollowingController {
 
     @GetMapping("/api/catalog/following/goods")
     public ApiResponse<PageResult<GoodsItem>> goods(@CurrentUser Long userId,
-                                                    @RequestParam(required = false) String q,
+                                                    @RequestParam(required = false) @Size(max = 100) String q,
                                                     @RequestParam(required = false) List<GoodsCategory> category,
                                                     @RequestParam(required = false) @PositiveOrZero Integer minPrice,
                                                     @RequestParam(required = false) @PositiveOrZero Integer maxPrice,

@@ -12,6 +12,7 @@ import com.indie.catalog.global.common.util.ListSort;
 import com.indie.catalog.global.common.util.PageSize;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -36,7 +37,7 @@ public class ArtistController {
      * 여러 값은 genre=A&genre=B 또는 genre=A,B. sort 없으면 가나다순 · ARTIST_ORDER 는 ids 순서 · UPDATED 는 최근 수정순
      */
     @GetMapping("/api/catalog/artists")
-    public ApiResponse<PageResult<ArtistItem>> list(@RequestParam(required = false) String q,
+    public ApiResponse<PageResult<ArtistItem>> list(@RequestParam(required = false) @Size(max = 100) String q,
                                                      @RequestParam(required = false) List<Genre> genre,
                                                      @RequestParam(required = false) List<ArtistGender> gender,
                                                      @RequestParam(required = false) List<ArtistComposition> composition,
@@ -49,7 +50,7 @@ public class ArtistController {
 
     /** 11/19 전체 검색 (프론트 요구 1-3 · 2-1) — 아티스트 이름 LIKE + 장르(여러 개 · OR). q 가 없으면 칩만으로 · 가나다순 */
     @GetMapping("/api/catalog/search/artists")
-    public ApiResponse<PageResult<ArtistItem>> search(@RequestParam(required = false) String q,
+    public ApiResponse<PageResult<ArtistItem>> search(@RequestParam(required = false) @Size(max = 100) String q,
                                                        @RequestParam(required = false) List<Genre> genre,
                                                        @RequestParam(required = false) List<ArtistGender> gender,
                                                        @RequestParam(required = false) List<ArtistComposition> composition,
