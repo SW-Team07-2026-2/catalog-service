@@ -12,6 +12,7 @@ import com.indie.catalog.global.common.util.ListSort;
 import com.indie.catalog.global.common.util.PageSize;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -43,7 +44,7 @@ public class ProductController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) List<Long> artistIds,
-            @RequestParam(required = false) String q,
+            @RequestParam(required = false) @Size(max = 100) String q,
             @RequestParam(required = false) @PositiveOrZero Integer minPrice,
             @RequestParam(required = false) @PositiveOrZero Integer maxPrice,
             @RequestParam(defaultValue = "false") boolean excludeSoldOut,
@@ -59,7 +60,7 @@ public class ProductController {
     public ApiResponse<PageResult<GoodsItem>> goods(@RequestParam(required = false) @Positive Long artistId,
                                                     @RequestParam(required = false) List<Long> artistIds,
                                                     @RequestParam(required = false) List<GoodsCategory> category,
-                                                    @RequestParam(required = false) String q,
+                                                    @RequestParam(required = false) @Size(max = 100) String q,
                                                     @RequestParam(required = false) @PositiveOrZero Integer minPrice,
                                                     @RequestParam(required = false) @PositiveOrZero Integer maxPrice,
                                                     @RequestParam(defaultValue = "false") boolean excludeSoldOut,
@@ -72,7 +73,7 @@ public class ProductController {
 
     /** 11/19 전체 검색 (프론트 요구 1-3 · 2-3) — 상품명 · 앨범 제목 · 아티스트 이름 LIKE + 매체(여러 개) + 가격대. q 가 없으면 칩만으로 · 발매일 최신순 */
     @GetMapping("/api/catalog/search/physical-albums")
-    public ApiResponse<PageResult<PhysicalAlbumItem>> searchPhysicalAlbums(@RequestParam(required = false) String q,
+    public ApiResponse<PageResult<PhysicalAlbumItem>> searchPhysicalAlbums(@RequestParam(required = false) @Size(max = 100) String q,
                                                                           @RequestParam(required = false) List<PhysicalFormat> format,
                                                                           @RequestParam(required = false) @PositiveOrZero Integer minPrice,
                                                                           @RequestParam(required = false) @PositiveOrZero Integer maxPrice,
@@ -85,7 +86,7 @@ public class ProductController {
 
     /** 11/19 전체 검색 (프론트 요구 1-3 · 2-4) — 굿즈명 · 아티스트 이름 LIKE + 품목(여러 개) + 가격대. q 가 없으면 칩만으로 · 최신 등록순 */
     @GetMapping("/api/catalog/search/goods")
-    public ApiResponse<PageResult<GoodsItem>> searchGoods(@RequestParam(required = false) String q,
+    public ApiResponse<PageResult<GoodsItem>> searchGoods(@RequestParam(required = false) @Size(max = 100) String q,
                                                           @RequestParam(required = false) List<GoodsCategory> category,
                                                           @RequestParam(required = false) @PositiveOrZero Integer minPrice,
                                                           @RequestParam(required = false) @PositiveOrZero Integer maxPrice,
