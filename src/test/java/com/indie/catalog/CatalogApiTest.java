@@ -304,6 +304,19 @@ class CatalogApiTest {
                 .andExpect(jsonPath("$.result.items[*].id").value(contains((int) female)));
     }
 
+    /** 11/23 검색어 최대 100자 — 붙여넣기까지 생각해 지금 가장 긴 이름(공연 제목 62자)보다 넉넉하게. 넘으면 400 · 통합 검색 /api/catalog/search 는 전처럼 50자 SEARCH_QUERY_TOO_LONG */
+    @Test
+    void searchQueryLengthLimit() throws Exception {
+        String limit = "가".repeat(100);
+        mvc.perform(get("/api/catalog/search/artists").param("q", limit)).andExpect(status().isOk());
+        for (String path : List.of("/api/catalog/search/artists", "/api/catalog/search/physical-albums",
+                "/api/catalog/search/goods", "/api/catalog/artists", "/api/catalog/physical-albums", "/api/catalog/goods",
+                "/api/catalog/following/artists", "/api/catalog/following/physical-albums", "/api/catalog/following/goods")) {
+            mvc.perform(get(path).header(USER, "11").param("q", limit + "가"))
+                    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+        }
+    }
+
     /** 11/19 전체 검색 · 팔로우 탭 (프론트 요구 1-1 ~ 1-4) — 팔로우 목록은 Member 대역 */
     @Test
     void searchAndFollowingApis() throws Exception {
