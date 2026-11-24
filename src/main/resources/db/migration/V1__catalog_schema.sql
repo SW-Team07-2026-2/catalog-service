@@ -27,6 +27,7 @@ CREATE TABLE artist (
     external_id VARCHAR(128) NOT NULL,                   -- 출처 안의 식별자
     source_hash VARCHAR(128),                            -- 본문 정규화 해시 · 증분 판정
     updated_at  TIMESTAMPTZ  NOT NULL,
+    follower_count BIGINT    NOT NULL DEFAULT 0,          -- 11/24 팔로워 수 — Member follow 행 수의 사본 (FollowerCountSync 가 갱신 · 인기순 정렬용 · updated_at 은 안 바꿈)
     CONSTRAINT uq_artist_source UNIQUE (source, external_id)    -- ★ 멱등 upsert 기준
 );
 CREATE INDEX idx_artist_name ON artist(name, id);                                        -- 목록 이름순

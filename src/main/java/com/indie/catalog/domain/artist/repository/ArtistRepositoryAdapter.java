@@ -16,6 +16,7 @@ import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -126,5 +127,24 @@ public class ArtistRepositoryAdapter implements ArtistRepository {
 
     private static void keepLater(Map<Long, OffsetDateTime> latest, Long artistId, OffsetDateTime at) {
         if (at != null) latest.merge(artistId, at, (x, y) -> x.isAfter(y) ? x : y);
+    }
+
+    @Override
+    @Transactional
+    public int updateFollowerCounts(Map<Long, Long> counts) {
+        int changed = 0;
+        for (Map.Entry<Long, Long> e : counts.entrySet()) {
+            changed += jpa.updateFollowerCount(e.getKey(), e.getValue());
+        }
+        return changed;
+    }
+
+    @Override
+    public List<Long> findIdsAfter(long afterId, int limit) {
+        return query.select(artistEntity.id).from(artistEntity)
+                .where(artistEntity.id.gt(afterId))
+                .orderBy(artistEntity.id.asc())
+                .limit(limit)
+                .fetch();
     }
 }
