@@ -37,7 +37,7 @@ id 는 모두 `BIGINT`(BIGSERIAL)입니다. 매핑만 하는 테이블(`cart_ite
 | 테이블 | 컬럼 |
 |---|---|
 | `label` | `id` · `name`(UNIQUE) |
-| `artist` | `id` · `label_id`(FK, NULL 가능) · `name` · `genres`(배열) · `debut_year` · `profile_url` · `source` · `external_id` · `source_hash` · `updated_at` |
+| `artist` | `id` · `label_id`(FK, NULL 가능) · `name` · `genres`(배열) · `debut_year` · `profile_url` · `source` · `external_id` · `source_hash` · `updated_at` · ✏️ 11/24 `follower_count`(Member 팔로워 수 사본 · 기본 0 · 아래 「팔로워 수」) |
 | `album` | `id` · `artist_id`(FK) · `title` · `type` · `genres`(배열) · `released_at` · `thumbnail_url` · `source` · `external_id` · `source_hash` · `updated_at` |
 | `track` | `id` · `album_id`(FK) · `track_no` · `title` · `genres`(배열) · `tempo` · `moods`(배열) · `emotions`(배열) · `styles`(배열) |
 
@@ -357,6 +357,13 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 |---|---|---|
 | `payment.completed` · `payment.failed` · `payment.cancelled` | 변경 | 5.3 — `payment.cancelled` 의 `refunded` 를 봅니다 |
 | `user.withdrawn` (member) | **신규** | 장바구니 삭제 + 결제 대기 주문 취소 (`UserEventConsumer`) |
+| `member.activity` (member) | **신규(11/24)** | `type` 이 FOLLOW · UNFOLLOW 면 그 아티스트의 팔로워 수를 Member 에서 다시 받아 `artist.follower_count` 에 덮어씀 (`MemberActivityConsumer`). 그 밖의 `type` 은 커밋만 |
+
+**팔로워 수 (11/24)** — `artist.follower_count` 는 Member `follow` 행 수의 사본입니다 (인기순 정렬용 · 정렬 API 는 추천 서비스와 함께 붙일 예정이라 아직 없음).
+
+- 더하고 빼지 않고 Member `GET /internal/artists/follower-counts`(팔로우 전용 포트 8181)의 지금 수로 덮어씁니다 — 같은 이벤트가 여러 번 와도 · 순서가 바뀌어도 결과가 같습니다 (`FollowerCountSync`).
+- `FollowerCountSyncJob` 이 기동 1분 뒤 · 그 뒤 1시간마다 전체를 다시 맞춥니다 (`app.follower-count.*`). 이벤트로 못 맞추는 것 — 탈퇴(follow 가 CASCADE 로 지워져 UNFOLLOW 가 안 나감) · Member 불통 중 DLT 로 간 이벤트 · 첫 배포 채우기.
+- `updated_at` 은 바꾸지 않습니다 (팔로우 탭 업데이트순 기준).
 
 ## 9. 다른 서비스 · 저장소
 
