@@ -83,10 +83,9 @@ public abstract class PostgresTest {
             return new FakePayment();
         }
 
-        /** Member 대역 — 팔로우 없음 (팔로우 탭은 CatalogApiTest 에서) */
         @Bean
-        MemberClient memberClient() {
-            return userId -> List.of();
+        FakeMember memberClient() {
+            return new FakeMember();
         }
 
         @Bean
@@ -102,6 +101,26 @@ public abstract class PostgresTest {
                 @Override public void put(ArtistDetail detail) {}
                 @Override public void evictAfterCommit(long id) {}
             };
+        }
+    }
+
+    /** Member 대역 — 팔로우 없음 (팔로우 탭은 CatalogApiTest 에서) · 팔로워 수는 counts (없으면 0) · down 이면 불통 */
+    public static class FakeMember implements MemberClient {
+
+        public final Map<Long, Long> counts = new java.util.concurrent.ConcurrentHashMap<>();
+        public volatile boolean down;
+
+        @Override
+        public List<FollowedArtist> follows(long userId) {
+            return List.of();
+        }
+
+        @Override
+        public Map<Long, Long> followerCounts(java.util.Collection<Long> artistIds) {
+            if (down) throw new MemberClient.Unavailable(new java.io.IOException("connection refused"));
+            Map<Long, Long> result = new java.util.HashMap<>();
+            for (Long id : artistIds) result.put(id, counts.getOrDefault(id, 0L));
+            return result;
         }
     }
 
