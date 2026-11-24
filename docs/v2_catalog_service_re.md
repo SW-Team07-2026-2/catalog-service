@@ -344,6 +344,7 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 | `order.confirmed` | **신규** | 결제 완료로 주문 확정 | `userId` · `orderId` · `totalPrice` · `items[optionId, physicalAlbumId 또는 goodsId, name, qty]` |
 | `order.refunded` | **신규** | 결제된 주문 환불 | `userId` · `orderId` · `itemName` · `itemCount` · `refundAmount` |
 | `stock.restocked` | **삭제** | — | 받는 서비스가 없습니다 |
+| `user.metric` | **신규(11/24)** | 회원 행동 — 장바구니 수량 변경 · 검색어 (아래 「회원 행동 메트릭」) | `userId` · `metricId` · `targetType` · `targetId` · `metricType` · `metricValue` · `properties` |
 
 필드 이름은 member v2 의 `CatalogEventConsumer` 가 읽는 이름에 맞췄습니다 (member 코드와 대조 확인).
 
@@ -364,6 +365,16 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 - 더하고 빼지 않고 Member `GET /internal/artists/follower-counts`(팔로우 전용 포트 8181)의 지금 수로 덮어씁니다 — 같은 이벤트가 여러 번 와도 · 순서가 바뀌어도 결과가 같습니다 (`FollowerCountSync`).
 - `FollowerCountSyncJob` 이 기동 1분 뒤 · 그 뒤 1시간마다 전체를 다시 맞춥니다 (`app.follower-count.*`). 이벤트로 못 맞추는 것 — 탈퇴(follow 가 CASCADE 로 지워져 UNFOLLOW 가 안 나감) · Member 불통 중 DLT 로 간 이벤트 · 첫 배포 채우기.
 - `updated_at` 은 바꾸지 않습니다 (팔로우 탭 업데이트순 기준).
+
+**회원 행동 메트릭 (11/24)** — Member 가 `user.metric` 을 받아 `user_metric` 에 저장합니다 (추천 · 챗봇이 Member 메트릭 조회 API 로 읽음 · member 문서 6.5). `UserMetrics` 가 outbox 에 씁니다.
+
+| metricType | 언제 | targetType · targetId | metricValue | properties |
+|---|---|---|---|---|
+| CART_ADD · CART_REMOVE | `PUT /api/cart/items/{optionId}` · `DELETE /api/cart/items/{optionId}` · `DELETE /api/cart` — 수량이 바뀐 경우만 | PHYSICAL_ALBUM · GOODS 상품 ID | 늘어난 · 줄어든 수량 | `optionId` |
+| SEARCH | `/api/catalog/search/artists` · `physical-albums` · `goods` — 로그인 · 검색어 있음 · 첫 페이지만 | 검색한 탭 · null | 1 | `keyword` |
+
+- 장바구니는 변경과 같은 트랜잭션입니다 — 실패한 요청은 남지 않습니다. 주문 확정 · 탈퇴로 빠지는 것은 회원이 뺀 것이 아니라 남기지 않습니다.
+- 검색은 조회가 끝난 뒤 트랜잭션을 새로 열어 outbox 에 씁니다. 같은 회원 · 탭 · 검색어는 10분 구간에 한 번 (`metricId` 를 그 값으로 정해 Member 가 한 번만 저장). 회원은 Gateway 가 붙인 `X-User-Id`(공개 경로라도 로그인했으면 붙음)로 정합니다.
 
 ## 9. 다른 서비스 · 저장소
 

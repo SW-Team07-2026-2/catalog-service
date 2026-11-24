@@ -47,7 +47,7 @@ public class CartController {
     /** 비우기 */
     @DeleteMapping("/api/cart")
     public ApiResponse<Void> clear(@CurrentUser Long userId) {
-        cartService.clear(userId);
+        cartService.empty(userId);
         return ApiResponse.onSuccess(null);
     }
 }

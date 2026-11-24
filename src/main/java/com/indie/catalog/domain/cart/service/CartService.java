@@ -13,6 +13,7 @@ import com.indie.catalog.domain.product.service.ProductService;
 import com.indie.catalog.global.common.exception.CommonErrorCode;
 import com.indie.catalog.global.common.exception.GeneralException;
 import com.indie.catalog.global.config.CatalogProperties;
+import com.indie.catalog.global.event.UserMetrics;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
  * 장바구니 — 옵션과 수량을 담아 둡니다. 재고는 읽기만 하고, 차감은 주문 생성(OrderService) 때만 합니다.
  * 장바구니는 주문의 입력이라 상한도 주문과 같습니다 (옵션 가짓수 app.order.max-items · 옵션당 수량 app.order.max-qty).
  * 주문이 확정되면 그 옵션들이 빠지고(OrderService.confirm), 회원이 탈퇴하면 전부 지웁니다.
+ * 11/24 회원이 바꾼 수량은 user.metric(CART_ADD · CART_REMOVE)으로 남깁니다 — 주문 확정 · 탈퇴로 빠지는 것은 남기지 않습니다.
  */
 @Service
 public class CartService {
@@ -35,15 +37,18 @@ public class CartService {
     private final ProductOptionRepository optionRepository;
     private final StockRepository stockRepository;
     private final ProductService productService;
+    private final UserMetrics userMetrics;
     private final CatalogProperties.Order limits;
     private final Clock clock;
 
     public CartService(CartItemRepository cartItemRepository, ProductOptionRepository optionRepository,
-                       StockRepository stockRepository, ProductService productService, CatalogProperties props, Clock clock) {
+                       StockRepository stockRepository, ProductService productService, UserMetrics userMetrics,
+                       CatalogProperties props, Clock clock) {
         this.cartItemRepository = cartItemRepository;
         this.optionRepository = optionRepository;
         this.stockRepository = stockRepository;
         this.productService = productService;
+        this.userMetrics = userMetrics;
         this.limits = props.order();
         this.clock = clock;
     }
@@ -79,19 +84,38 @@ public class CartService {
         if (items.size() >= limits.maxItems() && items.stream().noneMatch(i -> i.getOptionId() == optionId)) {
             throw new GeneralException(CartErrorCode.CART_FULL, "장바구니에는 최대 " + limits.maxItems() + "개 상품까지 담을 수 있습니다");
         }
+        int before = items.stream().filter(i -> i.getOptionId() == optionId).mapToInt(CartItemEntity::getQty).findFirst().orElse(0);
         cartItemRepository.put(userId, optionId, qty, OffsetDateTime.now(clock));
-        return get(userId);
+        CartView after = get(userId);
+        after.items().stream().filter(l -> l.optionId() == optionId).findFirst().ifPresent(l ->
+                userMetrics.cartChanged(userId, l.productType().name(), l.productId(), optionId, before, qty));
+        return after;
     }
 
     /** 담겨 있지 않아도 성공 — 두 번 눌러도 결과가 같습니다 */
     @Transactional
     public CartView remove(long userId, long optionId) {
+        List<CartLine> removed = get(userId).items().stream().filter(l -> l.optionId() == optionId).toList();
         cartItemRepository.delete(userId, optionId);
+        removed.forEach(l -> removedMetric(userId, l));
         return get(userId);
     }
 
+    /** 회원이 비우기 (DELETE /api/cart) — 뺀 수량을 메트릭으로 남깁니다 */
+    @Transactional
+    public void empty(long userId) {
+        List<CartLine> removed = get(userId).items();
+        cartItemRepository.deleteByUserId(userId);
+        removed.forEach(l -> removedMetric(userId, l));
+    }
+
+    /** 탈퇴 정리 (user.withdrawn) — 회원이 뺀 것이 아니라 메트릭을 남기지 않습니다 */
     @Transactional
     public void clear(long userId) {
         cartItemRepository.deleteByUserId(userId);
+    }
+
+    private void removedMetric(long userId, CartLine line) {
+        userMetrics.cartChanged(userId, line.productType().name(), line.productId(), line.optionId(), line.qty(), 0);
     }
 }

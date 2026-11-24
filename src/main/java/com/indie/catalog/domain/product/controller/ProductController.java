@@ -6,16 +6,19 @@ import com.indie.catalog.domain.product.dto.response.ProductDetail;
 import com.indie.catalog.domain.product.entity.GoodsCategory;
 import com.indie.catalog.domain.product.entity.PhysicalFormat;
 import com.indie.catalog.domain.product.service.ProductService;
+import com.indie.catalog.global.auth.CurrentUserArgumentResolver;
 import com.indie.catalog.global.common.response.ApiResponse;
 import com.indie.catalog.global.common.response.PageResult;
 import com.indie.catalog.global.common.util.ListSort;
 import com.indie.catalog.global.common.util.PageSize;
+import com.indie.catalog.global.event.UserMetrics;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,10 +34,12 @@ public class ProductController {
 
     private final ProductService productService;
     private final PageSize pageSize;
+    private final UserMetrics userMetrics;
 
-    public ProductController(ProductService productService, PageSize pageSize) {
+    public ProductController(ProductService productService, PageSize pageSize, UserMetrics userMetrics) {
         this.productService = productService;
         this.pageSize = pageSize;
+        this.userMetrics = userMetrics;
     }
 
     /** 11/19 팔로우 탭 — format · artistIds 는 여러 개(format=LP&format=CD 또는 format=LP,CD) · 가격은 최저가(원) · sort 없으면 발매일 최신순 */
@@ -71,7 +76,7 @@ public class ProductController {
                 page, pageSize.resolve(size)));
     }
 
-    /** 11/19 전체 검색 (프론트 요구 1-3 · 2-3) — 상품명 · 앨범 제목 · 아티스트 이름 LIKE + 매체(여러 개) + 가격대. q 가 없으면 칩만으로 · 발매일 최신순 */
+    /** 11/19 전체 검색 (프론트 요구 1-3 · 2-3) — 상품명 · 앨범 제목 · 아티스트 이름 LIKE + 매체(여러 개) + 가격대. q 가 없으면 칩만으로 · 발매일 최신순 · 11/24 로그인했으면 검색어를 user.metric 으로 */
     @GetMapping("/api/catalog/search/physical-albums")
     public ApiResponse<PageResult<PhysicalAlbumItem>> searchPhysicalAlbums(@RequestParam(required = false) @Size(max = 100) String q,
                                                                           @RequestParam(required = false) List<PhysicalFormat> format,
@@ -79,12 +84,15 @@ public class ProductController {
                                                                           @RequestParam(required = false) @PositiveOrZero Integer maxPrice,
                                                                           @RequestParam(defaultValue = "false") boolean excludeSoldOut,
                                                                           @RequestParam(defaultValue = "0") @PositiveOrZero int page,
-                                                                          @RequestParam(required = false) Integer size) {
-        return ApiResponse.onSuccess(productService.physicalAlbums(format, null, null, null, q, minPrice, maxPrice, excludeSoldOut, null,
-                page, pageSize.resolve(size)));
+                                                                          @RequestParam(required = false) Integer size,
+                                                                          @RequestHeader(value = CurrentUserArgumentResolver.HEADER, required = false) Long userId) {
+        PageResult<PhysicalAlbumItem> result = productService.physicalAlbums(format, null, null, null, q, minPrice, maxPrice,
+                excludeSoldOut, null, page, pageSize.resolve(size));
+        userMetrics.searched(userId, "PHYSICAL_ALBUM", q, page);
+        return ApiResponse.onSuccess(result);
     }
 
-    /** 11/19 전체 검색 (프론트 요구 1-3 · 2-4) — 굿즈명 · 아티스트 이름 LIKE + 품목(여러 개) + 가격대. q 가 없으면 칩만으로 · 최신 등록순 */
+    /** 11/19 전체 검색 (프론트 요구 1-3 · 2-4) — 굿즈명 · 아티스트 이름 LIKE + 품목(여러 개) + 가격대. q 가 없으면 칩만으로 · 최신 등록순 · 11/24 로그인했으면 검색어를 user.metric 으로 */
     @GetMapping("/api/catalog/search/goods")
     public ApiResponse<PageResult<GoodsItem>> searchGoods(@RequestParam(required = false) @Size(max = 100) String q,
                                                           @RequestParam(required = false) List<GoodsCategory> category,
@@ -92,9 +100,12 @@ public class ProductController {
                                                           @RequestParam(required = false) @PositiveOrZero Integer maxPrice,
                                                           @RequestParam(defaultValue = "false") boolean excludeSoldOut,
                                                           @RequestParam(defaultValue = "0") @PositiveOrZero int page,
-                                                          @RequestParam(required = false) Integer size) {
-        return ApiResponse.onSuccess(productService.goods(null, null, category, q, minPrice, maxPrice, excludeSoldOut, null,
-                page, pageSize.resolve(size)));
+                                                          @RequestParam(required = false) Integer size,
+                                                          @RequestHeader(value = CurrentUserArgumentResolver.HEADER, required = false) Long userId) {
+        PageResult<GoodsItem> result = productService.goods(null, null, category, q, minPrice, maxPrice, excludeSoldOut, null,
+                page, pageSize.resolve(size));
+        userMetrics.searched(userId, "GOODS", q, page);
+        return ApiResponse.onSuccess(result);
     }
 
     @GetMapping("/api/catalog/products/{id}")
