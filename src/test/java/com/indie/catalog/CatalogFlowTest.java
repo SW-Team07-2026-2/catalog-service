@@ -60,6 +60,7 @@ import com.indie.catalog.domain.product.service.ProductService;
 import com.indie.catalog.global.common.exception.BaseErrorCode;
 import com.indie.catalog.global.common.exception.CommonErrorCode;
 import com.indie.catalog.global.common.exception.GeneralException;
+import com.indie.catalog.global.event.UserMetrics;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -403,8 +404,25 @@ class CatalogFlowTest extends PostgresTest {
 
         assertThat(cartService.remove(USER, extra[0]).items()).hasSize(2);
         assertThat(cartService.remove(USER, extra[0]).items()).hasSize(2);                       // 두 번 지워도 같음
-        cartService.clear(USER);
+        cartService.empty(USER);
         assertThat(cartService.get(USER).items()).isEmpty();
+
+        // 11/24 회원이 바꾼 수량만 user.metric — 늘어난 · 줄어든 수량 · 실패한 요청과 없는 옵션 지우기는 남기지 않음
+        List<String> metrics = events(UserMetrics.TOPIC).stream()
+                .map(m -> m.get("metricType").asText() + " " + m.get("metricValue").asInt()).toList();
+        assertThat(metrics).hasSize(8)
+                .startsWith("CART_ADD 1", "CART_ADD 1", "CART_ADD 1", "CART_ADD 1", "CART_ADD 8", "CART_REMOVE 1");
+        assertThat(metrics.subList(6, 8)).containsExactlyInAnyOrder("CART_REMOVE 10", "CART_REMOVE 1");   // 비우기 — 담긴 순서와 무관
+        JsonNode first = events(UserMetrics.TOPIC).get(0);
+        assertThat(first.get("userId").asLong()).isEqualTo(USER);
+        assertThat(first.get("targetType").asText()).isEqualTo("PHYSICAL_ALBUM");
+        assertThat(first.get("targetId").asLong()).isEqualTo(shop.lpId);
+        assertThat(first.at("/properties/optionId").asLong()).isEqualTo(shop.lpOption);
+
+        cartService.put(USER, shop.lpOption, 1);
+        cartService.clear(USER);                                                                  // 탈퇴 정리는 회원이 뺀 것이 아님
+        assertThat(cartService.get(USER).items()).isEmpty();
+        assertThat(events(UserMetrics.TOPIC)).hasSize(9);                                         // 담기 1건만 늘어남
     }
 
     // ── 주문 ────────────────────────────────────────────────────────────────────────────────────

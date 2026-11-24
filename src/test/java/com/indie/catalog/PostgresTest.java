@@ -10,6 +10,7 @@ import com.indie.catalog.domain.order.client.PaymentClient;
 import com.indie.catalog.domain.order.dto.event.OrderEvents;
 import com.indie.catalog.global.config.CatalogProperties;
 import com.indie.catalog.global.config.QuerydslConfig;
+import com.indie.catalog.global.event.UserMetrics;
 import com.indie.catalog.global.outbox.OutboxAppender;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -43,7 +44,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @DataJpaTest(properties = "spring.jpa.hibernate.ddl-auto=validate",
         includeFilters = @ComponentScan.Filter(type = FilterType.ANNOTATION, classes = {Repository.class, Service.class}))
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({QuerydslConfig.class, OutboxAppender.class, CatalogEvents.class, OrderEvents.class, PostgresTest.Beans.class})
+@Import({QuerydslConfig.class, OutboxAppender.class, CatalogEvents.class, OrderEvents.class, UserMetrics.class, PostgresTest.Beans.class})
 public abstract class PostgresTest {
 
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>(
