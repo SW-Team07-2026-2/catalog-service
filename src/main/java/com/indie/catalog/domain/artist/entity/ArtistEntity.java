@@ -34,6 +34,7 @@ public class ArtistEntity {
     private ArtistGender gender;
     @Enumerated(EnumType.STRING)
     private ArtistComposition composition;
+    private String bio;
     private String source;
     private String externalId;
     private String sourceHash;
@@ -69,12 +70,25 @@ public class ArtistEntity {
         return changed;
     }
 
+    /**
+     * 11/25 소개 글 — null 은 그대로 · 빈 글은 지움. 바뀌었으면 true (수집은 비어 있을 때만 부름 — IngestService)
+     */
+    public boolean applyBio(String bio, OffsetDateTime now) {
+        if (bio == null) return false;
+        String next = bio.isBlank() ? null : bio.strip();
+        if (Objects.equals(this.bio, next)) return false;
+        this.bio = next;
+        this.updatedAt = now;
+        return true;
+    }
+
     public Long getId() { return id; }
     public Long getLabelId() { return labelId; }
     public String getName() { return name; }
     public List<Genre> getGenres() { return genres; }
     public Integer getDebutYear() { return debutYear; }
     public String getProfileUrl() { return profileUrl; }
+    public String getBio() { return bio; }
     public String getExternalId() { return externalId; }
     public String getSourceHash() { return sourceHash; }
 }

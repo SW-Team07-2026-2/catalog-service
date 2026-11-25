@@ -8,5 +8,5 @@ import java.time.LocalDate;
 import java.util.List;
 
 public record AlbumDetail(long id, long artistId, String artistName, String title, AlbumEntity.Type type, List<Genre> genres,
-                          LocalDate releasedAt, String thumbnailUrl, List<TrackItem> tracks,
+                          LocalDate releasedAt, String thumbnailUrl, String description, List<TrackItem> tracks,
                           List<PhysicalAlbumItem> physicalAlbums) {}

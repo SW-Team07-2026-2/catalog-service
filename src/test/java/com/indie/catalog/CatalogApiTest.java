@@ -104,12 +104,12 @@ class CatalogApiTest {
         long artistId = ingest.upsertArtists(List.of(new ArtistUpsert("crawler", "api-artist", "h", "파란노을",
                 List.of(Genre.SHOEGAZE, Genre.EMO), "인디레이블", 2018, null, null, null,
                 List.of(new GoodsUpsert("api-goods", "h", "로고 티셔츠", GoodsCategory.TSHIRT, null,
-                        List.of(new OptionUpsert("M", null, OptionSize.M, 35000, 3))))))).get(0).id();
+                        List.of(new OptionUpsert("M", null, OptionSize.M, 35000, 3)))), "2018년 시작한 1인 프로젝트입니다."))).get(0).id();
         long albumId = ingest.upsertAlbums(List.of(new AlbumUpsert("crawler", "api-album", "h", artistId, "슬로우 다이브",
                 AlbumEntity.Type.EP, List.of(Genre.SHOEGAZE), LocalDate.now(), null,
                 List.of(new TrackUpsert(1, "아름다운 세상", List.of(Genre.SHOEGAZE), Tempo.MID, List.of(Mood.DREAMY), null, null)),
                 List.of(new PhysicalAlbumUpsert("api-lp", "h", PhysicalFormat.LP, "슬로우 다이브 LP", LocalDate.now(), null,
-                        List.of(new OptionUpsert("블랙", VinylColor.BLACK, null, 42000, 5))))))).get(0).id();
+                        List.of(new OptionUpsert("블랙", VinylColor.BLACK, null, 42000, 5)))), "첫 EP 입니다."))).get(0).id();
         long lpId = jdbc.queryForObject("SELECT id FROM product WHERE external_id = 'api-lp'", Long.class);
         long lpOption = jdbc.queryForObject("SELECT id FROM product_option WHERE product_id = ?", Long.class, lpId);
 
@@ -120,10 +120,12 @@ class CatalogApiTest {
         mvc.perform(get("/api/catalog/artists").param("genre", "TROT")).andExpect(status().isBadRequest());
         mvc.perform(get("/api/catalog/artists/" + artistId)).andExpect(status().isOk())   // Redis 가 없어도 응답
                 .andExpect(jsonPath("$.result.label").value("인디레이블"))
+                .andExpect(jsonPath("$.result.bio").value("2018년 시작한 1인 프로젝트입니다."))
                 .andExpect(jsonPath("$.result.albums[0].type").value("EP"))
                 .andExpect(jsonPath("$.result.physicalAlbums[0].format").value("LP"))
                 .andExpect(jsonPath("$.result.goods[0].category").value("TSHIRT"));
         mvc.perform(get("/api/catalog/albums/" + albumId)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.description").value("첫 EP 입니다."))
                 .andExpect(jsonPath("$.result.tracks[0].tempo").value("MID"))
                 .andExpect(jsonPath("$.result.tracks[0].moods[0]").value("DREAMY"))
                 .andExpect(jsonPath("$.result.tracks[0].emotions", hasSize(0)))
@@ -423,12 +425,12 @@ class CatalogApiTest {
     private long artist(String externalId, String hash, String name, Genre genre, ArtistGender gender, ArtistComposition composition,
                         List<GoodsUpsert> goods) {
         return ingest.upsertArtists(List.of(new ArtistUpsert("crawler", externalId, hash, name, List.of(genre), null, 2020, null,
-                gender, composition, goods))).get(0).id();
+                gender, composition, goods, null))).get(0).id();
     }
 
     private void album(long artistId, String externalId, String title, PhysicalAlbumUpsert physical) {
         ingest.upsertAlbums(List.of(new AlbumUpsert("crawler", externalId, "h", artistId, title, AlbumEntity.Type.ALBUM, List.of(Genre.ETC),
-                physical.releasedAt(), null, List.of(), List.of(physical))));
+                physical.releasedAt(), null, List.of(), List.of(physical), null)));
     }
 
     private static String token(String iss) throws Exception {
