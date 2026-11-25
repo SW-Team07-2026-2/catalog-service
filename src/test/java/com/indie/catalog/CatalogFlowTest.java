@@ -112,7 +112,7 @@ class CatalogFlowTest extends PostgresTest {
     void ingestCreatesCatalogAndPublishesEventsOnlyForRealChanges() {
         ArtistUpsert artist = new ArtistUpsert("crawler", "ar-1", "a-h1", " 실리카겔 ",
                 List.of(Genre.PSYCHEDELIC, Genre.INDIE_ROCK, Genre.PSYCHEDELIC), "매직스트로베리사운드", 2013, null, null, null,
-                List.of(tshirt("gd-1", opt("M", null, OptionSize.M, 35000, 3), opt("L", null, OptionSize.L, 33000, 0))));
+                List.of(tshirt("gd-1", opt("M", null, OptionSize.M, 35000, 3), opt("L", null, OptionSize.L, 33000, 0))), null);
         ItemResult created = ingest.upsertArtists(List.of(artist)).get(0);
         long artistId = created.id();
 
@@ -197,51 +197,79 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(diff.created()).containsExactly("lp-9");
     }
 
+    /** 11/25 — 소개 글: 수집은 비어 있을 때만 채우고, 관리자가 고친 글은 다음 수집에도 그대로 · 관리자가 빈 글을 보내면 지움 */
+    @Test
+    void descriptionsAreFilledByCrawlerOnlyWhenEmptyAndAdminTextWins() {
+        ArtistUpsert noBio = new ArtistUpsert("crawler", "ar-bio", "h1", "새소년", List.of(Genre.INDIE_ROCK), null, 2016,
+                null, null, null, null, null);
+        long artistId = ingest.upsertArtists(List.of(noBio)).get(0).id();
+        assertThat(artistService.detail(artistId).bio()).isNull();                                   // 못 찾으면 빈칸
+
+        ingest.upsertArtists(List.of(new ArtistUpsert("crawler", "ar-bio", "h2", "새소년", List.of(Genre.INDIE_ROCK), null, 2016,
+                null, null, null, null, " 2016년 결성한 밴드입니다. ")));
+        assertThat(artistService.detail(artistId).bio()).isEqualTo("2016년 결성한 밴드입니다.");
+        edit.updateArtist(artistId, new AdminArtistUpdate(null, null, null, "관리자가 고친 소개입니다."));
+        ingest.upsertArtists(List.of(new ArtistUpsert("crawler", "ar-bio", "h3", "새소년", List.of(Genre.INDIE_ROCK), null, 2016,
+                null, null, null, null, "수집기가 새로 만든 소개입니다.")));
+        assertThat(artistService.detail(artistId).bio()).isEqualTo("관리자가 고친 소개입니다.");
+        edit.updateArtist(artistId, new AdminArtistUpdate(null, null, null, " "));
+        assertThat(artistService.detail(artistId).bio()).isNull();
+
+        long albumId = ingest.upsertAlbums(List.of(new AlbumUpsert("crawler", "al-desc", "a1", artistId, "여름깃", AlbumEntity.Type.EP,
+                null, null, null, null, null, "2017년에 낸 첫 EP 입니다."))).get(0).id();
+        assertThat(albumService.detail(albumId).description()).isEqualTo("2017년에 낸 첫 EP 입니다.");
+        edit.updateAlbum(albumId, new AdminAlbumUpdate(null, null, "관리자가 고친 앨범 소개입니다."));
+        assertThat(texts(events("album.updated").get(0).path("changedFields"))).containsExactly("description");
+        ingest.upsertAlbums(List.of(new AlbumUpsert("crawler", "al-desc", "a2", artistId, "여름깃", AlbumEntity.Type.EP,
+                null, null, null, null, null, null)));
+        assertThat(albumService.detail(albumId).description()).isEqualTo("관리자가 고친 앨범 소개입니다.");
+    }
+
     /** 11/18 — 이미지 · 트랙 태그는 관리자가 넣는 값: 크롤러가 null 로 다시 보내도 지워지지 않고, 빈 배열은 지웁니다 */
     @Test
     void adminImagesAndTrackTagsSurviveReingest() {
         ArtistUpsert artist = new ArtistUpsert("crawler", "ar-keep", "h1", "혁오", List.of(Genre.INDIE_ROCK), null, 2014, null, null, null,
                 List.of(new GoodsUpsert("gd-keep", "g1", "투어 티셔츠", GoodsCategory.TSHIRT, null,
-                        List.of(opt("M", null, OptionSize.M, 30000, null)))));
+                        List.of(opt("M", null, OptionSize.M, 30000, null)))), null);
         long artistId = ingest.upsertArtists(List.of(artist)).get(0).id();
         TrackUpsert bare = new TrackUpsert(1, "위잉위잉", null, null, null, null, null);
         AlbumUpsert album = new AlbumUpsert("crawler", "al-keep", "a1", artistId, "20", AlbumEntity.Type.EP, null, null, null,
                 List.of(bare), List.of(new PhysicalAlbumUpsert("cd-keep", "p1", PhysicalFormat.CD, "20 CD", null, null,
-                        List.of(opt("기본", null, null, 15000, null)))));
+                        List.of(opt("기본", null, null, 15000, null)))), null);
         long albumId = ingest.upsertAlbums(List.of(album)).get(0).id();
         long goodsId = jdbc.queryForObject("SELECT id FROM product WHERE external_id = 'gd-keep'", Long.class);
         long cdId = jdbc.queryForObject("SELECT id FROM product WHERE external_id = 'cd-keep'", Long.class);
 
         // 관리자가 이미지 · 태그를 넣음
         String img = "https://img.indig.co.kr/";
-        assertThat(edit.updateArtist(artistId, new AdminArtistUpdate(img + "artist/1.jpg", null, null)).profileUrl()).isEqualTo(img + "artist/1.jpg");
+        assertThat(edit.updateArtist(artistId, new AdminArtistUpdate(img + "artist/1.jpg", null, null, null)).profileUrl()).isEqualTo(img + "artist/1.jpg");
         assertThat(events("artist.updated").get(1).path("profileUrl").asText()).isEqualTo(img + "artist/1.jpg");   // Concert 복제본에도 감
         // 11/22 성별 · 구성만 보내면 이미지는 그대로
-        assertThat(edit.updateArtist(artistId, new AdminArtistUpdate(null, ArtistGender.MALE, ArtistComposition.GROUP)).profileUrl())
+        assertThat(edit.updateArtist(artistId, new AdminArtistUpdate(null, ArtistGender.MALE, ArtistComposition.GROUP, null)).profileUrl())
                 .isEqualTo(img + "artist/1.jpg");
         assertThat(jdbc.queryForMap("SELECT gender, composition FROM artist WHERE id = ?", artistId))
                 .containsEntry("gender", "MALE").containsEntry("composition", "GROUP");
         int artistEvents = events("artist.updated").size();
-        edit.updateArtist(artistId, new AdminArtistUpdate(null, ArtistGender.MALE, null));                // 바뀐 게 없으면 이벤트도 없음
+        edit.updateArtist(artistId, new AdminArtistUpdate(null, ArtistGender.MALE, null, null));                // 바뀐 게 없으면 이벤트도 없음
         assertThat(events("artist.updated")).hasSize(artistEvents);
         AlbumDetail tagged = edit.updateAlbum(albumId, new AdminAlbumUpdate(img + "album/1.jpg",
-                List.of(new AdminAlbumUpdate.TrackTags(1, List.of(Genre.INDIE_ROCK), Tempo.MID, List.of(Mood.DREAMY), null, null))));
+                List.of(new AdminAlbumUpdate.TrackTags(1, List.of(Genre.INDIE_ROCK), Tempo.MID, List.of(Mood.DREAMY), null, null)), null));
         assertThat(tagged.thumbnailUrl()).isEqualTo(img + "album/1.jpg");
         assertThat(tagged.tracks().get(0).tempo()).isEqualTo(Tempo.MID);
         assertThat(texts(events("album.updated").get(0).path("changedFields"))).containsExactly("thumbnailUrl", "tracks");
         admin.update(goodsId, new AdminProductUpdate(null, img + "goods/1.jpg", null, null));
         admin.update(cdId, new AdminProductUpdate(null, img + "physical/1.jpg", null, null));
         assertCode(() -> edit.updateAlbum(albumId, new AdminAlbumUpdate(null,
-                List.of(new AdminAlbumUpdate.TrackTags(9, null, Tempo.FAST, null, null, null)))), CommonErrorCode.INVALID_REQUEST);
+                List.of(new AdminAlbumUpdate.TrackTags(9, null, Tempo.FAST, null, null, null)), null)), CommonErrorCode.INVALID_REQUEST);
 
         // 크롤러가 바뀐 후보를 다시 보냄 (새 트랙 · 이미지 · 태그는 null) → 관리자 값 그대로
         ingest.upsertArtists(List.of(new ArtistUpsert("crawler", "ar-keep", "h2", "혁오", List.of(Genre.INDIE_ROCK), null, 2014, null, null, null,
                 List.of(new GoodsUpsert("gd-keep", "g2", "투어 티셔츠", GoodsCategory.TSHIRT, null,
-                        List.of(opt("M", null, OptionSize.M, 30000, null)))))));
+                        List.of(opt("M", null, OptionSize.M, 30000, null)))), null)));
         ingest.upsertAlbums(List.of(new AlbumUpsert("crawler", "al-keep", "a2", artistId, "20", AlbumEntity.Type.EP, null, null, null,
                 List.of(bare, new TrackUpsert(2, "와리가리", null, null, null, null, null)),
                 List.of(new PhysicalAlbumUpsert("cd-keep", "p2", PhysicalFormat.CD, "20 CD", null, null,
-                        List.of(opt("기본", null, null, 15000, null)))))));
+                        List.of(opt("기본", null, null, 15000, null)))), null)));
 
         assertThat(artistService.detail(artistId).profileUrl()).isEqualTo(img + "artist/1.jpg");
         assertThat(jdbc.queryForMap("SELECT gender, composition FROM artist WHERE id = ?", artistId))
@@ -257,17 +285,17 @@ class CatalogFlowTest extends PostgresTest {
         // 판매가 null → 저장된 값 그대로 · 새 옵션은 판매가가 있어야 함 (그 항목만 FAILED)
         ingest.upsertArtists(List.of(new ArtistUpsert("crawler", "ar-keep", "h3", "혁오", List.of(Genre.INDIE_ROCK), null, 2014, null, null, null,
                 List.of(new GoodsUpsert("gd-keep", "g3", "투어 티셔츠", GoodsCategory.TSHIRT, null,
-                        List.of(new OptionUpsert("M", null, OptionSize.M, null, null)))))));
+                        List.of(new OptionUpsert("M", null, OptionSize.M, null, null)))), null)));
         assertThat(productService.product(goodsId).options()).extracting(OptionView::price).containsExactly(30000);
         ItemResult noPrice = ingest.upsertArtists(List.of(new ArtistUpsert("crawler", "ar-keep", "h4", "혁오", List.of(Genre.INDIE_ROCK),
                 null, 2014, null, null, null, List.of(new GoodsUpsert("gd-keep", "g4", "투어 티셔츠", GoodsCategory.TSHIRT, null,
-                        List.of(new OptionUpsert("L", null, OptionSize.L, null, null))))))).get(0);
+                        List.of(new OptionUpsert("L", null, OptionSize.L, null, null)))), null))).get(0);
         assertThat(noPrice.result()).isEqualTo(Result.FAILED);
         assertThat(noPrice.error()).contains("판매가");
 
         // 빈 배열은 지움
         ingest.upsertAlbums(List.of(new AlbumUpsert("crawler", "al-keep", "a3", artistId, "20", AlbumEntity.Type.EP, null, null, null,
-                List.of(new TrackUpsert(1, "위잉위잉", null, null, List.of(), null, null)), null)));
+                List.of(new TrackUpsert(1, "위잉위잉", null, null, List.of(), null, null)), null, null)));
         assertThat(albumService.detail(albumId).tracks().get(0).moods()).isEmpty();
         assertThat(albumService.detail(albumId).tracks().get(0).tempo()).isEqualTo(Tempo.MID);
     }
@@ -314,9 +342,9 @@ class CatalogFlowTest extends PostgresTest {
 
         List<ItemResult> goods = ingest.upsertArtists(List.of(
                 new ArtistUpsert("crawler", "goods-no-size", "h", "밴드A", null, null, null, null, null, null,
-                        List.of(tshirt("g1", opt("기본", null, null, 30000, 1)))),
+                        List.of(tshirt("g1", opt("기본", null, null, 30000, 1))), null),
                 new ArtistUpsert("crawler", "goods-with-color", "h", "밴드B", null, null, null, null, null, null,
-                        List.of(tshirt("g2", opt("M", VinylColor.COLOR, OptionSize.M, 30000, 1))))));
+                        List.of(tshirt("g2", opt("M", VinylColor.COLOR, OptionSize.M, 30000, 1))), null)));
         assertThat(goods).extracting(ItemResult::result).containsExactly(Result.FAILED, Result.FAILED);
         assertThat(jdbc.queryForList("SELECT external_id FROM artist", String.class)).containsExactly("ar-rule");
     }
@@ -640,11 +668,11 @@ class CatalogFlowTest extends PostgresTest {
     /** 아티스트 1 · 앨범 1 · LP 1 (블랙 42,000원 · 5장) · 티셔츠 1 (M 35,000원 · 3장) */
     private Shop shop() {
         long artistId = ingest.upsertArtists(List.of(new ArtistUpsert("crawler", "shop-artist", "h", "파란노을",
-                List.of(Genre.SHOEGAZE), "인디레이블", 2018, null, null, null, List.of(tshirt("shop-goods", opt("M", null, OptionSize.M, 35000, 3)))))).get(0).id();
+                List.of(Genre.SHOEGAZE), "인디레이블", 2018, null, null, null, List.of(tshirt("shop-goods", opt("M", null, OptionSize.M, 35000, 3))), null))).get(0).id();
         long albumId = ingest.upsertAlbums(List.of(new AlbumUpsert("crawler", "shop-album", "h", artistId, "슬로우 다이브",
                 AlbumEntity.Type.ALBUM, List.of(Genre.SHOEGAZE), LocalDate.now(), "https://img/album.jpg", List.of(track(1, "아름다운 세상")),
                 List.of(new PhysicalAlbumUpsert("shop-lp", "h", PhysicalFormat.LP, "슬로우 다이브 LP", LocalDate.now(), null,
-                        List.of(opt("블랙", VinylColor.BLACK, null, 42000, 5))))))).get(0).id();
+                        List.of(opt("블랙", VinylColor.BLACK, null, 42000, 5)))), null))).get(0).id();
         long lpId = jdbc.queryForObject("SELECT id FROM product WHERE external_id = 'shop-lp'", Long.class);
         long goodsId = jdbc.queryForObject("SELECT id FROM product WHERE external_id = 'shop-goods'", Long.class);
         return new Shop(artistId, albumId, lpId, optionId(lpId), goodsId, optionId(goodsId));
@@ -665,13 +693,13 @@ class CatalogFlowTest extends PostgresTest {
     }
 
     private long artist(String externalId) {
-        return ingest.upsertArtists(List.of(new ArtistUpsert("crawler", externalId, "h", "밴드", null, null, null, null, null, null, null))).get(0).id();
+        return ingest.upsertArtists(List.of(new ArtistUpsert("crawler", externalId, "h", "밴드", null, null, null, null, null, null, null, null))).get(0).id();
     }
 
     private static AlbumUpsert album(String externalId, String hash, long artistId, LocalDate releasedAt, List<TrackUpsert> tracks,
                                      List<PhysicalAlbumUpsert> physicalAlbums) {
         return new AlbumUpsert("crawler", externalId, hash, artistId, "POWER ANDRE 99", AlbumEntity.Type.ALBUM,
-                List.of(Genre.PSYCHEDELIC), releasedAt, null, tracks, physicalAlbums);
+                List.of(Genre.PSYCHEDELIC), releasedAt, null, tracks, physicalAlbums, null);
     }
 
     private static TrackUpsert track(int no, String title) {

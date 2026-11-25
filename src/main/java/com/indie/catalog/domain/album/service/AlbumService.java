@@ -51,7 +51,7 @@ public class AlbumService {
                 .map(t -> new TrackItem(t.getId(), t.getTrackNo(), t.getTitle(), t.getGenres(), t.getTempo(), t.getMoods(),
                         t.getEmotions(), t.getStyles())).toList();
         return new AlbumDetail(album.getId(), album.getArtistId(), artistName, album.getTitle(), album.getType(),
-                album.getGenres(), album.getReleasedAt(), album.getThumbnailUrl(), tracks,
+                album.getGenres(), album.getReleasedAt(), album.getThumbnailUrl(), album.getDescription(), tracks,
                 productService.physicalAlbumsOfAlbums(List.of(id)));
     }
 

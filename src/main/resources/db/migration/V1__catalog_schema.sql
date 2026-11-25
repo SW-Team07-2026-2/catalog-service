@@ -23,6 +23,7 @@ CREATE TABLE artist (
     profile_url VARCHAR(512),
     gender      VARCHAR(16),                             -- 11/22 성별 MALE · FEMALE · MIXED(혼성) · 모르면 null (값 목록 V2)
     composition VARCHAR(16),                             -- 11/22 구성 SOLO · GROUP(팀) · 모르면 null
+    bio         VARCHAR(1000),                           -- 11/25 소개 글 (한글 3~4문장) · 수집기가 못 찾으면 null → 관리자가 씀
     source      VARCHAR(32)  NOT NULL,                   -- 수집 출처
     external_id VARCHAR(128) NOT NULL,                   -- 출처 안의 식별자
     source_hash VARCHAR(128),                            -- 본문 정규화 해시 · 증분 판정
@@ -42,6 +43,7 @@ CREATE TABLE album (
     genres        VARCHAR(32)[] NOT NULL DEFAULT '{}',
     released_at   DATE,
     thumbnail_url VARCHAR(512),
+    description   VARCHAR(1000),                         -- 11/25 소개 글 (한글 2~3문장) · 수집기가 못 찾으면 null → 관리자가 씀
     source        VARCHAR(32)  NOT NULL,
     external_id   VARCHAR(128) NOT NULL,
     source_hash   VARCHAR(128),

@@ -15,9 +15,11 @@ import java.util.List;
 /**
  * 관리자 앨범 수정 — 이미지 · 트랙 태그 (11/18: 둘 다 관리자가 넣는 값). 보낸 값만 바꿉니다 (null 은 그대로).
  * tracks 는 바꿀 트랙만 · 트랙 안에서도 보낸 칸만 (빈 배열 = 지움). 트랙 추가 · 삭제 · 제목은 수집으로만 바뀝니다.
+ * 11/25 description: 소개 글 (빈 글은 지움).
  */
 public record AdminAlbumUpdate(@Size(max = 512) String thumbnailUrl,
-                               @Size(max = 100) List<@Valid @NotNull TrackTags> tracks) {
+                               @Size(max = 100) List<@Valid @NotNull TrackTags> tracks,
+                               @Size(max = 1000) String description) {
 
     public record TrackTags(@NotNull @Positive Integer trackNo,
                             List<@NotNull Genre> genres,

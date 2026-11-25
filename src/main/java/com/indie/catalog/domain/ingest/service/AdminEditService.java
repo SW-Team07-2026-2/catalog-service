@@ -65,8 +65,11 @@ public class AdminEditService {
         tx.executeWithoutResult(s -> {
             ArtistEntity a = artistRepository.findById(id).orElseThrow(() -> new GeneralException(CommonErrorCode.NOT_FOUND));
             String profileUrl = r.profileUrl() != null ? r.profileUrl() : a.getProfileUrl();
-            if (a.apply(a.getName(), a.getGenres(), a.getLabelId(), a.getDebutYear(), profileUrl, r.gender(), r.composition(),   // 성별 · 구성 null = 그대로
-                    a.getSourceHash(), OffsetDateTime.now(clock))) {
+            OffsetDateTime now = OffsetDateTime.now(clock);
+            boolean changed = a.apply(a.getName(), a.getGenres(), a.getLabelId(), a.getDebutYear(), profileUrl, r.gender(), r.composition(),   // 성별 · 구성 null = 그대로
+                    a.getSourceHash(), now);
+            changed |= a.applyBio(r.bio(), now);                    // 11/25 소개 글 null = 그대로
+            if (changed) {
                 artistRepository.save(a);
                 events.artistUpdated(a);
                 artistCache.evictAfterCommit(id);
@@ -83,6 +86,10 @@ public class AdminEditService {
                 changed.addAll(album.apply(album.getArtistId(), album.getTitle(), album.getType(), album.getGenres(),
                         album.getReleasedAt(), r.thumbnailUrl(), album.getSourceHash(), OffsetDateTime.now(clock)));
                 albumRepository.save(album);
+            }
+            if (album.applyDescription(r.description(), OffsetDateTime.now(clock))) {   // 11/25 소개 글 null = 그대로
+                albumRepository.save(album);
+                changed.add("description");
             }
             if (r.tracks() != null && !r.tracks().isEmpty() && tags(id, r.tracks())) changed.add("tracks");
             if (!changed.isEmpty()) {
