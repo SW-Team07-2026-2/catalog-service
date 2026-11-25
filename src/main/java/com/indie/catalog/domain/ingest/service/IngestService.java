@@ -149,6 +149,7 @@ public class IngestService {
                 .orElseGet(() -> labelRepository.save(new LabelEntity(u.label().strip()))).getId();
         boolean changed = artist.apply(u.name().strip(), distinct(u.genres()), labelId, u.debutYear(),
                 keep(u.profileUrl(), artist.getProfileUrl()), u.gender(), u.composition(), u.sourceHash(), now);
+        changed |= artist.getBio() == null && artist.applyBio(u.bio(), now);   // 11/25 비어 있을 때만 채움 (관리자가 쓴 글은 수집으로 안 바뀜)
         artist = artistRepository.save(artist);
         if (created || changed) events.artistUpdated(artist);
 
@@ -189,6 +190,7 @@ public class IngestService {
         Long previousArtistId = album.getArtistId();
         List<String> changed = album.apply(artist.getId(), u.title().strip(), u.type(), distinct(u.genres()), u.releasedAt(),
                 keep(u.thumbnailUrl(), album.getThumbnailUrl()), u.sourceHash(), now);
+        if (album.getDescription() == null && album.applyDescription(u.description(), now)) changed.add("description");   // 11/25 비어 있을 때만 채움
         album = albumRepository.save(album);
 
         if (u.tracks() != null && syncTracks(album.getId(), u.tracks())) changed.add("tracks");

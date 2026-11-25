@@ -37,6 +37,7 @@ public class AlbumEntity {
     private List<Genre> genres = List.of();
     private LocalDate releasedAt;
     private String thumbnailUrl;
+    private String description;
     private String source;
     private String externalId;
     private String sourceHash;
@@ -70,6 +71,16 @@ public class AlbumEntity {
         return changed;
     }
 
+    /** 11/25 소개 글 — null 은 그대로 · 빈 글은 지움. 바뀌었으면 true (수집은 비어 있을 때만 부름 — IngestService) */
+    public boolean applyDescription(String description, OffsetDateTime now) {
+        if (description == null) return false;
+        String next = description.isBlank() ? null : description.strip();
+        if (Objects.equals(this.description, next)) return false;
+        this.description = next;
+        this.updatedAt = now;
+        return true;
+    }
+
     public Long getId() { return id; }
     public Long getArtistId() { return artistId; }
     public String getTitle() { return title; }
@@ -77,5 +88,6 @@ public class AlbumEntity {
     public List<Genre> getGenres() { return genres; }
     public LocalDate getReleasedAt() { return releasedAt; }
     public String getThumbnailUrl() { return thumbnailUrl; }
+    public String getDescription() { return description; }
     public String getSourceHash() { return sourceHash; }
 }

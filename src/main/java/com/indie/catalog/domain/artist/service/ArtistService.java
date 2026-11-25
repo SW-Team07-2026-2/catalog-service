@@ -79,7 +79,7 @@ public class ArtistService {
         ArtistEntity a = artistRepository.findById(id).orElseThrow(() -> new GeneralException(CommonErrorCode.NOT_FOUND));
         String label = a.getLabelId() == null ? null : labelRepository.findById(a.getLabelId()).map(LabelEntity::getName).orElse(null);
         List<AlbumItem> albums = albumService.albumsOfArtist(id);
-        return new ArtistDetail(a.getId(), a.getName(), a.getGenres(), label, a.getDebutYear(), a.getProfileUrl(), albums,
+        return new ArtistDetail(a.getId(), a.getName(), a.getGenres(), label, a.getDebutYear(), a.getProfileUrl(), a.getBio(), albums,
                 productService.physicalAlbumsOfAlbums(albums.stream().map(AlbumItem::id).toList()),
                 productService.goodsOfArtist(id));
     }

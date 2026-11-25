@@ -19,6 +19,7 @@ import java.util.List;
  * genres 는 정해진 값만 (Genre) — null 은 빈 배열로 봅니다. goods 가 null 이면 굿즈는 건드리지 않습니다.
  * profile_url · 굿즈 thumbnail_url 이 null 이면 저장된 이미지를 그대로 둡니다 (관리자가 넣은 이미지 · 11/18).
  * 11/22 gender · composition 은 null 이면 저장된 값을 그대로 둡니다 (수집기는 보내지 않아도 됨).
+ * 11/25 bio(소개 글)는 저장된 글이 없을 때만 채웁니다 — 수집기가 못 찾으면 null, 관리자가 쓴 글은 수집으로 바뀌지 않음.
  */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record ArtistUpsert(@NotBlank @Size(max = 32) String source,
@@ -31,4 +32,5 @@ public record ArtistUpsert(@NotBlank @Size(max = 32) String source,
                            @Size(max = 512) String profileUrl,
                            ArtistGender gender,
                            ArtistComposition composition,
-                           List<@Valid @NotNull GoodsUpsert> goods) {}
+                           List<@Valid @NotNull GoodsUpsert> goods,
+                           @Size(max = 1000) String bio) {}
