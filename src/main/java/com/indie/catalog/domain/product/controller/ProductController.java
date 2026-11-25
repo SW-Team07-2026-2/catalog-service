@@ -6,6 +6,7 @@ import com.indie.catalog.domain.product.dto.response.ProductDetail;
 import com.indie.catalog.domain.product.entity.GoodsCategory;
 import com.indie.catalog.domain.product.entity.PhysicalFormat;
 import com.indie.catalog.domain.product.service.ProductService;
+import com.indie.catalog.domain.product.service.PublicProductCache;
 import com.indie.catalog.global.auth.CurrentUserArgumentResolver;
 import com.indie.catalog.global.common.response.ApiResponse;
 import com.indie.catalog.global.common.response.PageResult;
@@ -33,11 +34,13 @@ import java.util.List;
 public class ProductController {
 
     private final ProductService productService;
+    private final PublicProductCache publicCache;
     private final PageSize pageSize;
     private final UserMetrics userMetrics;
 
-    public ProductController(ProductService productService, PageSize pageSize, UserMetrics userMetrics) {
+    public ProductController(ProductService productService, PublicProductCache publicCache, PageSize pageSize, UserMetrics userMetrics) {
         this.productService = productService;
+        this.publicCache = publicCache;
         this.pageSize = pageSize;
         this.userMetrics = userMetrics;
     }
@@ -86,8 +89,8 @@ public class ProductController {
                                                                           @RequestParam(defaultValue = "0") @PositiveOrZero int page,
                                                                           @RequestParam(required = false) Integer size,
                                                                           @RequestHeader(value = CurrentUserArgumentResolver.HEADER, required = false) Long userId) {
-        PageResult<PhysicalAlbumItem> result = productService.physicalAlbums(format, null, null, null, q, minPrice, maxPrice,
-                excludeSoldOut, null, page, pageSize.resolve(size));
+        PageResult<PhysicalAlbumItem> result = publicCache.searchPhysicalAlbums(format, q, minPrice, maxPrice, excludeSoldOut, page,
+                pageSize.resolve(size));   // ✏️ 11/25 Pod 캐시 3초 (PublicProductCache)
         userMetrics.searched(userId, "PHYSICAL_ALBUM", q, page);
         return ApiResponse.onSuccess(result);
     }
@@ -102,15 +105,15 @@ public class ProductController {
                                                           @RequestParam(defaultValue = "0") @PositiveOrZero int page,
                                                           @RequestParam(required = false) Integer size,
                                                           @RequestHeader(value = CurrentUserArgumentResolver.HEADER, required = false) Long userId) {
-        PageResult<GoodsItem> result = productService.goods(null, null, category, q, minPrice, maxPrice, excludeSoldOut, null,
-                page, pageSize.resolve(size));
+        PageResult<GoodsItem> result = publicCache.searchGoods(category, q, minPrice, maxPrice, excludeSoldOut, page,
+                pageSize.resolve(size));   // ✏️ 11/25 Pod 캐시 3초 (PublicProductCache)
         userMetrics.searched(userId, "GOODS", q, page);
         return ApiResponse.onSuccess(result);
     }
 
     @GetMapping("/api/catalog/products/{id}")
     public ApiResponse<ProductDetail> product(@PathVariable @Positive long id) {
-        return ApiResponse.onSuccess(productService.product(id));
+        return ApiResponse.onSuccess(publicCache.product(id));   // ✏️ 11/25 Pod 캐시 3초 — 재고 수량 · 품절은 최대 3초 늦음 (주문이 다시 확인)
     }
 
     /** ?ids=1,2,3 — 보유 음반 화면 · 챗봇 도구의 일괄 조회 */
