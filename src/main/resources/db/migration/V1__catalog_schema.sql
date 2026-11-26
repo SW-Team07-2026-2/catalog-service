@@ -95,7 +95,8 @@ CREATE INDEX idx_physical_album_released ON physical_album(released_at DESC NULL
 CREATE TABLE goods (
     id        BIGINT PRIMARY KEY REFERENCES product(id),
     artist_id BIGINT      NOT NULL REFERENCES artist(id),
-    category  VARCHAR(16) NOT NULL
+    category  VARCHAR(16) NOT NULL,
+    description VARCHAR(1000)                            -- 11/26 상세 설명 · 관리자가 씀 (없으면 null)
 );
 CREATE INDEX idx_goods_artist ON goods(artist_id, id DESC);
 
