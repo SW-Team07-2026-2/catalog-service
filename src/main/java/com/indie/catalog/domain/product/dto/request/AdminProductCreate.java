@@ -16,7 +16,7 @@ import java.util.List;
 /**
  * 관리자 상품 등록 — productType 에 따라 필요한 값이 다릅니다 (AdminProductService 가 검사).
  * <pre>
- * GOODS            artistId · category 필수
+ * GOODS            artistId · category 필수 · description(11/26 상세 설명) 선택
  * PHYSICAL_ALBUM   albumId · format 필수 · releasedAt 선택 · thumbnailUrl 이 없으면 앨범 이미지
  * </pre>
  */
@@ -28,4 +28,5 @@ public record AdminProductCreate(@NotNull ProductEntity.Type productType,
                                  @Positive Long albumId,
                                  PhysicalFormat format,
                                  LocalDate releasedAt,
-                                 @NotEmpty List<@Valid @NotNull AdminOption> options) {}
+                                 @NotEmpty List<@Valid @NotNull AdminOption> options,
+                                 @Size(max = 1000) String description) {}
