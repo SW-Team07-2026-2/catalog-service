@@ -79,7 +79,16 @@ CREATE TABLE product (
     source_hash   VARCHAR(128),
     created_at    TIMESTAMPTZ  NOT NULL,
     updated_at    TIMESTAMPTZ  NOT NULL,
+    description   VARCHAR(1000),                         -- 11/26 상세 설명 (굿즈 · 판본 공통 · 수집은 비어 있을 때만 채움 · 관리자가 고침)
     CONSTRAINT uq_product_source UNIQUE (source, external_id)
+);
+
+-- 11/26 상세 이미지 (보여 줄 순서대로 · 우리 이미지 버킷 주소만 — Studio 가 승인할 때 옮김)
+CREATE TABLE product_detail_image (
+    product_id BIGINT       NOT NULL REFERENCES product(id),
+    sort_order INTEGER      NOT NULL,
+    url        VARCHAR(512) NOT NULL,
+    PRIMARY KEY (product_id, sort_order)
 );
 
 -- 한 앨범에 같은 포맷이 여러 개일 수 있습니다 (초판 · 재판 · N차 — 이름으로 구분)
@@ -95,8 +104,7 @@ CREATE INDEX idx_physical_album_released ON physical_album(released_at DESC NULL
 CREATE TABLE goods (
     id        BIGINT PRIMARY KEY REFERENCES product(id),
     artist_id BIGINT      NOT NULL REFERENCES artist(id),
-    category  VARCHAR(16) NOT NULL,
-    description VARCHAR(1000)                            -- 11/26 상세 설명 · 관리자가 씀 (없으면 null)
+    category  VARCHAR(16) NOT NULL
 );
 CREATE INDEX idx_goods_artist ON goods(artist_id, id DESC);
 
