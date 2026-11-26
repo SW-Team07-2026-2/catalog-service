@@ -8,12 +8,15 @@ import com.indie.catalog.domain.album.repository.TrackRepository;
 import com.indie.catalog.domain.album.service.AlbumService;
 import com.indie.catalog.domain.artist.dto.response.ArtistDetail;
 import com.indie.catalog.domain.artist.entity.ArtistEntity;
+import com.indie.catalog.domain.artist.entity.LabelEntity;
 import com.indie.catalog.domain.artist.repository.ArtistCache;
 import com.indie.catalog.domain.artist.repository.ArtistRepository;
+import com.indie.catalog.domain.artist.repository.LabelRepository;
 import com.indie.catalog.domain.artist.service.ArtistService;
 import com.indie.catalog.domain.ingest.dto.event.CatalogEvents;
 import com.indie.catalog.domain.ingest.dto.request.AdminAlbumUpdate;
 import com.indie.catalog.domain.ingest.dto.request.AdminAlbumUpdate.TrackTags;
+import com.indie.catalog.domain.ingest.dto.request.AdminArtistCreate;
 import com.indie.catalog.domain.ingest.dto.request.AdminArtistUpdate;
 import com.indie.catalog.global.common.exception.CommonErrorCode;
 import com.indie.catalog.global.common.exception.GeneralException;
@@ -25,11 +28,13 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
  * 관리자(Studio)가 이미 들어간 아티스트 · 앨범에 넣는 값 — 이미지 · 트랙 태그 (11/18 결정: 크롤러는 비워 두고 관리자가 넣음) · 아티스트 성별 · 구성 (11/22).
+ * 11/26 관리자 아티스트 등록 — 출처는 상품 직접 등록과 같이 source = "studio" · external_id 는 여기서 만듭니다 (수집기가 덮어쓰지 않음).
  * 수집 적재와 같은 엔티티 apply · 같은 이벤트(artist.updated · album.updated) · 같은 캐시 삭제를 씁니다.
  * 수집 출처의 해시(source_hash)는 그대로 둡니다 — 다음 수집이 이 값을 지우지 않는 건 적재의 "null 이면 그대로" 규칙 덕분입니다.
  * 응답은 커밋 뒤에 다시 읽습니다 (캐시를 커밋 뒤에 지우므로).
@@ -38,6 +43,7 @@ import java.util.stream.Collectors;
 public class AdminEditService {
 
     private final ArtistRepository artistRepository;
+    private final LabelRepository labelRepository;
     private final AlbumRepository albumRepository;
     private final TrackRepository trackRepository;
     private final ArtistService artistService;
@@ -47,10 +53,11 @@ public class AdminEditService {
     private final TransactionTemplate tx;
     private final Clock clock;
 
-    public AdminEditService(ArtistRepository artistRepository, AlbumRepository albumRepository, TrackRepository trackRepository,
+    public AdminEditService(ArtistRepository artistRepository, LabelRepository labelRepository, AlbumRepository albumRepository, TrackRepository trackRepository,
                             ArtistService artistService, AlbumService albumService, CatalogEvents events, ArtistCache artistCache,
                             TransactionTemplate tx, Clock clock) {
         this.artistRepository = artistRepository;
+        this.labelRepository = labelRepository;
         this.albumRepository = albumRepository;
         this.trackRepository = trackRepository;
         this.artistService = artistService;
@@ -59,6 +66,36 @@ public class AdminEditService {
         this.artistCache = artistCache;
         this.tx = tx;
         this.clock = clock;
+    }
+
+    static final String SOURCE = "studio";
+    private static final int SAME_NAME_SCAN = 50;
+
+    /** 같은 이름이 있으면 409 (그 아티스트 id 를 메시지에) — 이미 있는 팀을 또 만들지 않게. allowSameName = 같은 이름의 다른 팀 */
+    public ArtistDetail createArtist(AdminArtistCreate r) {
+        String name = r.name().strip();
+        if (!Boolean.TRUE.equals(r.allowSameName())) {
+            List<Long> same = artistRepository.search(name, null, null, null, null, null, 0, SAME_NAME_SCAN).stream()
+                    .filter(a -> a.getName().strip().equalsIgnoreCase(name)).map(ArtistEntity::getId).toList();
+            if (!same.isEmpty()) {
+                throw new GeneralException(CommonErrorCode.CONFLICT, "같은 이름의 아티스트가 있습니다 — id " + same
+                        + " (같은 이름의 다른 팀이면 allowSameName: true)");
+            }
+        }
+        long id = tx.execute(s -> {
+            OffsetDateTime now = OffsetDateTime.now(clock);
+            ArtistEntity a = new ArtistEntity(SOURCE, UUID.randomUUID().toString());
+            Long labelId = r.label() == null || r.label().isBlank() ? null : labelRepository.findByName(r.label().strip())
+                    .orElseGet(() -> labelRepository.save(new LabelEntity(r.label().strip()))).getId();
+            a.apply(name, r.genres() == null ? List.of() : r.genres().stream().distinct().toList(), labelId, r.debutYear(),
+                    r.profileUrl() == null || r.profileUrl().isBlank() ? null : r.profileUrl().strip(), r.gender(), r.composition(), null, now);
+            a.applyBio(r.bio(), now);
+            a = artistRepository.save(a);
+            events.artistUpdated(a);
+            artistCache.evictAfterCommit(a.getId());
+            return a.getId();
+        });
+        return artistService.detail(id);
     }
 
     public ArtistDetail updateArtist(long id, AdminArtistUpdate r) {
