@@ -45,13 +45,13 @@ public class OrderController {
         return ApiResponse.onSuccess(orderService.list(userId, Cursor.decode(cursor), pageSize.resolve(size)));
     }
 
-    @GetMapping("/api/catalog/orders/{id}")
-    public ApiResponse<OrderDetail> get(@CurrentUser Long userId, @PathVariable @Positive long id) {
-        return ApiResponse.onSuccess(orderService.get(userId, id));
+    @GetMapping("/api/catalog/orders/{orderId}")
+    public ApiResponse<OrderDetail> get(@CurrentUser Long userId, @PathVariable @Positive long orderId) {
+        return ApiResponse.onSuccess(orderService.get(userId, orderId));
     }
 
-    @PostMapping("/api/catalog/orders/{id}/cancel")
-    public ApiResponse<OrderDetail> cancel(@CurrentUser Long userId, @PathVariable @Positive long id) {
-        return ApiResponse.onSuccess(orderService.cancel(userId, id));
+    @PostMapping("/api/catalog/orders/{orderId}/cancel")
+    public ApiResponse<OrderDetail> cancel(@CurrentUser Long userId, @PathVariable @Positive long orderId) {
+        return ApiResponse.onSuccess(orderService.cancel(userId, orderId));
     }
 }

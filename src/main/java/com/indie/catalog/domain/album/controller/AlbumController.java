@@ -33,8 +33,8 @@ public class AlbumController {
         return ApiResponse.onSuccess(albumService.list(type, page, pageSize.resolve(size)));
     }
 
-    @GetMapping("/api/catalog/albums/{id}")
-    public ApiResponse<AlbumDetail> detail(@PathVariable @Positive long id) {
-        return ApiResponse.onSuccess(albumService.detail(id));
+    @GetMapping("/api/catalog/albums/{albumId}")
+    public ApiResponse<AlbumDetail> detail(@PathVariable @Positive long albumId) {
+        return ApiResponse.onSuccess(albumService.detail(albumId));
     }
 }

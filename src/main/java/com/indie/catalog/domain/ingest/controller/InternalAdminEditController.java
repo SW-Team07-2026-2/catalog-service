@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 관리자(Studio)가 넣는 값 — 아티스트 이미지 · 성별 · 구성(11/22) · 앨범 이미지 · 트랙 태그 (11/18). 상품 이미지는 PATCH /internal/admin/catalog/products/{id}.
+ * 관리자(Studio)가 넣는 값 — 아티스트 이미지 · 성별 · 구성(11/22) · 앨범 이미지 · 트랙 태그 (11/18). 상품 이미지는 PATCH /internal/admin/catalog/products/{productId}.
  * 토큰 규칙은 다른 /internal/admin/** 와 같습니다 (iss=studio).
  */
 @RestController
@@ -26,13 +26,13 @@ public class InternalAdminEditController {
         this.adminEditService = adminEditService;
     }
 
-    @PatchMapping("/internal/admin/catalog/artists/{id}")
-    public ApiResponse<ArtistDetail> updateArtist(@PathVariable @Positive long id, @Valid @RequestBody AdminArtistUpdate request) {
-        return ApiResponse.onSuccess(adminEditService.updateArtist(id, request));
+    @PatchMapping("/internal/admin/catalog/artists/{artistId}")
+    public ApiResponse<ArtistDetail> updateArtist(@PathVariable @Positive long artistId, @Valid @RequestBody AdminArtistUpdate request) {
+        return ApiResponse.onSuccess(adminEditService.updateArtist(artistId, request));
     }
 
-    @PatchMapping("/internal/admin/catalog/albums/{id}")
-    public ApiResponse<AlbumDetail> updateAlbum(@PathVariable @Positive long id, @Valid @RequestBody AdminAlbumUpdate request) {
-        return ApiResponse.onSuccess(adminEditService.updateAlbum(id, request));
+    @PatchMapping("/internal/admin/catalog/albums/{albumId}")
+    public ApiResponse<AlbumDetail> updateAlbum(@PathVariable @Positive long albumId, @Valid @RequestBody AdminAlbumUpdate request) {
+        return ApiResponse.onSuccess(adminEditService.updateAlbum(albumId, request));
     }
 }

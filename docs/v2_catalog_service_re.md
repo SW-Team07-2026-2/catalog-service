@@ -195,7 +195,7 @@ Payment 는 바꾸지 않았습니다. Payment 가 내는 `payment.cancelled` �
 
 `refundCancelled` 는 "결제는 승인됐는데 `payment.completed` 를 받기 전에 사용자가 취소한" 경우를 위한 것입니다. 그때 주문은 일단 CANCELLED 로 남고, 뒤따라오는 `payment.cancelled(refunded=true)` 가 REFUNDED 로 바로잡습니다. 재고가 두 번 복구되지 않는 것을 테스트로 확인했습니다.
 
-사용자 취소(`POST /api/catalog/orders/{id}/cancel`)는 Payment 를 먼저 취소한 뒤 재고를 복구합니다. 순서가 반대면 "재고는 돌려놨는데 결제는 승인됨"이 생깁니다.
+사용자 취소(`POST /api/catalog/orders/{orderId}/cancel`)는 Payment 를 먼저 취소한 뒤 재고를 복구합니다. 순서가 반대면 "재고는 돌려놨는데 결제는 승인됨"이 생깁니다.
 
 ### 5.4 장바구니
 
@@ -241,13 +241,13 @@ Payment 는 바꾸지 않았습니다. Payment 가 내는 `payment.cancelled` �
 | 메서드 · 경로 | 변경 | 내용 |
 |---|---|---|
 | `GET /api/catalog/artists` | 변경 | `genre` 파라미터가 enum 값(`INDIE_ROCK` …). 응답 `genre`(문자열) → `genres`(배열) · ✏️ 11/19 팔로우 탭: `genre` 여러 개 · `ids`(최대 200)가 다른 조건 · 페이지와 함께 동작 · `sort=ARTIST_ORDER\|UPDATED` |
-| `GET /api/catalog/artists/{id}` | 변경 | `members` 삭제 · `genre` → `genres` · `lps` → `physicalAlbums` · `goods` 항목 모양 변경 |
+| `GET /api/catalog/artists/{artistId}` | 변경 | `members` 삭제 · `genre` → `genres` · `lps` → `physicalAlbums` · `goods` 항목 모양 변경 |
 | `GET /api/catalog/albums` | 변경 | 항목에 `genres` 추가 |
-| `GET /api/catalog/albums/{id}` | 변경 | `cd` · `lps` 삭제 → `physicalAlbums`. 트랙에 `genres` · `tempo` · `moods` · `emotions` · `styles` |
+| `GET /api/catalog/albums/{albumId}` | 변경 | `cd` · `lps` 삭제 → `physicalAlbums`. 트랙에 `genres` · `tempo` · `moods` · `emotions` · `styles` |
 | `GET /api/catalog/lps` | **삭제** | → `GET /api/catalog/physical-albums` |
 | `GET /api/catalog/physical-albums` | **신규** | `?format=LP\|CD\|CASSETTE&from=&to=&page=&size=` — 발매일순 · ✏️ 11/18 항목에 `soldOut` · ✏️ 11/19 팔로우 탭: `format` 여러 개 · `artistIds` · `q`(상품 · 앨범 · 아티스트 이름) · `minPrice` · `maxPrice`(최저가) · `sort` |
 | `GET /api/catalog/goods` | 변경 | `category` 필터 추가 (`?artistId=&category=`). 항목에 `category` · `minPrice` · ✏️ 11/18 `soldOut` (상품 단위 `price` · `qty` 없음) · ✏️ 11/19 팔로우 탭: `category` 여러 개 · `artistIds` · `q`(굿즈 · 아티스트 이름) · `minPrice` · `maxPrice`(최저가) · `sort` |
-| `GET /api/catalog/products/{id}` | 변경 | 상품 + `options[]`(옵션별 `price` · `qty` · `soldOut`). 상품 단위 `price` · `qty` 는 없음 · ✏️ 11/26 `description`(상세 설명 · 마크다운 · 굿즈 · 판본) · `detailImageUrls`(상세 이미지 · 순서대로) — 없으면 빠짐 |
+| `GET /api/catalog/products/{productId}` | 변경 | 상품 + `options[]`(옵션별 `price` · `qty` · `soldOut`). 상품 단위 `price` · `qty` 는 없음 · ✏️ 11/26 `description`(상세 설명 · 마크다운 · 굿즈 · 판본) · `detailImageUrls`(상세 이미지 · 순서대로) — 없으면 빠짐 |
 | `GET /api/catalog/products?ids=` | 변경 | 위와 같은 모양의 목록 |
 | `GET /api/catalog/search` | 유지 | 경로 · 응답 모양 그대로 (내부 구현만 바뀜) |
 | `GET /api/cart` | **신규** | 내 장바구니 (`items[]` · `totalPrice`) |
@@ -255,8 +255,8 @@ Payment 는 바꾸지 않았습니다. Payment 가 내는 `payment.cancelled` �
 | `DELETE /api/cart/items/{optionId}` | **신규** | 한 줄 빼기 (없어도 성공) |
 | `DELETE /api/cart` | **신규** | 비우기 |
 | `POST /api/catalog/orders` | 변경 | `items[].productId` → **`items[].optionId`** |
-| `GET /api/catalog/orders` · `/{id}` | 변경 | `status` 에 `REFUNDED` 추가. 항목이 `optionId` · `productId` · `productType` · `productName` · `optionName` · `qty` · `price` |
-| `POST /api/catalog/orders/{id}/cancel` | 변경 | 결제된 주문을 취소하면 `CANCELLED` 가 아니라 `REFUNDED` |
+| `GET /api/catalog/orders` · `/{orderId}` | 변경 | `status` 에 `REFUNDED` 추가. 항목이 `optionId` · `productId` · `productType` · `productName` · `optionName` · `qty` · `price` |
+| `POST /api/catalog/orders/{orderId}/cancel` | 변경 | 결제된 주문을 취소하면 `CANCELLED` 가 아니라 `REFUNDED` |
 
 enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조회까지 모두 로그인이 필요합니다.
 
@@ -267,12 +267,12 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 | `GET /internal/catalog/products` (`InternalProductController`) | **삭제** — 챗봇은 공개 `GET /api/catalog/products` 를 씁니다 (docs/32) |
 | `POST /internal/catalog/artists` · `/albums` · `/ingest/diff` | 경로 유지 · 본문 변경 (7.3) |
 | `POST /internal/admin/catalog/products` | **신규(11/13)** 관리자 상품 등록 |
-| `PATCH /internal/admin/catalog/products/{id}` | **신규(11/13)** 상품 수정 (보낸 값만) |
-| `PUT /internal/admin/catalog/products/{id}/options` | **신규(11/13)** 옵션 추가 · 수정 |
+| `PATCH /internal/admin/catalog/products/{productId}` | **신규(11/13)** 상품 수정 (보낸 값만) |
+| `PUT /internal/admin/catalog/products/{productId}/options` | **신규(11/13)** 옵션 추가 · 수정 |
 | `POST /internal/admin/catalog/options/{optionId}/stock` | **신규(11/13)** 재고 조정 |
 | `PUT /internal/admin/catalog/options/{optionId}/stock` | **신규(11/18)** 재고 설정 (절대값) |
 | `GET /internal/admin/catalog/users/{userId}/orders` | **신규(11/13)** 회원 주문 목록 (CS) |
-| `POST /internal/admin/catalog/orders/{id}/cancel` | **신규(11/13)** 주문 취소 대행 (CS) |
+| `POST /internal/admin/catalog/orders/{orderId}/cancel` | **신규(11/13)** 주문 취소 대행 (CS) |
 | `POST /internal/admin/catalog/ingest/artists` · `/albums` · `/diff` | **신규(11/17)** 크롤러 → Studio → 여기. 본문 · 결과 · 저장 규칙은 수집 API(7.3 · 5.6)와 같고 토큰만 `iss=studio`. 크롤러는 Gateway `/ingest` 로 보내지 않습니다 (Cloudflare 터널 헤더 때문에 G1 이 막음 · docs/v2_후속_작업 1-12) |
 
 **관리자(Studio) API** — Studio 가 Gateway 를 거치지 않고 직접 부릅니다 (Studio 문서 6.5 · 6.6). 본문은 camelCase 입니다.
@@ -283,8 +283,8 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 | 상품 수정 | `{ name?, thumbnailUrl?, category?(굿즈), releasedAt?(피지컬), description?, detailImageUrls? }` | 보낸 값만 바꿉니다. ✏️ 11/26 `description` 빈 글 = 지움 · `detailImageUrls` 는 보낸 목록으로 바꿈(같은 주소는 한 번) · `[]` = 지움 — 굿즈 · 판본 둘 다 (판본 설명은 앨범 소개 글과 따로). ✏️ 11/18 등록 · 수정 · 상품 상세에서 `purchaseUrl` 을 뺐습니다(보내면 무시). 매체 · 연결된 앨범 · 아티스트는 바꾸지 않습니다 |
 | 옵션 | `{ options: [{ id?, name, vinylColor?, size?, price }] }` | `id` 가 있으면 그 옵션을 고치고 이름도 바꿉니다. 없으면 이름으로 찾아 고치거나 새로 만듭니다(재고 0). 요청에 없는 옵션은 그대로 둡니다 |
 | 재고 조정 | `{ delta, reason }` | `{ optionId, qty, updatedAt }`. 입고 +, 회수 · 파손 −. 주문 차감과 같은 조건부 UPDATE 라 0 아래로 내려가지 않습니다 (모자라면 409 `OUT_OF_STOCK`) |
-| 아티스트 사진 (11/18) · 성별 · 구성 (11/22) | `PATCH /internal/admin/catalog/artists/{id}` `{ profileUrl?, gender?, composition? }` (보낸 값만 · null 은 그대로 · 목록 밖 값 400) | 아티스트 상세. 바뀐 게 있으면 `artist.updated` 를 냅니다 (concert 복제본 갱신) |
-| 앨범 표지 · 트랙 태그 (11/18) | `PATCH /internal/admin/catalog/albums/{id}` `{ thumbnailUrl?, tracks?: [{ trackNo, genres?, tempo?, moods?, emotions?, styles? }] }` | 앨범 상세. 보낸 값만 (트랙 태그도 null 은 그대로 · `[]` 은 비움) · 없는 `trackNo` 는 400 · `album.updated`(`changedFields`) · 캐시 지움 (`AdminEditService`) |
+| 아티스트 사진 (11/18) · 성별 · 구성 (11/22) | `PATCH /internal/admin/catalog/artists/{artistId}` `{ profileUrl?, gender?, composition? }` (보낸 값만 · null 은 그대로 · 목록 밖 값 400) | 아티스트 상세. 바뀐 게 있으면 `artist.updated` 를 냅니다 (concert 복제본 갱신) |
+| 앨범 표지 · 트랙 태그 (11/18) | `PATCH /internal/admin/catalog/albums/{albumId}` `{ thumbnailUrl?, tracks?: [{ trackNo, genres?, tempo?, moods?, emotions?, styles? }] }` | 앨범 상세. 보낸 값만 (트랙 태그도 null 은 그대로 · `[]` 은 비움) · 없는 `trackNo` 는 400 · `album.updated`(`changedFields`) · 캐시 지움 (`AdminEditService`) |
 | 재고 설정 (11/18) | `PUT` `{ qty, reason }` (qty 0 이상) | `{ optionId, qty, updatedAt }`. 재고를 qty 개로 맞춥니다. 수집 입고와 같은 행 락이라 주문 차감과 엇갈리지 않습니다. 수집 · 시드로 들어온 상품은 qty 없이 들어와 재고 0 이고, 관리자가 여기서 정합니다 |
 | 회원 주문 목록 | `?cursor=&size=` | 내 주문 목록(C10)과 같은 모양 |
 | 주문 취소 대행 | `{ reason }` (Studio 작업 기록용 · catalog 는 읽지 않음) | 주문 상세. 회원 본인 취소(C12)와 같은 흐름이고 Payment 에 남는 사유만 `ADMIN_CANCEL` 입니다 |
