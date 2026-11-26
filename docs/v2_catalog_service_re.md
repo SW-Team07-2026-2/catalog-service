@@ -4,6 +4,7 @@
 > 같은 날 마이그레이션을 **V1(구조) · V2(값) 두 파일**로 합쳤고(6장), 관리자(Studio)용 내부 API 6개를 더했습니다(7.2). 테스트 41건 통과 (건너뜀 0 · Docker 필요).
 > 전 서비스 공통의 남은 일은 `indie-msa/docs/v2_후속_작업.md`, 전체 API 는 `indie-msa/docs/v2_API_명세서.md`, 프론트 확인 사항은 `indie-msa/docs/v2_프론트_체크사항.md` 에 있습니다.
 > 마지막 장(12장)에 배포 전에 확인할 것과 아직 정하지 않은 것을 모았습니다.
+> ✏️ 11/26 상품 상세 설명 `product.description`(굿즈 · 판본 공통) · 상세 이미지 `product_detail_image` — 2.2 · 5.6 · 7.2 · 7.3 (PR #51 · #53).
 
 ## 0. 한눈에 보기
 
@@ -50,7 +51,8 @@ id 는 모두 `BIGINT`(BIGSERIAL)입니다. 매핑만 하는 테이블(`cart_ite
 
 | 테이블 | 컬럼 |
 |---|---|
-| `product` | `id` · `product_type` · `name` · `thumbnail_url` · ~~`purchase_url`~~ (✏️ 11/18 삭제 — 구매 링크는 두지 않음 · indig 가 직접 판매) · `source` · `external_id` · `source_hash` · `created_at` · `updated_at` |
+| `product` | `id` · `product_type` · `name` · `thumbnail_url` · ~~`purchase_url`~~ (✏️ 11/18 삭제 — 구매 링크는 두지 않음 · indig 가 직접 판매) · `source` · `external_id` · `source_hash` · `created_at` · `updated_at` · ✏️ 11/26 `description`(상세 설명 · 마크다운 1000자 · 굿즈 · 판본 공통 — 11/26 오전 `goods.description` 으로 넣었다가 옮김) |
+| `product_detail_image` | ✏️ 11/26 `product_id`(FK) · `sort_order` · `url` — PK (`product_id`, `sort_order`) · 상세 이미지를 보여 줄 순서대로 · 우리 이미지 버킷 주소만 (Studio 가 확인 · 크롤링 이미지는 Studio 가 승인할 때 옮김) |
 | `physical_album` | `id`(PK = FK → product) · `album_id`(FK) · `format` · `released_at` |
 | `goods` | `id`(PK = FK → product) · `artist_id`(FK) · `category` |
 | `product_option` | `id` · `product_id`(FK) · `name` · `vinyl_color` · `size` · `price` · `created_at` |
@@ -214,6 +216,7 @@ Payment 는 바꾸지 않았습니다. Payment 가 내는 `payment.cancelled` �
 - **트랙은 `track_no` 기준으로 맞춥니다.** 같은 번호는 행을 유지한 채 값만 바꾸고, 요청에 없는 번호는 지웁니다. 통째로 지우고 다시 넣지 않는 이유는 member 의 행동 메트릭이 트랙 id 를 들고 있기 때문입니다.
 - 옵션은 (상품, 이름)이 같으면 갱신, 새 이름이면 새 옵션입니다. `qty` 는 입고 수량(절대값)이고 null 이면 수량을 건드리지 않습니다.
 - **(11/18) 관리자가 넣는 값은 null 이면 저장된 값을 유지합니다** — 이미지(`profile_url` · 앨범 · 피지컬 · 굿즈 `thumbnail_url`), 트랙 `genres` · `tempo` · `moods` · `emotions` · `styles`, 옵션 `price`. 빈 배열 `[]` 은 "비움"입니다. 새 옵션은 `price` 가 있어야 하고 없으면 그 항목이 `FAILED`("새 옵션 'X' 의 판매가가 필요합니다")입니다. 이유: 크롤러 후보를 다시 승인할 때 관리자가 Studio 에서 넣은 이미지 · 태그 · 판매가가 지워지지 않게 (`IngestService.keep` · `tags` · `CatalogFlowTest.adminImagesAndTrackTagsSurviveReingest`). 피지컬 이미지가 없으면 앨범 표지를 씁니다(전과 같음).
+- ✏️ 11/25 · 11/26 **소개 글 · 상세 설명은 저장된 값이 없을 때만 채웁니다** — 아티스트 `bio` · 앨범 `description` · 굿즈 · 판본 `description` · `detail_image_urls`. 관리자가 쓴 값은 다음 수집에 다른 값이 와도 바뀌지 않습니다 (지운 뒤에는 다시 채워짐). `CatalogFlowTest.descriptionsAreFilledByCrawlerOnlyWhenEmptyAndAdminTextWins` · `productDetailsAreFilledByCrawlerOnlyWhenEmpty`.
 - 이벤트는 실제로 값이 바뀐 경우에만 나갑니다 (8장).
 
 ## 6. 마이그레이션 (V1 구조 · V2 값)
@@ -244,7 +247,7 @@ Payment 는 바꾸지 않았습니다. Payment 가 내는 `payment.cancelled` �
 | `GET /api/catalog/lps` | **삭제** | → `GET /api/catalog/physical-albums` |
 | `GET /api/catalog/physical-albums` | **신규** | `?format=LP\|CD\|CASSETTE&from=&to=&page=&size=` — 발매일순 · ✏️ 11/18 항목에 `soldOut` · ✏️ 11/19 팔로우 탭: `format` 여러 개 · `artistIds` · `q`(상품 · 앨범 · 아티스트 이름) · `minPrice` · `maxPrice`(최저가) · `sort` |
 | `GET /api/catalog/goods` | 변경 | `category` 필터 추가 (`?artistId=&category=`). 항목에 `category` · `minPrice` · ✏️ 11/18 `soldOut` (상품 단위 `price` · `qty` 없음) · ✏️ 11/19 팔로우 탭: `category` 여러 개 · `artistIds` · `q`(굿즈 · 아티스트 이름) · `minPrice` · `maxPrice`(최저가) · `sort` |
-| `GET /api/catalog/products/{id}` | 변경 | 상품 + `options[]`(옵션별 `price` · `qty` · `soldOut`). 상품 단위 `price` · `qty` 는 없음 |
+| `GET /api/catalog/products/{id}` | 변경 | 상품 + `options[]`(옵션별 `price` · `qty` · `soldOut`). 상품 단위 `price` · `qty` 는 없음 · ✏️ 11/26 `description`(상세 설명 · 마크다운 · 굿즈 · 판본) · `detailImageUrls`(상세 이미지 · 순서대로) — 없으면 빠짐 |
 | `GET /api/catalog/products?ids=` | 변경 | 위와 같은 모양의 목록 |
 | `GET /api/catalog/search` | 유지 | 경로 · 응답 모양 그대로 (내부 구현만 바뀜) |
 | `GET /api/cart` | **신규** | 내 장바구니 (`items[]` · `totalPrice`) |
@@ -276,8 +279,8 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 
 | API | 요청 | 응답 · 규칙 |
 |---|---|---|
-| 상품 등록 | `{ productType, name, thumbnailUrl?, options: [{ name, vinylColor?, size?, price, qty? }] }` + 굿즈는 `artistId` · `category`, 피지컬 앨범은 `albumId` · `format` · `releasedAt?` | 상품 상세(C8 과 같은 모양). `source` 는 `studio`. 옵션 규칙은 수집과 같습니다(4.2). 굿즈는 `goods.released`, 피지컬 앨범은 발매일이 최근이거나 없을 때 `physical_album.released` 를 냅니다 |
-| 상품 수정 | `{ name?, thumbnailUrl?, category?(굿즈), releasedAt?(피지컬) }` | 보낸 값만 바꿉니다. ✏️ 11/18 등록 · 수정 · 상품 상세에서 `purchaseUrl` 을 뺐습니다(보내면 무시). 매체 · 연결된 앨범 · 아티스트는 바꾸지 않습니다 |
+| 상품 등록 | `{ productType, name, thumbnailUrl?, options: [{ name, vinylColor?, size?, price, qty? }] }` + 굿즈는 `artistId` · `category`, 피지컬 앨범은 `albumId` · `format` · `releasedAt?` · ✏️ 11/26 공통 `description?` · `detailImageUrls?`(10개까지) | 상품 상세(C8 과 같은 모양). `source` 는 `studio`. 옵션 규칙은 수집과 같습니다(4.2). 굿즈는 `goods.released`, 피지컬 앨범은 발매일이 최근이거나 없을 때 `physical_album.released` 를 냅니다 |
+| 상품 수정 | `{ name?, thumbnailUrl?, category?(굿즈), releasedAt?(피지컬), description?, detailImageUrls? }` | 보낸 값만 바꿉니다. ✏️ 11/26 `description` 빈 글 = 지움 · `detailImageUrls` 는 보낸 목록으로 바꿈(같은 주소는 한 번) · `[]` = 지움 — 굿즈 · 판본 둘 다 (판본 설명은 앨범 소개 글과 따로). ✏️ 11/18 등록 · 수정 · 상품 상세에서 `purchaseUrl` 을 뺐습니다(보내면 무시). 매체 · 연결된 앨범 · 아티스트는 바꾸지 않습니다 |
 | 옵션 | `{ options: [{ id?, name, vinylColor?, size?, price }] }` | `id` 가 있으면 그 옵션을 고치고 이름도 바꿉니다. 없으면 이름으로 찾아 고치거나 새로 만듭니다(재고 0). 요청에 없는 옵션은 그대로 둡니다 |
 | 재고 조정 | `{ delta, reason }` | `{ optionId, qty, updatedAt }`. 입고 +, 회수 · 파손 −. 주문 차감과 같은 조건부 UPDATE 라 0 아래로 내려가지 않습니다 (모자라면 409 `OUT_OF_STOCK`) |
 | 아티스트 사진 (11/18) · 성별 · 구성 (11/22) | `PATCH /internal/admin/catalog/artists/{id}` `{ profileUrl?, gender?, composition? }` (보낸 값만 · null 은 그대로 · 목록 밖 값 400) | 아티스트 상세. 바뀐 게 있으면 `artist.updated` 를 냅니다 (concert 복제본 갱신) |
@@ -304,6 +307,8 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
   "goods": [{                                   // null 이면 굿즈는 건드리지 않음
     "external_id": "…", "source_hash": "…", "name": "로고 티셔츠 (블랙)", "category": "TSHIRT",
     "thumbnail_url": "…",                       // ✏️ 11/18 purchase_url 삭제 (보내면 무시)
+    "description": "## 상품 정보\n- 소재: 면 100%\n\n정보 출처: …",   // ✏️ 11/26 선택 · 저장된 값이 없을 때만 채움
+    "detail_image_urls": ["https://img.indig.co.kr/goods/…"],          // ✏️ 11/26 선택 · 10개까지 · 같음
     "options": [{ "name": "M", "size": "M", "price": 35000, "qty": 3 }]
   }]
 }]}
@@ -317,6 +322,8 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
   "physical_albums": [{
     "external_id": "…", "source_hash": "…", "format": "LP", "name": "… LP (초판)", "released_at": "2026-11-01",
     "thumbnail_url": "…",                       // ✏️ 11/18 purchase_url 삭제 (보내면 무시)
+    "description": "## 판 정보\n- 형식: LP 2장 · 재발매\n…",       // ✏️ 11/26 판 상세 설명 (앨범 소개 글과 따로) · 같은 규칙
+    "detail_image_urls": null,
     "options": [{ "name": "블랙", "vinyl_color": "BLACK", "price": 42000, "qty": 5 }]
   }]
 }]}
