@@ -34,6 +34,7 @@ import com.indie.catalog.domain.ingest.dto.response.ItemResult.Result;
 import com.indie.catalog.domain.ingest.service.IngestService;
 import com.indie.catalog.domain.ingest.service.AdminEditService;
 import com.indie.catalog.domain.ingest.dto.request.AdminAlbumUpdate;
+import com.indie.catalog.domain.ingest.dto.request.AdminArtistCreate;
 import com.indie.catalog.domain.ingest.dto.request.AdminArtistUpdate;
 import com.indie.catalog.domain.order.dto.response.OrderCreated;
 import com.indie.catalog.domain.order.dto.response.OrderDetail;
@@ -223,6 +224,32 @@ class CatalogFlowTest extends PostgresTest {
         ingest.upsertAlbums(List.of(new AlbumUpsert("crawler", "al-desc", "a2", artistId, "여름깃", AlbumEntity.Type.EP,
                 null, null, null, null, null, null)));
         assertThat(albumService.detail(albumId).description()).isEqualTo("관리자가 고친 앨범 소개입니다.");
+    }
+
+    /** 11/26 — 라인업에 있는데 수집되지 않은 팀을 관리자가 직접 등록 · 같은 이름은 막고(다른 팀이면 허용) · 수집기가 덮어쓰지 않음 */
+    @Test
+    void adminCreatesArtistMissingFromCrawlAndRefusesSameNameUnlessAllowed() {
+        long id = edit.createArtist(new AdminArtistCreate(" 오륜구동 ", List.of(Genre.INDIE_ROCK, Genre.INDIE_ROCK), "붕가붕가레코드", 2019,
+                null, ArtistGender.MALE, ArtistComposition.GROUP, " 2019년 결성한 밴드입니다. ", null)).id();
+        var created = artistService.detail(id);
+        assertThat(created.name()).isEqualTo("오륜구동");
+        assertThat(created.genres()).containsExactly(Genre.INDIE_ROCK);
+        assertThat(created.label()).isEqualTo("붕가붕가레코드");
+        assertThat(created.bio()).isEqualTo("2019년 결성한 밴드입니다.");
+        assertThat(jdbc.queryForObject("SELECT source FROM artist WHERE id = ?", String.class, id)).isEqualTo("studio");
+        assertThat(jdbc.queryForObject("SELECT gender || '/' || composition FROM artist WHERE id = ?", String.class, id)).isEqualTo("MALE/GROUP");
+        assertThat(events("artist.updated")).hasSize(1);
+
+        assertThatThrownBy(() -> edit.createArtist(new AdminArtistCreate("오륜구동", null, null, null, null, null, null, null, null)))
+                .isInstanceOfSatisfying(GeneralException.class, e -> {
+                    assertThat(e.getErrorCode()).isEqualTo(CommonErrorCode.CONFLICT);
+                    assertThat(e.getMessage()).contains("id [" + id + "]");
+                });
+        long sameName = edit.createArtist(new AdminArtistCreate("오륜구동", null, null, null, null, null, null, null, true)).id();
+        assertThat(sameName).isNotEqualTo(id);
+        assertThat(artistService.detail(sameName).genres()).isEmpty();
+        long other = edit.createArtist(new AdminArtistCreate("오륜", null, null, null, null, null, null, null, null)).id();   // 이름을 품을 뿐이면 다른 팀
+        assertThat(other).isNotIn(id, sameName);
     }
 
     /** 11/26 — 굿즈 · 판본 상세 설명 · 상세 이미지: 수집은 비어 있을 때만 채우고, 관리자가 고친 값은 다음 수집에도 그대로 */
