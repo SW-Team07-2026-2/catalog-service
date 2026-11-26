@@ -49,14 +49,14 @@ public class InternalAdminCatalogController {
         return ApiResponse.onSuccess(adminProductService.create(request));
     }
 
-    @PatchMapping("/internal/admin/catalog/products/{id}")
-    public ApiResponse<ProductDetail> update(@PathVariable @Positive long id, @Valid @RequestBody AdminProductUpdate request) {
-        return ApiResponse.onSuccess(adminProductService.update(id, request));
+    @PatchMapping("/internal/admin/catalog/products/{productId}")
+    public ApiResponse<ProductDetail> update(@PathVariable @Positive long productId, @Valid @RequestBody AdminProductUpdate request) {
+        return ApiResponse.onSuccess(adminProductService.update(productId, request));
     }
 
-    @PutMapping("/internal/admin/catalog/products/{id}/options")
-    public ApiResponse<ProductDetail> options(@PathVariable @Positive long id, @Valid @RequestBody AdminOptionsRequest request) {
-        return ApiResponse.onSuccess(adminProductService.options(id, request.options()));
+    @PutMapping("/internal/admin/catalog/products/{productId}/options")
+    public ApiResponse<ProductDetail> options(@PathVariable @Positive long productId, @Valid @RequestBody AdminOptionsRequest request) {
+        return ApiResponse.onSuccess(adminProductService.options(productId, request.options()));
     }
 
     @PostMapping("/internal/admin/catalog/options/{optionId}/stock")
@@ -80,8 +80,8 @@ public class InternalAdminCatalogController {
     }
 
     /** 주문 취소 대행 — 결제 전이면 무효화, 결제 후면 환불까지 (C12 와 같음). 본문 { reason } 은 Studio 의 작업 기록용이라 여기서는 읽지 않습니다 */
-    @PostMapping("/internal/admin/catalog/orders/{id}/cancel")
-    public ApiResponse<OrderDetail> cancelOrder(@PathVariable @Positive long id) {
-        return ApiResponse.onSuccess(orderService.cancelByAdmin(id));
+    @PostMapping("/internal/admin/catalog/orders/{orderId}/cancel")
+    public ApiResponse<OrderDetail> cancelOrder(@PathVariable @Positive long orderId) {
+        return ApiResponse.onSuccess(orderService.cancelByAdmin(orderId));
     }
 }

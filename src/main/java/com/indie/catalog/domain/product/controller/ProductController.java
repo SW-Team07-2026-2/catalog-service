@@ -28,7 +28,7 @@ import java.util.List;
 
 /**
  * 공개 API C6 · C7 · C8 — 피지컬 앨범 · 굿즈 · 상품(옵션별 가격 · 재고).
- * 피지컬 앨범과 굿즈는 상품 id 를 공유하므로 상세는 /products/{id} 하나입니다.
+ * 피지컬 앨범과 굿즈는 상품 id 를 공유하므로 상세는 /products/{productId} 하나입니다.
  */
 @RestController
 public class ProductController {
@@ -111,9 +111,9 @@ public class ProductController {
         return ApiResponse.onSuccess(result);
     }
 
-    @GetMapping("/api/catalog/products/{id}")
-    public ApiResponse<ProductDetail> product(@PathVariable @Positive long id) {
-        return ApiResponse.onSuccess(publicCache.product(id));   // ✏️ 11/25 Pod 캐시 3초 — 재고 수량 · 품절은 최대 3초 늦음 (주문이 다시 확인)
+    @GetMapping("/api/catalog/products/{productId}")
+    public ApiResponse<ProductDetail> product(@PathVariable @Positive long productId) {
+        return ApiResponse.onSuccess(publicCache.product(productId));   // ✏️ 11/25 Pod 캐시 3초 — 재고 수량 · 품절은 최대 3초 늦음 (주문이 다시 확인)
     }
 
     /** ?ids=1,2,3 — 보유 음반 화면 · 챗봇 도구의 일괄 조회 */
