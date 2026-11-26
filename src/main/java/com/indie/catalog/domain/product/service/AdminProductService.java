@@ -95,6 +95,7 @@ public class AdminProductService {
             GoodsEntity goods = new GoodsEntity(SOURCE, externalId);
             goods.apply(artist.getId(), r.category(), r.name().strip(), r.thumbnailUrl(), null, now);
             goods.applyDescription(r.description(), now);
+            goods.applyDetailImages(r.detailImageUrls(), now);
             goods = goodsRepository.save(goods);
             productService.upsertOptions(goods.getId(), null, options);
             events.goodsReleased(goods, artist, r.options().stream().mapToInt(AdminOption::price).min().orElseThrow());
@@ -102,14 +103,15 @@ public class AdminProductService {
             id = goods.getId();
         } else {
             require(r.albumId() != null && r.format() != null, "피지컬 앨범에는 albumId · format 이 필요합니다");
-            require(r.artistId() == null && r.category() == null && r.description() == null,
-                    "피지컬 앨범에는 artistId · category · description 을 쓸 수 없습니다 (소개 글은 앨범 수정에서)");
+            require(r.artistId() == null && r.category() == null, "피지컬 앨범에는 artistId · category 를 쓸 수 없습니다");
             AlbumEntity album = albumRepository.findById(r.albumId())
                     .orElseThrow(() -> new GeneralException(CommonErrorCode.NOT_FOUND, "앨범 " + r.albumId() + " 이 없습니다"));
             ArtistEntity artist = artist(album.getArtistId());
             PhysicalAlbumEntity physicalAlbum = new PhysicalAlbumEntity(SOURCE, externalId);
             physicalAlbum.apply(album.getId(), r.format(), r.releasedAt(), r.name().strip(),
                     r.thumbnailUrl() == null ? album.getThumbnailUrl() : r.thumbnailUrl(), null, now);
+            physicalAlbum.applyDescription(r.description(), now);   // 11/26 판 상세 설명 (앨범 소개 글과 따로)
+            physicalAlbum.applyDetailImages(r.detailImageUrls(), now);
             physicalAlbum = physicalAlbumRepository.save(physicalAlbum);
             ProductService.OptionsResult created = productService.upsertOptions(physicalAlbum.getId(), r.format(), options);
             if (r.releasedAt() == null || !r.releasedAt().isBefore(LocalDate.now(clock).minusDays(releaseWindowDays))) {
@@ -132,15 +134,15 @@ public class AdminProductService {
             require(r.releasedAt() == null, "굿즈에는 releasedAt 을 쓸 수 없습니다");
             goods.apply(goods.getArtistId(), r.category() == null ? goods.getCategory() : r.category(), name, thumbnailUrl,
                     goods.getSourceHash(), now);
-            goods.applyDescription(r.description(), now);   // 11/26 null 은 그대로 · 빈 글은 지움
         } else {
             PhysicalAlbumEntity physicalAlbum = (PhysicalAlbumEntity) product;
-            require(r.category() == null && r.description() == null,
-                    "피지컬 앨범에는 category · description 을 쓸 수 없습니다 (소개 글은 앨범 수정에서)");
+            require(r.category() == null, "피지컬 앨범에는 category 를 쓸 수 없습니다");
             physicalAlbum.apply(physicalAlbum.getAlbumId(), physicalAlbum.getFormat(),
                     r.releasedAt() == null ? physicalAlbum.getReleasedAt() : r.releasedAt(), name, thumbnailUrl,
                     physicalAlbum.getSourceHash(), now);
         }
+        product.applyDescription(r.description(), now);       // 11/26 null 은 그대로 · 빈 글은 지움 (굿즈 · 판본 공통)
+        product.applyDetailImages(r.detailImageUrls(), now);  // null 은 그대로 · [] 는 지움
         artistCache.evictAfterCommit(artistIdOf(product));
         return productService.product(id);
     }

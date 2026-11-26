@@ -77,7 +77,7 @@ class CatalogSchemaTest extends PostgresTest {
     void oldTablesAreGoneAndV2TablesExist() {
         assertThat(jdbc.queryForList("SELECT tablename FROM pg_tables WHERE schemaname = 'catalog' ORDER BY 1", String.class))
                 .containsExactly("album", "artist", "cart_item", "flyway_schema_history", "goods", "label", "order_item",
-                        "outbox", "physical_album", "product", "product_option", "purchase_order", "stock", "track");
+                        "outbox", "physical_album", "product", "product_detail_image", "product_option", "purchase_order", "stock", "track");
     }
 
     /** ★ CHECK 의 허용 값 목록 = Java enum — 한쪽만 고치면 여기서 깨집니다 */
