@@ -218,13 +218,18 @@ public class ProductService {
                 AlbumEntity album = albums.get(pa.getAlbumId());
                 return new ProductDetail(pa.getId(), pa.getProductType(), pa.getName(), pa.getThumbnailUrl(),
                         album.getArtistId(), artistNames.get(album.getArtistId()), album.getId(), album.getTitle(),
-                        pa.getFormat(), pa.getReleasedAt(), null, null, views);
+                        pa.getFormat(), pa.getReleasedAt(), null, pa.getDescription(), views, images(pa));
             }
             GoodsEntity goods = (GoodsEntity) p;
             return new ProductDetail(goods.getId(), goods.getProductType(), goods.getName(), goods.getThumbnailUrl(),
                     goods.getArtistId(), artistNames.get(goods.getArtistId()), null, null,
-                    null, null, goods.getCategory(), goods.getDescription(), views);
+                    null, null, goods.getCategory(), goods.getDescription(), views, images(goods));
         }).toList();
+    }
+
+    private static List<String> images(ProductEntity p) {
+        List<String> urls = p.getDetailImageUrls();
+        return urls.isEmpty() ? null : urls;
     }
 
     private List<GoodsItem> goodsItems(List<GoodsEntity> goods) {

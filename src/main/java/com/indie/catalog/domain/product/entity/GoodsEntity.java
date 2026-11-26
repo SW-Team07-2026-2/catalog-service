@@ -20,7 +20,6 @@ public class GoodsEntity extends ProductEntity {
     private Long artistId;
     @Enumerated(EnumType.STRING)
     private GoodsCategory category;
-    private String description;
 
     protected GoodsEntity() {}
 
@@ -39,16 +38,6 @@ public class GoodsEntity extends ProductEntity {
         return applyCommon(name, thumbnailUrl, sourceHash, changed, now);
     }
 
-    /** 11/26 상세 설명 — null 은 그대로 · 빈 글은 지움. 바뀌었으면 true (관리자만 씁니다) */
-    public boolean applyDescription(String description, OffsetDateTime now) {
-        if (description == null) return false;
-        String next = description.isBlank() ? null : description.strip();
-        if (Objects.equals(this.description, next)) return false;
-        this.description = next;
-        return applyCommon(getName(), getThumbnailUrl(), getSourceHash(), true, now);
-    }
-
     public Long getArtistId() { return artistId; }
     public GoodsCategory getCategory() { return category; }
-    public String getDescription() { return description; }
 }
