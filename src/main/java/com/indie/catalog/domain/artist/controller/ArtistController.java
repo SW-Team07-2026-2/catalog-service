@@ -67,8 +67,8 @@ public class ArtistController {
         return ApiResponse.onSuccess(result);
     }
 
-    @GetMapping("/api/catalog/artists/{id}")
-    public ApiResponse<ArtistDetail> detail(@PathVariable @Positive long id) {
-        return ApiResponse.onSuccess(artistService.detail(id));
+    @GetMapping("/api/catalog/artists/{artistId}")
+    public ApiResponse<ArtistDetail> detail(@PathVariable @Positive long artistId) {
+        return ApiResponse.onSuccess(artistService.detail(artistId));
     }
 }
