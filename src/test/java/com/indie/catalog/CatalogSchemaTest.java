@@ -51,7 +51,7 @@ import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** 스키마 · 엔티티 · 저장소 쿼리 (기동 자체가 Flyway V1 · V2 + ddl-auto: validate 검증입니다) */
+/** 스키마, 엔티티, 저장소 쿼리 (기동 자체가 Flyway V1, V2 + ddl-auto: validate 검증입니다) */
 class CatalogSchemaTest extends PostgresTest {
 
     @Autowired ArtistRepository artistRepository;
@@ -65,7 +65,7 @@ class CatalogSchemaTest extends PostgresTest {
     @Autowired EntityManager em;
     @Autowired TransactionTemplate tx;
 
-    /** 마이그레이션은 V1(구조) · V2(값) 두 파일 */
+    /** 마이그레이션은 V1(구조), V2(값) 두 파일 */
     @Test
     void migrationsAreSchemaThenValues() {
         assertThat(jdbc.queryForList("SELECT version || ' ' || description FROM flyway_schema_history "
@@ -80,7 +80,7 @@ class CatalogSchemaTest extends PostgresTest {
                         "outbox", "physical_album", "product", "product_option", "purchase_order", "stock", "track");
     }
 
-    /** ★ CHECK 의 허용 값 목록 = Java enum — 한쪽만 고치면 여기서 깨집니다 */
+    /** CHECK 의 허용 값 목록 = Java enum - 한쪽만 고치면 여기서 깨집니다 */
     @Test
     void checkConstraintValuesMatchJavaEnums() {
         assertCheck("ck_artist_genres", Genre.values());
@@ -112,7 +112,7 @@ class CatalogSchemaTest extends PostgresTest {
         assertThat(inDb).as(constraint).isEqualTo(new TreeSet<>(values));
     }
 
-    /** enum 배열 컬럼 — 저장 · 조회 · 장르 필터(genres @> …) · 이름 부분 일치(대소문자 무시 · % 는 글자 그대로) */
+    /** enum 배열 컬럼 - 저장, 조회, 장르 필터(genres @> ...), 이름 부분 일치(대소문자 무시, % 는 글자 그대로) */
     @Test
     void artistGenresArrayAndFilters() {
         ArtistEntity shoegaze = artist("genre-1", "Parannoul", List.of(Genre.SHOEGAZE, Genre.EMO));
@@ -129,7 +129,7 @@ class CatalogSchemaTest extends PostgresTest {
         assertThat(artistRepository.search("paran", List.of(Genre.JAZZ), null, null, null, null, 0, 10)).isEmpty();
     }
 
-    /** 이름순은 가나다순 — DB 기본 정렬(en_US.utf8 · glibc 2.28+)은 한글을 글자 수 순서처럼 섞습니다 (11/17 PC 에서 확인) */
+    /** 이름순은 가나다순 - DB 기본 정렬(en_US.utf8, glibc 2.28+)은 한글을 글자 수 순서처럼 섞습니다 (PC 에서 확인) */
     @Test
     void artistNamesSortInKoreanOrder() {
         artist("sort-1", "혁오", List.of(Genre.INDIE_ROCK));
@@ -151,7 +151,7 @@ class CatalogSchemaTest extends PostgresTest {
                 .hasMessageContaining("ck_artist_genres");
     }
 
-    /** 검색 — search_doc 없이 아티스트 · 앨범 · 트랙을 직접 조회해 유사도 순으로 합칩니다. 트랙에는 albumId 가 붙습니다 */
+    /** 검색 - search_doc 없이 아티스트, 앨범, 트랙을 직접 조회해 유사도 순으로 합칩니다. 트랙에는 albumId 가 붙습니다 */
     @Test
     void searchAcrossArtistAlbumTrackUsesTrigramIndexes() {
         assertThat(jdbc.queryForList("SELECT indexname FROM pg_indexes WHERE schemaname = 'catalog' AND indexname LIKE '%_trgm' ORDER BY 1",
@@ -183,7 +183,7 @@ class CatalogSchemaTest extends PostgresTest {
                 String.class)).isEqualTo("7");
     }
 
-    /** ★ 릴레이 2개가 동시에 돌아도 같은 행을 집지 않습니다 — 잠긴 행은 기다리지 않고 건너뜁니다 (SKIP LOCKED) */
+    /** 릴레이 2개가 동시에 돌아도 같은 행을 집지 않습니다 - 잠긴 행은 기다리지 않고 건너뜁니다 (SKIP LOCKED) */
     @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void outboxLockSkipsRowsLockedByAnotherRelay() {
@@ -200,7 +200,7 @@ class CatalogSchemaTest extends PostgresTest {
         }
     }
 
-    /** ★ 재고 5개에 동시 주문 20건 → 정확히 5건만 성공, 음수 재고 없음 (조건부 UPDATE) */
+    /** 재고 5개에 동시 주문 20건 -> 정확히 5건만 성공, 음수 재고 없음 (조건부 UPDATE) */
     @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void concurrentDecrementNeverOversells() throws Exception {
@@ -220,7 +220,7 @@ class CatalogSchemaTest extends PostgresTest {
         assertThat(jdbc.queryForObject("SELECT qty FROM stock WHERE option_id = ?", Integer.class, optionId)).isEqualTo(2);
     }
 
-    /** 장바구니 — 같은 옵션을 다시 담으면 한 줄에 수량만 바뀌고, 삭제는 본인 것만 */
+    /** 장바구니 - 같은 옵션을 다시 담으면 한 줄에 수량만 바뀌고, 삭제는 본인 것만 */
     @Test
     void cartPutIsUpsertAndScopedToUser() {
         long optionId = option("cart", 5);
@@ -240,7 +240,7 @@ class CatalogSchemaTest extends PostgresTest {
         assertThat(cartItemRepository.findByUserId(7001L)).isEmpty();
     }
 
-    /** 주문 상태 전이 — 조건부 UPDATE 라 한 번만 바뀝니다. 취소로 기록된 주문도 환불로 바로잡을 수 있습니다 */
+    /** 주문 상태 전이 - 조건부 UPDATE 라 한 번만 바뀝니다. 취소로 기록된 주문도 환불로 바로잡을 수 있습니다 */
     @Test
     void orderStatusTransitionsHappenOnce() {
         ShippingSnapshot home = new ShippingSnapshot("김인디", "010-1234-5678", "04043", "서울 마포구 양화로 45", "3층");
@@ -255,7 +255,7 @@ class CatalogSchemaTest extends PostgresTest {
         assertThat(orderRepository.cancel(paid)).isZero();            // 환불된 주문은 취소로 돌아가지 않음
 
         assertThat(orderRepository.cancel(unpaid)).isEqualTo(1);
-        assertThat(orderRepository.refund(unpaid)).isZero();          // 이미 취소 — 재고를 또 복구하면 안 됨
+        assertThat(orderRepository.refund(unpaid)).isZero();          // 이미 취소 - 재고를 또 복구하면 안 됨
         assertThat(orderRepository.refundCancelled(unpaid)).isEqualTo(1);
         em.clear();
         assertThat(orderRepository.findById(unpaid).orElseThrow().getStatus()).isEqualTo(Status.REFUNDED);
@@ -269,7 +269,7 @@ class CatalogSchemaTest extends PostgresTest {
         return artistRepository.save(a);
     }
 
-    /** 굿즈 상품 1개 + 옵션 1개 + 재고 — 커밋된 행 (동시성 테스트용) */
+    /** 굿즈 상품 1개 + 옵션 1개 + 재고 - 커밋된 행 (동시성 테스트용) */
     private long option(String key, int qty) {
         String externalId = key + "-" + System.nanoTime();
         long artistId = jdbc.queryForObject("INSERT INTO artist (name, source, external_id, updated_at) VALUES ('a', 'test', ?, now()) RETURNING id",

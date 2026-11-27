@@ -35,9 +35,9 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 운영 경로 검증의 공통 바탕 — 로컬은 ddl-auto: update 라 Flyway 가 한 번도 돌지 않습니다.
- * 여기서 Flyway(V1 구조 · V2 값)로 스키마를 만들고 ddl-auto: validate 로 엔티티와 대조합니다 (어긋나면 컨텍스트 기동 실패).
- * 저장소 어댑터(@Repository) · 서비스(@Service)를 모두 올리고, 바깥(Payment · Redis)만 가짜로 바꿉니다.
+ * 운영 경로 검증의 공통 바탕 - 로컬은 ddl-auto: update 라 Flyway 가 한 번도 돌지 않습니다.
+ * 여기서 Flyway(V1 구조, V2 값)로 스키마를 만들고 ddl-auto: validate 로 엔티티와 대조합니다 (어긋나면 컨텍스트 기동 실패).
+ * 저장소 어댑터(@Repository), 서비스(@Service)를 모두 올리고, 바깥(Payment, Redis)만 가짜로 바꿉니다.
  * 컨테이너는 테스트 클래스들이 하나를 같이 씁니다. Docker 가 없으면 건너뜁니다.
  */
 @Testcontainers(disabledWithoutDocker = true)
@@ -53,7 +53,7 @@ public abstract class PostgresTest {
 
     @DynamicPropertySource
     static void datasource(DynamicPropertyRegistry registry) {
-        POSTGRES.start();   // 이미 떠 있으면 아무것도 하지 않습니다 — JVM 이 끝날 때 함께 내려갑니다
+        POSTGRES.start();   // 이미 떠 있으면 아무것도 하지 않습니다 - JVM 이 끝날 때 함께 내려갑니다
         registry.add("spring.datasource.url", () -> POSTGRES.getJdbcUrl() + "&currentSchema=catalog");
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
@@ -94,7 +94,7 @@ public abstract class PostgresTest {
             return artistIds -> Map.of();
         }
 
-        /** 캐시 없음 — 항상 DB 로 */
+        /** 캐시 없음 - 항상 DB 로 */
         @Bean
         ArtistCache artistCache() {
             return new ArtistCache() {
@@ -105,7 +105,7 @@ public abstract class PostgresTest {
         }
     }
 
-    /** Member 대역 — 팔로우 없음 (팔로우 탭은 CatalogApiTest 에서) · 팔로워 수는 counts (없으면 0) · down 이면 불통 */
+    /** Member 대역 - 팔로우 없음 (팔로우 탭은 CatalogApiTest 에서), 팔로워 수는 counts (없으면 0), down 이면 불통 */
     public static class FakeMember implements MemberClient {
 
         public final Map<Long, Long> counts = new java.util.concurrent.ConcurrentHashMap<>();
@@ -125,7 +125,7 @@ public abstract class PostgresTest {
         }
     }
 
-    /** Payment 대역 — down 이면 불통, 아니면 준비는 성공하고 취소는 cancelStatus 를 돌려줍니다 */
+    /** Payment 대역 - down 이면 불통, 아니면 준비는 성공하고 취소는 cancelStatus 를 돌려줍니다 */
     public static class FakePayment implements PaymentClient {
 
         private final AtomicLong seq = new AtomicLong();

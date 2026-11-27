@@ -14,7 +14,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** 11/24 artist.follower_count — Member 의 지금 수로 덮어쓰기 · updated_at 은 그대로 · 전체 다시 맞추기는 0 으로 내려가는 것도 */
+/** artist.follower_count - Member 의 지금 수로 덮어쓰기, updated_at 은 그대로, 전체 다시 맞추기는 0 으로 내려가는 것도 */
 class FollowerCountSyncTest extends PostgresTest {
 
     private static final OffsetDateTime UPDATED = OffsetDateTime.parse("2026-11-01T00:00:00Z");
@@ -40,7 +40,7 @@ class FollowerCountSyncTest extends PostgresTest {
         long b = artist("fc-2");
         member.counts.put(a, 3L);
 
-        assertThat(sync.refresh(List.of(a, b))).isEqualTo(1);   // b 는 0 그대로 — 바뀐 행 아님
+        assertThat(sync.refresh(List.of(a, b))).isEqualTo(1);   // b 는 0 그대로 - 바뀐 행 아님
         assertThat(followerCount(a)).isEqualTo(3);
         assertThat(followerCount(b)).isZero();
         assertThat(sync.refresh(List.of(a))).isZero();          // 같은 이벤트가 다시 와도 결과 같음
