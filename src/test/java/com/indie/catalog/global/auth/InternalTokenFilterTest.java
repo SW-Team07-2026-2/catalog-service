@@ -69,7 +69,7 @@ class InternalTokenFilterTest {
         assertThat(call(token(SECRET, "gateway", "catalog", 300)).getStatus()).isEqualTo(401);
     }
 
-    /** ★ 관리자(studio) 토큰은 /internal/admin/** 만 — 수집 API 를 부를 수 없습니다 */
+    /** 관리자(studio) 토큰은 /internal/admin/** 만 - 수집 API 를 부를 수 없습니다 */
     @Test
     void adminTokenOpensOnlyAdminPaths() throws Exception {
         assertThat(call(token(SECRET, "studio", "catalog", 300), "/internal/admin/catalog/options/3/stock").getStatus()).isEqualTo(200);
@@ -77,7 +77,7 @@ class InternalTokenFilterTest {
         assertThat(call(token(SECRET, "assistant", "catalog", 300), "/internal/admin/catalog/products").getStatus()).isEqualTo(401);
     }
 
-    /** 21A — 수집기가 공유 시크릿으로 직접 부르던 경로는 닫힘. 수집은 Gateway /ingest/** 가 발급한 iss=gateway 토큰만 */
+    /** 21A - 수집기가 공유 시크릿으로 직접 부르던 경로는 닫힘. 수집은 Gateway /ingest/** 가 발급한 iss=gateway 토큰만 */
     @Test
     void directIngestIssuerIs401() throws Exception {
         assertThat(call(token(SECRET, "ingest", "catalog", 300)).getStatus()).isEqualTo(401);
@@ -108,7 +108,7 @@ class InternalTokenFilterTest {
         return jwt.serialize();
     }
 
-    // ── 수집 경로 (docs/22 S1 · S2) — Gateway 가 수집 서명을 확인하고 발급한 토큰 ─────────────
+    // ── 수집 경로 (docs/22 S1, S2) - Gateway 가 수집 서명을 확인하고 발급한 토큰
 
     private static final String BODY = "{\"items\":[{\"source\":\"melon\",\"external_id\":\"a1\"}]}";
 
