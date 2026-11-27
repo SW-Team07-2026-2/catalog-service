@@ -19,7 +19,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-/** 11/24 검색어 메트릭 — 남기는 조건과 같은 검색어를 여러 번 세지 않는 metricId */
+/** 검색어 메트릭 - 남기는 조건과 같은 검색어를 여러 번 세지 않는 metricId */
 class UserMetricsTest {
 
     private final EventPublisher publisher = mock(EventPublisher.class);
@@ -43,7 +43,7 @@ class UserMetricsTest {
                 .containsEntry("properties", Map.of("keyword", "새소년"));
     }
 
-    /** 10분 구간 안의 같은 회원 · 탭 · 검색어는 같은 metricId (Member 가 한 번만 저장) — 탭 · 구간이 다르면 다른 값 */
+    /** 10분 구간 안의 같은 회원, 탭, 검색어는 같은 metricId (Member 가 한 번만 저장) - 탭, 구간이 다르면 다른 값 */
     @Test
     @SuppressWarnings("unchecked")
     void sameSearchInWindowHasSameMetricId() {

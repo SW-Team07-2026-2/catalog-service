@@ -60,8 +60,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * 앱 전체 기동 + HTTP — 컨트롤러 · 컨슈머 · 필터까지 빈이 모두 엮이는지, 요청 · 응답 모양(enum 파라미터 · JSON 필드)이 맞는지.
- * DB 만 실제(Testcontainers)이고 Kafka · Redis · Payment 는 닿지 않는 주소입니다 — 캐시가 죽어도 조회는 되고,
+ * 앱 전체 기동 + HTTP - 컨트롤러, 컨슈머, 필터까지 빈이 모두 엮이는지, 요청, 응답 모양(enum 파라미터, JSON 필드)이 맞는지.
+ * DB 만 실제(Testcontainers)이고 Kafka, Redis, Payment 는 닿지 않는 주소입니다 - 캐시가 죽어도 조회는 되고,
  * 결제 준비가 안 되면 주문이 503 으로 끝나며 재고가 돌아오는 것까지 봅니다.
  */
 @Testcontainers(disabledWithoutDocker = true)
@@ -113,7 +113,7 @@ class CatalogApiTest {
         long lpId = jdbc.queryForObject("SELECT id FROM product WHERE external_id = 'api-lp'", Long.class);
         long lpOption = jdbc.queryForObject("SELECT id FROM product_option WHERE product_id = ?", Long.class, lpId);
 
-        // 조회 — enum 은 이름 그대로 주고받고, 목록 밖 값은 400
+        // 조회 - enum 은 이름 그대로 주고받고, 목록 밖 값은 400
         mvc.perform(get("/api/catalog/artists").param("genre", "EMO")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.items", hasSize(1)))
                 .andExpect(jsonPath("$.result.items[0].genres[0]").value("SHOEGAZE"));
@@ -147,7 +147,7 @@ class CatalogApiTest {
                 .andExpect(jsonPath("$.result.items[0].type").value("ALBUM"));
         mvc.perform(get("/api/catalog/lps")).andExpect(status().isNotFound());              // 옛 경로
 
-        // 장바구니 — 신원은 X-User-Id (Gateway 가 붙임)
+        // 장바구니 - 신원은 X-User-Id (Gateway 가 붙임)
         mvc.perform(get("/api/cart")).andExpect(status().isUnauthorized());
         mvc.perform(put("/api/cart/items/" + lpOption).header(USER, "77").contentType(MediaType.APPLICATION_JSON).content("{\"qty\":2}"))
                 .andExpect(status().isOk())
@@ -160,7 +160,7 @@ class CatalogApiTest {
                 .andExpect(jsonPath("$.result.items", hasSize(0)));
         mvc.perform(delete("/api/cart").header(USER, "77")).andExpect(status().isOk());
 
-        // 주문 — Payment 가 닿지 않으면 503 · 차감한 재고는 돌아옵니다. 옛 요청 모양(productId)은 400
+        // 주문 - Payment 가 닿지 않으면 503, 차감한 재고는 돌아옵니다. 옛 요청 모양(productId)은 400
         String shipping = "\"shipping\":{\"recipientName\":\"김인디\",\"phone\":\"010-1234-5678\",\"zonecode\":\"04043\",\"address\":\"서울 마포구 양화로 45\"}";
         mvc.perform(post("/api/catalog/orders").header(USER, "77").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"items\":[{\"optionId\":" + lpOption + ",\"qty\":2}]," + shipping + "}"))
@@ -176,7 +176,7 @@ class CatalogApiTest {
                 .andExpect(status().isUnauthorized());
     }
 
-    /** 11/17 — 크롤러 → Studio → 관리자 적재 경로. 수집 API 와 같은 본문 · 결과 · 규칙(같은 해시면 UNCHANGED) */
+    /** - 크롤러 -> Studio -> 관리자 적재 경로. 수집 API 와 같은 본문, 결과, 규칙(같은 해시면 UNCHANGED) */
     @Test
     void studioIngestsThroughAdminPath() throws Exception {
         String studio = token("studio");
@@ -200,8 +200,8 @@ class CatalogApiTest {
                                 + ",\"title\":\"여름깃\",\"type\":\"EP\"}]}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.result.items[0].result").value("CREATED"));
 
-        // 11/18 — 숫자 사이즈는 JSON 값 "0" 그대로 · 적재 때 qty 를 안 보내면 재고 0 → 관리자가 설정
-        // 11/27 — 상세 이미지는 받지 않습니다: 옛 본문의 detail_image_urls 는 무시하고, 상품 상세에도 칸이 없습니다
+        // - 숫자 사이즈는 JSON 값 "0" 그대로, 적재 때 qty 를 안 보내면 재고 0 -> 관리자가 설정
+        // - 상세 이미지는 받지 않습니다: 옛 본문의 detail_image_urls 는 무시하고, 상품 상세에도 칸이 없습니다
         mvc.perform(post("/internal/admin/catalog/ingest/artists").header("X-Internal-Token", studio).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"items\":[{\"source\":\"crawler\",\"external_id\":\"adm-1\",\"source_hash\":\"h3\",\"name\":\"새소년\",\"genres\":[\"SHOEGAZE\"],"
                                 + "\"goods\":[{\"external_id\":\"adm-tee\",\"name\":\"로고 티셔츠\",\"category\":\"TSHIRT\",\"options\":[{\"name\":\"0\",\"size\":\"0\",\"price\":59000}],"
@@ -221,7 +221,7 @@ class CatalogApiTest {
                         .contentType(MediaType.APPLICATION_JSON).content("{\"qty\":-1,\"reason\":\"오타\"}"))
                 .andExpect(status().isBadRequest());
 
-        // 토큰 없이 · 다른 발급자 · Studio 토큰으로 Gateway 수집 경로는 닫혀 있습니다
+        // 토큰 없이, 다른 발급자, Studio 토큰으로 Gateway 수집 경로는 닫혀 있습니다
         mvc.perform(post("/internal/admin/catalog/ingest/artists").contentType(MediaType.APPLICATION_JSON).content(artists))
                 .andExpect(status().isUnauthorized());
         mvc.perform(post("/internal/admin/catalog/ingest/artists").header("X-Internal-Token", token("crawler"))
@@ -232,7 +232,7 @@ class CatalogApiTest {
                 .andExpect(status().isUnauthorized());
     }
 
-    /** 11/19 팔로우 탭 — 여러 값 필터(반복 · 쉼표) · 검색어 · 가격대 · ARTIST_ORDER(넘긴 순서) · UPDATED(최근 수정순) */
+    /** 팔로우 탭 - 여러 값 필터(반복, 쉼표), 검색어, 가격대, ARTIST_ORDER(넘긴 순서), UPDATED(최근 수정순) */
     @Test
     void followTabFiltersAndSorts() throws Exception {
         long a = artist("ft-a", "에이밴드", Genre.SHOEGAZE, new GoodsUpsert("ft-a-tee", "h", "에이 티셔츠", GoodsCategory.TSHIRT, null,
@@ -248,7 +248,7 @@ class CatalogApiTest {
         album(c, "ft-c-album", "세번째 길", new PhysicalAlbumUpsert("ft-c-tape", "h", PhysicalFormat.CASSETTE, "세번째 길 카세트", LocalDate.parse("2023-01-01"), null,
                 List.of(new OptionUpsert("기본", null, null, 10000, 1)), null));
 
-        // 아티스트 — 장르 여러 개(반복 · 쉼표) · ids 순서대로 · ids 와 장르 함께
+        // 아티스트 - 장르 여러 개(반복, 쉼표), ids 순서대로, ids 와 장르 함께
         mvc.perform(get("/api/catalog/artists").param("genre", "SHOEGAZE").param("genre", "EMO")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.items[*].id").value(org.hamcrest.Matchers.contains((int) b, (int) a)));   // 가나다순
         mvc.perform(get("/api/catalog/artists").param("genre", "SHOEGAZE,EMO")).andExpect(jsonPath("$.result.items", hasSize(2)));
@@ -262,7 +262,7 @@ class CatalogApiTest {
         mvc.perform(get("/api/catalog/artists").param("ids", a + "," + b).param("sort", "UPDATED"))
                 .andExpect(jsonPath("$.result.items[*].id").value(org.hamcrest.Matchers.contains((int) b, (int) a)));
 
-        // 굿즈 — 품목 여러 개 · 가격대(최저가) · 검색어(아티스트 이름) · 넘긴 순서
+        // 굿즈 - 품목 여러 개, 가격대(최저가), 검색어(아티스트 이름), 넘긴 순서
         mvc.perform(get("/api/catalog/goods").param("category", "TSHIRT,HAT")).andExpect(jsonPath("$.result.items", hasSize(2)));
         mvc.perform(get("/api/catalog/goods").param("minPrice", "20000").param("maxPrice", "30000"))
                 .andExpect(jsonPath("$.result.items[*].name").value(org.hamcrest.Matchers.containsInAnyOrder("에이 티셔츠", "비 모자")));
@@ -273,7 +273,7 @@ class CatalogApiTest {
                 .andExpect(status().isBadRequest());
         mvc.perform(get("/api/catalog/goods").param("minPrice", "50000").param("maxPrice", "10000")).andExpect(status().isBadRequest());
 
-        // 피지컬 — 매체 여러 개 · 검색어(앨범 제목) · 가격대 · 넘긴 순서 · 기존 단일 format 도 그대로
+        // 피지컬 - 매체 여러 개, 검색어(앨범 제목), 가격대, 넘긴 순서, 기존 단일 format 도 그대로
         mvc.perform(get("/api/catalog/physical-albums").param("format", "LP").param("format", "CD"))
                 .andExpect(jsonPath("$.result.items[*].format").value(org.hamcrest.Matchers.contains("CD", "LP")));   // 발매일 최신순
         mvc.perform(get("/api/catalog/physical-albums").param("q", "세번째")).andExpect(jsonPath("$.result.items[0].format").value("CASSETTE"));
@@ -282,7 +282,7 @@ class CatalogApiTest {
                 .andExpect(jsonPath("$.result.items[*].artistId").value(org.hamcrest.Matchers.contains((int) c, (int) a)));
     }
 
-    /** 11/22 아티스트 성별 · 구성 필터 — 목록 · 전체 검색 · 팔로우 같음 · 여러 개 OR · 서로 AND · 수집에서 null 이면 값 유지 */
+    /** 아티스트 성별, 구성 필터 - 목록, 전체 검색, 팔로우 같음, 여러 개 OR, 서로 AND, 수집에서 null 이면 값 유지 */
     @Test
     void artistGenderCompositionFilters() throws Exception {
         long male = artist("gc-m", "h", "성별남팀", Genre.INDIE_ROCK, ArtistGender.MALE, ArtistComposition.GROUP, null);
@@ -310,7 +310,7 @@ class CatalogApiTest {
                 .andExpect(jsonPath("$.result.items[*].id").value(contains((int) female)));
     }
 
-    /** 11/23 검색어 최대 100자 — 붙여넣기까지 생각해 지금 가장 긴 이름(공연 제목 62자)보다 넉넉하게. 넘으면 400 · 통합 검색 /api/catalog/search 는 전처럼 50자 SEARCH_QUERY_TOO_LONG */
+    /** 검색어 최대 100자 - 붙여넣기까지 생각해 지금 가장 긴 이름(공연 제목 62자)보다 넉넉하게. 넘으면 400, 통합 검색 /api/catalog/search 는 전처럼 50자 SEARCH_QUERY_TOO_LONG */
     @Test
     void searchQueryLengthLimit() throws Exception {
         String limit = "가".repeat(100);
@@ -323,7 +323,7 @@ class CatalogApiTest {
         }
     }
 
-    /** 11/19 전체 검색 · 팔로우 탭 (프론트 요구 1-1 ~ 1-4) — 팔로우 목록은 Member 대역 */
+    /** 전체 검색, 팔로우 탭 (프론트 요구 1-1 ~ 1-4) - 팔로우 목록은 Member 대역 */
     @Test
     void searchAndFollowingApis() throws Exception {
         long a = artist("fw-a", "에이밴드", Genre.SHOEGAZE, new GoodsUpsert("fw-a-tee", "h", "에이 티셔츠", GoodsCategory.TSHIRT, null,
@@ -341,7 +341,7 @@ class CatalogApiTest {
         album(d, "fw-d-album", "디 앨범", new PhysicalAlbumUpsert("fw-d-cd", "h", PhysicalFormat.CD, "디 앨범 CD", LocalDate.parse("2025-06-01"), null,
                 List.of(new OptionUpsert("기본", null, null, 18000, 1)), null));
 
-        // 전체 검색 — q(LIKE) 는 선택 · 칩 여러 개(OR) · 다른 칩끼리 AND · 15만원 이상은 상한 없음
+        // 전체 검색 - q(LIKE) 는 선택, 칩 여러 개(OR), 다른 칩끼리 AND, 15만원 이상은 상한 없음
         mvc.perform(get("/api/catalog/search/artists").param("q", "밴드").param("genre", "EMO,SHOEGAZE"))
                 .andExpect(jsonPath("$.result.items[*].id").value(contains((int) d, (int) b, (int) a)))   // 가나다순
                 .andExpect(jsonPath("$.result.hasNext").value(false));
@@ -358,7 +358,7 @@ class CatalogApiTest {
         mvc.perform(get("/api/catalog/search/physical-albums").param("format", "CD").param("size", "1"))
                 .andExpect(jsonPath("$.result.items[*].name").value(contains("디 앨범 CD"))).andExpect(jsonPath("$.result.hasNext").value(true));
 
-        // 팔로우 — Member 는 최근 팔로우순(c, a, b)으로 줌 · 팔로워 a 5 > b 3 > c 1
+        // 팔로우 - Member 는 최근 팔로우순(c, a, b)으로 줌, 팔로워 a 5 > b 3 > c 1
         OffsetDateTime t = OffsetDateTime.parse("2026-11-01T00:00:00Z");
         when(memberClient.follows(7L)).thenReturn(List.of(new FollowedArtist(c, t.plusDays(3), 1),
                 new FollowedArtist(a, t.plusDays(2), 5), new FollowedArtist(b, t.plusDays(1), 3)));
@@ -367,18 +367,18 @@ class CatalogApiTest {
         mvc.perform(get("/api/catalog/following/artists").header(USER, "7").param("sort", "FOLLOWERS"))
                 .andExpect(jsonPath("$.result.items[*].id").value(contains((int) a, (int) b, (int) c)));
 
-        // 아티스트 업데이트순 — 새소식 날짜: 앨범 · 피지컬 발매일 · 굿즈 등록 시각 · 공연(Concert) 중 가장 늦은 것
+        // 아티스트 업데이트순 - 새소식 날짜: 앨범, 피지컬 발매일, 굿즈 등록 시각, 공연(Concert) 중 가장 늦은 것
         jdbc.update("UPDATE product SET created_at = '2023-01-01T00:00:00Z' WHERE external_id IN ('fw-a-tee', 'fw-b-cap')");
         jdbc.update("UPDATE product SET created_at = '2020-01-01T00:00:00Z' WHERE external_id = 'fw-c-bag'");
-        // a 2024-01-01(LP) · b 2025-01-01(CD) · c 2020-01-01(굿즈) → 공연 없으면 b, a, c
+        // a 2024-01-01(LP), b 2025-01-01(CD), c 2020-01-01(굿즈) -> 공연 없으면 b, a, c
         when(concertClient.latestConcertAt(anyList())).thenReturn(Map.of());
         mvc.perform(get("/api/catalog/following/artists").header(USER, "7").param("sort", "UPDATED"))
                 .andExpect(jsonPath("$.result.items[*].id").value(contains((int) b, (int) a, (int) c)));
-        // c 의 공연이 가장 최근 → c, b, a
+        // c 의 공연이 가장 최근 -> c, b, a
         when(concertClient.latestConcertAt(anyList())).thenReturn(Map.of(c, t.plusDays(10)));
         mvc.perform(get("/api/catalog/following/artists").header(USER, "7").param("sort", "UPDATED"))
                 .andExpect(jsonPath("$.result.items[*].id").value(contains((int) c, (int) b, (int) a)));
-        // Concert 불통 → 공연 없이 정렬 (목록은 그대로 나옴)
+        // Concert 불통 -> 공연 없이 정렬 (목록은 그대로 나옴)
         when(concertClient.latestConcertAt(anyList())).thenThrow(new ConcertClient.Unavailable(new java.io.IOException("connection refused")));
         mvc.perform(get("/api/catalog/following/artists").header(USER, "7").param("sort", "UPDATED")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.items[*].id").value(contains((int) b, (int) a, (int) c)));
@@ -393,7 +393,7 @@ class CatalogApiTest {
         jdbc.update("UPDATE product SET updated_at = now() + interval '1 hour' WHERE external_id = 'fw-b-cap'");
         mvc.perform(get("/api/catalog/following/goods").header(USER, "7").param("sort", "UPDATED"))
                 .andExpect(jsonPath("$.result.items[0].name").value("비 모자"));
-        // 11/22 품절 안 보기 — 기본은 품절 · 판매중 전부, excludeSoldOut=true 면 재고 남은 옵션이 있는 것만 (목록 · 검색 · 팔로우 같음)
+        // 품절 안 보기 - 기본은 품절, 판매중 전부, excludeSoldOut=true 면 재고 남은 옵션이 있는 것만 (목록, 검색, 팔로우 같음)
         jdbc.update("UPDATE stock SET qty = 0 WHERE option_id IN (SELECT o.id FROM product_option o JOIN product p ON p.id = o.product_id "
                 + "WHERE p.external_id IN ('fw-c-bag', 'fw-b-cd'))");
         mvc.perform(get("/api/catalog/search/goods").param("q", "씨")).andExpect(jsonPath("$.result.items[0].soldOut").value(true));
@@ -412,7 +412,7 @@ class CatalogApiTest {
                 .andExpect(jsonPath("$.result.items[*].name").value(contains("두번째 비 CD")));
         mvc.perform(get("/api/catalog/following/goods").header(USER, "7").param("sort", "ARTIST_ORDER")).andExpect(status().isBadRequest());
 
-        // 팔로우 없음 → 빈 페이지 · 비로그인 → 401 · Member 불통 → 503
+        // 팔로우 없음 -> 빈 페이지, 비로그인 -> 401, Member 불통 -> 503
         when(memberClient.follows(8L)).thenReturn(List.of());
         mvc.perform(get("/api/catalog/following/goods").header(USER, "8")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.items", hasSize(0))).andExpect(jsonPath("$.result.hasNext").value(false));

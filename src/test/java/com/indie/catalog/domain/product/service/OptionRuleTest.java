@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** DB CHECK 로 못 거는 규칙 (상품 종류 ↔ 옵션 값) */
+/** DB CHECK 로 못 거는 규칙 (상품 종류 <-> 옵션 값) */
 class OptionRuleTest {
 
     @Test

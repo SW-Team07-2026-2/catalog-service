@@ -23,7 +23,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** ✏️ 11/25 공개 목록 · 상세 Pod 캐시 — 같은 요청은 3초 안에 한 번만 DB 로, 다른 조건은 따로, 없는 상품은 남기지 않음 */
+/** 공개 목록, 상세 Pod 캐시 - 같은 요청은 3초 안에 한 번만 DB 로, 다른 조건은 따로, 없는 상품은 남기지 않음 */
 class PublicProductCacheTest {
 
     private final ProductService service = mock(ProductService.class);
@@ -56,10 +56,10 @@ class PublicProductCacheTest {
         when(service.goods(isNull(), isNull(), any(), any(), any(), any(), anyBoolean(), isNull(), anyInt(), anyInt())).thenReturn(page);
 
         cache.searchGoods(null, null, null, null, false, 0, 20);
-        cache.searchGoods(null, null, null, null, false, 0, 20);              // 같은 조건 — 캐시
-        cache.searchGoods(null, null, null, null, false, 1, 20);              // 다음 페이지 — 따로
-        cache.searchGoods(List.of(GoodsCategory.values()[0]), null, null, null, false, 0, 20);   // 칩 — 따로
-        cache.searchGoods(null, "혁오", null, null, false, 0, 20);            // 검색어 — 따로
+        cache.searchGoods(null, null, null, null, false, 0, 20);              // 같은 조건 - 캐시
+        cache.searchGoods(null, null, null, null, false, 1, 20);              // 다음 페이지 - 따로
+        cache.searchGoods(List.of(GoodsCategory.values()[0]), null, null, null, false, 0, 20);   // 칩 - 따로
+        cache.searchGoods(null, "혁오", null, null, false, 0, 20);            // 검색어 - 따로
 
         verify(service, times(1)).goods(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq(false), isNull(), eq(0), eq(20));
         verify(service, times(1)).goods(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq(false), isNull(), eq(1), eq(20));

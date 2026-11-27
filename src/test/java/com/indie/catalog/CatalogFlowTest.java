@@ -77,8 +77,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * 수집 적재 → 조회 → 장바구니 → 주문 · 환불 — 서비스 규칙과 이벤트 payload 를 실제 DB 로 확인합니다.
- * 서비스가 스스로 트랜잭션을 나누므로(항목별 적재 · 주문 Saga) 테스트 트랜잭션으로 감싸지 않고, 끝나면 테이블을 비웁니다.
+ * 수집 적재 -> 조회 -> 장바구니 -> 주문, 환불 - 서비스 규칙과 이벤트 payload 를 실제 DB 로 확인합니다.
+ * 서비스가 스스로 트랜잭션을 나누므로(항목별 적재, 주문 Saga) 테스트 트랜잭션으로 감싸지 않고, 끝나면 테이블을 비웁니다.
  */
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class CatalogFlowTest extends PostgresTest {
@@ -107,7 +107,7 @@ class CatalogFlowTest extends PostgresTest {
         payment.cancels.clear();
     }
 
-    // ── 수집 적재 ────────────────────────────────────────────────────────────────────────────────
+    // ── 수집 적재
 
     @Test
     void ingestCreatesCatalogAndPublishesEventsOnlyForRealChanges() {
@@ -122,7 +122,7 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(artistUpdated.path("artistId").asLong()).isEqualTo(artistId);
         assertThat(artistUpdated.path("name").asText()).isEqualTo("실리카겔");
         assertThat(artistUpdated.path("genre").asText()).isEqualTo("PSYCHEDELIC");               // Concert 가 읽는 대표 장르
-        assertThat(texts(artistUpdated.path("genres"))).containsExactly("PSYCHEDELIC", "INDIE_ROCK");   // 중복 제거 · 순서 유지
+        assertThat(texts(artistUpdated.path("genres"))).containsExactly("PSYCHEDELIC", "INDIE_ROCK");   // 중복 제거, 순서 유지
         JsonNode goodsReleased = events("goods.released").get(0);
         assertThat(goodsReleased.path("artistId").asLong()).isEqualTo(artistId);
         assertThat(goodsReleased.path("artistName").asText()).isEqualTo("실리카겔");
@@ -130,7 +130,7 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(goodsReleased.path("price").asInt()).isEqualTo(33000);                        // 옵션 최저가
         assertThat(goodsReleased.path("goodsId").asLong()).isPositive();
 
-        // 같은 요청을 다시 → 아무것도 바뀌지 않고 이벤트도 없음
+        // 같은 요청을 다시 -> 아무것도 바뀌지 않고 이벤트도 없음
         assertThat(ingest.upsertArtists(List.of(artist)).get(0).result()).isEqualTo(Result.UNCHANGED);
         assertThat(events("artist.updated")).hasSize(1);
         assertThat(events("goods.released")).hasSize(1);
@@ -172,7 +172,7 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(detail.physicalAlbums()).filteredOn(p -> p.format() == PhysicalFormat.LP)
                 .extracting(PhysicalAlbumItem::minPrice).containsExactly(42000);
 
-        // 트랙 1 제목 변경 · 트랙 2 삭제 · LP 에 새 옵션(2차 컬러) 추가
+        // 트랙 1 제목 변경, 트랙 2 삭제, LP 에 새 옵션(2차 컬러) 추가
         AlbumUpsert changed = album("al-1", "al-h2", artistId, LocalDate.now(), List.of(track(1, "NO PAIN (Remaster)")),
                 List.of(lp("lp-1", "ph2", LocalDate.now(), opt("초판 블랙", VinylColor.BLACK, null, 42000, null),
                         opt("2차 컬러", VinylColor.COLOR, null, 47000, 30))));
@@ -189,7 +189,7 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(again.get(2).path("options")).extracting(o -> o.path("name").asText()).containsExactly("2차 컬러");   // 새 옵션만
         long lpId = again.get(2).path("physicalAlbumId").asLong();
         assertThat(productService.product(lpId).options()).extracting(o -> o.name() + ":" + o.qty())
-                .containsExactly("초판 블랙:5", "초판 컬러:2", "2차 컬러:30");                       // qty null → 그대로 · 빠진 옵션도 유지
+                .containsExactly("초판 블랙:5", "초판 컬러:2", "2차 컬러:30");                       // qty null -> 그대로, 빠진 옵션도 유지
 
         DiffResult diff = ingest.diff(new DiffRequest("crawler", DiffType.PHYSICAL_ALBUM, List.of(
                 new DiffItem("lp-1", null, "ph2"), new DiffItem("cd-1", null, "other"), new DiffItem("lp-9", null, "x"))));
@@ -198,7 +198,7 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(diff.created()).containsExactly("lp-9");
     }
 
-    /** 11/25 — 소개 글: 수집은 비어 있을 때만 채우고, 관리자가 고친 글은 다음 수집에도 그대로 · 관리자가 빈 글을 보내면 지움 */
+    /** - 소개 글: 수집은 비어 있을 때만 채우고, 관리자가 고친 글은 다음 수집에도 그대로, 관리자가 빈 글을 보내면 지움 */
     @Test
     void descriptionsAreFilledByCrawlerOnlyWhenEmptyAndAdminTextWins() {
         ArtistUpsert noBio = new ArtistUpsert("crawler", "ar-bio", "h1", "새소년", List.of(Genre.INDIE_ROCK), null, 2016,
@@ -226,7 +226,7 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(albumService.detail(albumId).description()).isEqualTo("관리자가 고친 앨범 소개입니다.");
     }
 
-    /** 11/26 — 라인업에 있는데 수집되지 않은 팀을 관리자가 직접 등록 · 같은 이름은 막고(다른 팀이면 허용) · 수집기가 덮어쓰지 않음 */
+    /** - 라인업에 있는데 수집되지 않은 팀을 관리자가 직접 등록, 같은 이름은 막고(다른 팀이면 허용), 수집기가 덮어쓰지 않음 */
     @Test
     void adminCreatesArtistMissingFromCrawlAndRefusesSameNameUnlessAllowed() {
         long id = edit.createArtist(new AdminArtistCreate(" 오륜구동 ", List.of(Genre.INDIE_ROCK, Genre.INDIE_ROCK), "붕가붕가레코드", 2019,
@@ -252,7 +252,7 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(other).isNotIn(id, sameName);
     }
 
-    /** 11/26 — 굿즈 · 판본 상세 설명: 수집은 비어 있을 때만 채우고, 관리자가 고친 값은 다음 수집에도 그대로 */
+    /** - 굿즈, 판본 상세 설명: 수집은 비어 있을 때만 채우고, 관리자가 고친 값은 다음 수집에도 그대로 */
     @Test
     void productDetailsAreFilledByCrawlerOnlyWhenEmpty() {
         GoodsUpsert bareTee = new GoodsUpsert("gd-detail", "g1", "투어 티셔츠", GoodsCategory.TSHIRT, null,
@@ -283,7 +283,7 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(albumService.detail(albumId).description()).isNull();
     }
 
-    /** 11/18 — 이미지 · 트랙 태그는 관리자가 넣는 값: 크롤러가 null 로 다시 보내도 지워지지 않고, 빈 배열은 지웁니다 */
+    /** - 이미지, 트랙 태그는 관리자가 넣는 값: 크롤러가 null 로 다시 보내도 지워지지 않고, 빈 배열은 지웁니다 */
     @Test
     void adminImagesAndTrackTagsSurviveReingest() {
         ArtistUpsert artist = new ArtistUpsert("crawler", "ar-keep", "h1", "혁오", List.of(Genre.INDIE_ROCK), null, 2014, null, null, null,
@@ -298,11 +298,11 @@ class CatalogFlowTest extends PostgresTest {
         long goodsId = jdbc.queryForObject("SELECT id FROM product WHERE external_id = 'gd-keep'", Long.class);
         long cdId = jdbc.queryForObject("SELECT id FROM product WHERE external_id = 'cd-keep'", Long.class);
 
-        // 관리자가 이미지 · 태그를 넣음
+        // 관리자가 이미지, 태그를 넣음
         String img = "https://img.indig.co.kr/";
         assertThat(edit.updateArtist(artistId, new AdminArtistUpdate(img + "artist/1.jpg", null, null, null)).profileUrl()).isEqualTo(img + "artist/1.jpg");
         assertThat(events("artist.updated").get(1).path("profileUrl").asText()).isEqualTo(img + "artist/1.jpg");   // Concert 복제본에도 감
-        // 11/22 성별 · 구성만 보내면 이미지는 그대로
+        // 성별, 구성만 보내면 이미지는 그대로
         assertThat(edit.updateArtist(artistId, new AdminArtistUpdate(null, ArtistGender.MALE, ArtistComposition.GROUP, null)).profileUrl())
                 .isEqualTo(img + "artist/1.jpg");
         assertThat(jdbc.queryForMap("SELECT gender, composition FROM artist WHERE id = ?", artistId))
@@ -320,7 +320,7 @@ class CatalogFlowTest extends PostgresTest {
         assertCode(() -> edit.updateAlbum(albumId, new AdminAlbumUpdate(null,
                 List.of(new AdminAlbumUpdate.TrackTags(9, null, Tempo.FAST, null, null, null)), null)), CommonErrorCode.INVALID_REQUEST);
 
-        // 크롤러가 바뀐 후보를 다시 보냄 (새 트랙 · 이미지 · 태그는 null) → 관리자 값 그대로
+        // 크롤러가 바뀐 후보를 다시 보냄 (새 트랙, 이미지, 태그는 null) -> 관리자 값 그대로
         ingest.upsertArtists(List.of(new ArtistUpsert("crawler", "ar-keep", "h2", "혁오", List.of(Genre.INDIE_ROCK), null, 2014, null, null, null,
                 List.of(new GoodsUpsert("gd-keep", "g2", "투어 티셔츠", GoodsCategory.TSHIRT, null,
                         List.of(opt("M", null, OptionSize.M, 30000, null)), null)), null)));
@@ -340,7 +340,7 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(productService.product(goodsId).thumbnailUrl()).isEqualTo(img + "goods/1.jpg");
         assertThat(productService.product(cdId).thumbnailUrl()).isEqualTo(img + "physical/1.jpg");
 
-        // 판매가 null → 저장된 값 그대로 · 새 옵션은 판매가가 있어야 함 (그 항목만 FAILED)
+        // 판매가 null -> 저장된 값 그대로, 새 옵션은 판매가가 있어야 함 (그 항목만 FAILED)
         ingest.upsertArtists(List.of(new ArtistUpsert("crawler", "ar-keep", "h3", "혁오", List.of(Genre.INDIE_ROCK), null, 2014, null, null, null,
                 List.of(new GoodsUpsert("gd-keep", "g3", "투어 티셔츠", GoodsCategory.TSHIRT, null,
                         List.of(new OptionUpsert("M", null, OptionSize.M, null, null)), null)), null)));
@@ -372,7 +372,7 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(productService.physicalAlbums(List.of(PhysicalFormat.LP), null, null, null, null, null, null, false, null, 0, 10).items()).hasSize(1);
     }
 
-    /** ★ DB 가 못 막는 규칙 — 어긴 항목은 통째로 거절되고(그 항목의 앨범 · 상품도 저장되지 않음) 나머지 항목은 적재됩니다 */
+    /** DB 가 못 막는 규칙 - 어긴 항목은 통째로 거절되고(그 항목의 앨범, 상품도 저장되지 않음) 나머지 항목은 적재됩니다 */
     @Test
     void ingestRejectsItemsBreakingOptionRules() {
         long artistId = artist("ar-rule");
@@ -407,7 +407,7 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(jdbc.queryForList("SELECT external_id FROM artist", String.class)).containsExactly("ar-rule");
     }
 
-    // ── 조회 ────────────────────────────────────────────────────────────────────────────────────
+    // ── 조회
 
     @Test
     void listingsAndDetails() {
@@ -446,12 +446,12 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(productService.products(List.of(shop.lpId, shop.goodsId, 999_999L))).hasSize(2);
         assertCode(() -> productService.product(999_999L), CommonErrorCode.NOT_FOUND);
 
-        // 11/18 목록의 품절 — 모든 옵션 재고가 0 이면 true (상세 soldOut 과 같은 기준). 아티스트 상세의 목록도 같은 항목
+        // 목록의 품절 - 모든 옵션 재고가 0 이면 true (상세 soldOut 과 같은 기준). 아티스트 상세의 목록도 같은 항목
         assertThat(productService.goods(shop.artistId, null, null, null, null, null, false, null, 0, 10).items()).extracting(GoodsItem::soldOut).containsExactly(false);
         assertThat(productService.physicalAlbums(null, null, null, null, null, null, null, false, null, 0, 10).items()).extracting(PhysicalAlbumItem::soldOut).containsExactly(false);
         admin.setStock(shop.goodsOption, 0, "품절 확인", "7");
         assertThat(productService.goods(shop.artistId, null, null, null, null, null, false, null, 0, 10).items()).extracting(GoodsItem::soldOut).containsExactly(true);
-        // 11/22 품절 안 보기 — 품절 굿즈는 빠지고, 판매 중인 LP 는 남음
+        // 품절 안 보기 - 품절 굿즈는 빠지고, 판매 중인 LP 는 남음
         assertThat(productService.goods(shop.artistId, null, null, null, null, null, true, null, 0, 10).items()).isEmpty();
         assertThat(productService.physicalAlbums(null, null, null, null, null, null, null, true, null, 0, 10).items())
                 .extracting(PhysicalAlbumItem::id).containsExactly(shop.lpId);
@@ -462,7 +462,7 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(productService.goods(shop.artistId, null, null, null, null, null, true, null, 0, 10).items()).extracting(GoodsItem::id).containsExactly(shop.goodsId);
     }
 
-    // ── 장바구니 ────────────────────────────────────────────────────────────────────────────────
+    // ── 장바구니
 
     @Test
     void cartHoldsOptionsWithinOrderLimits() {
@@ -493,12 +493,12 @@ class CatalogFlowTest extends PostgresTest {
         cartService.empty(USER);
         assertThat(cartService.get(USER).items()).isEmpty();
 
-        // 11/24 회원이 바꾼 수량만 user.metric — 늘어난 · 줄어든 수량 · 실패한 요청과 없는 옵션 지우기는 남기지 않음
+        // 회원이 바꾼 수량만 user.metric - 늘어난, 줄어든 수량, 실패한 요청과 없는 옵션 지우기는 남기지 않음
         List<String> metrics = events(UserMetrics.TOPIC).stream()
                 .map(m -> m.get("metricType").asText() + " " + m.get("metricValue").asInt()).toList();
         assertThat(metrics).hasSize(8)
                 .startsWith("CART_ADD 1", "CART_ADD 1", "CART_ADD 1", "CART_ADD 1", "CART_ADD 8", "CART_REMOVE 1");
-        assertThat(metrics.subList(6, 8)).containsExactlyInAnyOrder("CART_REMOVE 10", "CART_REMOVE 1");   // 비우기 — 담긴 순서와 무관
+        assertThat(metrics.subList(6, 8)).containsExactlyInAnyOrder("CART_REMOVE 10", "CART_REMOVE 1");   // 비우기 - 담긴 순서와 무관
         JsonNode first = events(UserMetrics.TOPIC).get(0);
         assertThat(first.get("userId").asLong()).isEqualTo(USER);
         assertThat(first.get("targetType").asText()).isEqualTo("PHYSICAL_ALBUM");
@@ -511,9 +511,9 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(events(UserMetrics.TOPIC)).hasSize(9);                                         // 담기 1건만 늘어남
     }
 
-    // ── 주문 ────────────────────────────────────────────────────────────────────────────────────
+    // ── 주문
 
-    /** 결제 완료 → 확정 → 사용자 취소 = 환불 (REFUNDED · 재고 복구 · order.refunded) */
+    /** 결제 완료 -> 확정 -> 사용자 취소 = 환불 (REFUNDED, 재고 복구, order.refunded) */
     @Test
     void orderIsConfirmedThenRefunded() {
         Shop shop = shop();
@@ -572,7 +572,7 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(refundEvents.get(0).path("refundAmount").asInt()).isEqualTo(119000);
     }
 
-    /** 결제는 됐는데 payment.completed 보다 취소가 먼저 — CANCELLED 로 남았다가 payment.cancelled(refunded=true) 가 REFUNDED 로 바로잡습니다 */
+    /** 결제는 됐는데 payment.completed 보다 취소가 먼저 - CANCELLED 로 남았다가 payment.cancelled(refunded=true) 가 REFUNDED 로 바로잡습니다 */
     @Test
     void cancelledOrderIsCorrectedToRefundedWithoutRestoringStockTwice() {
         Shop shop = shop();
@@ -582,7 +582,7 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(stock(shop.lpOption)).isEqualTo(5);
         assertThat(events("order.refunded")).isEmpty();                                          // 돈이 오가지 않은 취소
 
-        orderService.confirm(orderId);                                                           // 늦게 온 payment.completed — 무시
+        orderService.confirm(orderId);                                                           // 늦게 온 payment.completed - 무시
         orderService.refundLocally(orderId);
         orderService.refundLocally(orderId);
 
@@ -592,7 +592,7 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(events("order.confirmed")).isEmpty();
     }
 
-    /** 재고 부족 · 결제 준비 실패 — 차감한 재고를 되돌립니다. 요청 상한도 여기서 막습니다 */
+    /** 재고 부족, 결제 준비 실패 - 차감한 재고를 되돌립니다. 요청 상한도 여기서 막습니다 */
     @Test
     void failedOrdersLeaveStockUntouched() {
         Shop shop = shop();
@@ -615,7 +615,7 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(stock(shop.lpOption)).isEqualTo(5);
     }
 
-    /** 결제하지 않은 주문 — 만료 · 회원 탈퇴 때 무효화. 그 사이 결제가 승인됐으면(APPROVED) 건드리지 않습니다 */
+    /** 결제하지 않은 주문 - 만료, 회원 탈퇴 때 무효화. 그 사이 결제가 승인됐으면(APPROVED) 건드리지 않습니다 */
     @Test
     void unpaidOrdersAreVoidedOnExpiryAndWithdrawal() {
         Shop shop = shop();
@@ -643,9 +643,9 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(stock(shop.lpOption)).isEqualTo(4);
     }
 
-    // ── 관리자(Studio) ───────────────────────────────────────────────────────────────────────────
+    // ── 관리자(Studio)
 
-    /** 관리자가 넣은 상품도 수집과 같은 규칙 · 같은 이벤트 — 등록 → 수정 → 옵션 추가 · 이름 변경 → 재고 조정 */
+    /** 관리자가 넣은 상품도 수집과 같은 규칙, 같은 이벤트 - 등록 -> 수정 -> 옵션 추가, 이름 변경 -> 재고 조정 */
     @Test
     void adminRegistersProductsOptionsAndStock() {
         Shop shop = shop();
@@ -659,7 +659,7 @@ class CatalogFlowTest extends PostgresTest {
 
         assertThat(goods.name()).isEqualTo("로고 키링");
         assertThat(goods.options()).extracting(OptionView::qty).containsExactly(10);
-        assertThat(goods.description()).isEqualTo("은색 로고 키링 · 지름 4cm");                    // 11/26 상세 설명 · 앞뒤 공백 정리
+        assertThat(goods.description()).isEqualTo("은색 로고 키링 · 지름 4cm");                    // 상세 설명, 앞뒤 공백 정리
         assertThat(cd.description()).isNull();
         assertThat(cd.thumbnailUrl()).isEqualTo("https://img/album.jpg");                          // 없으면 앨범 이미지
         assertThat(cd.options()).extracting(OptionView::qty).containsExactly(0);
@@ -680,7 +680,7 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(admin.update(goods.id(), new AdminProductUpdate(null, null, null, null, "  ")).description()).isNull();   // 빈 글은 지움
         assertThat(jdbc.queryForObject("SELECT description FROM product WHERE id = ?", String.class, goods.id())).isNull();
         ProductDetail cdEdited = admin.update(cd.id(), new AdminProductUpdate(null, null, null, null, "## 판 정보\n- 디지팩"));
-        assertThat(cdEdited.description()).isEqualTo("## 판 정보\n- 디지팩");                       // 11/26 판본 상세 설명 (앨범 소개 글과 따로)
+        assertThat(cdEdited.description()).isEqualTo("## 판 정보\n- 디지팩");                       // 판본 상세 설명 (앨범 소개 글과 따로)
         assertCode(() -> admin.update(cd.id(), new AdminProductUpdate(null, null, GoodsCategory.ETC, null, null)), CommonErrorCode.INVALID_REQUEST);
         assertCode(() -> admin.update(goods.id(), new AdminProductUpdate(null, null, null, LocalDate.now(), null)), CommonErrorCode.INVALID_REQUEST);
 
@@ -688,7 +688,7 @@ class CatalogFlowTest extends PostgresTest {
         ProductDetail withOptions = admin.options(goods.id(), List.of(new AdminOption(freeId, "기본", null, OptionSize.FREE, 9000, null),
                 new AdminOption(null, "L", null, OptionSize.L, 9500, null)));
         assertThat(withOptions.options()).extracting(OptionView::id, OptionView::name, OptionView::price, OptionView::qty)
-                .containsExactly(org.assertj.core.api.Assertions.tuple(freeId, "기본", 9000, 10),   // 같은 옵션 · 수량은 그대로
+                .containsExactly(org.assertj.core.api.Assertions.tuple(freeId, "기본", 9000, 10),   // 같은 옵션, 수량은 그대로
                         org.assertj.core.api.Assertions.tuple(withOptions.options().get(1).id(), "L", 9500, 0));
         assertCode(() -> admin.options(goods.id(), List.of(new AdminOption(freeId, "L", null, OptionSize.L, 9000, null))), CommonErrorCode.INVALID_REQUEST);
         assertCode(() -> admin.options(cd.id(), List.of(new AdminOption(freeId, "기본", null, null, 18000, null))), ProductErrorCode.OPTION_NOT_FOUND);   // 남의 상품 옵션
@@ -709,7 +709,7 @@ class CatalogFlowTest extends PostgresTest {
         assertThat(jdbc.queryForObject("SELECT size FROM product_option WHERE id = ?", String.class, tee.options().get(0).id())).isEqualTo("0");   // DB 값은 "0"
     }
 
-    /** CS 관리자의 취소 대행 — 회원 본인 취소와 같은 흐름 (결제 후면 환불 · 재고 복구), Payment 에 남는 사유만 다릅니다 */
+    /** CS 관리자의 취소 대행 - 회원 본인 취소와 같은 흐름 (결제 후면 환불, 재고 복구), Payment 에 남는 사유만 다릅니다 */
     @Test
     void adminCancelsOrderOnBehalfOfMember() {
         Shop shop = shop();
@@ -727,11 +727,11 @@ class CatalogFlowTest extends PostgresTest {
         assertCode(() -> orderService.cancelByAdmin(999_999L), CommonErrorCode.NOT_FOUND);
     }
 
-    // ── 준비 ────────────────────────────────────────────────────────────────────────────────────
+    // ── 준비
 
     private record Shop(long artistId, long albumId, long lpId, long lpOption, long goodsId, long goodsOption) {}
 
-    /** 아티스트 1 · 앨범 1 · LP 1 (블랙 42,000원 · 5장) · 티셔츠 1 (M 35,000원 · 3장) */
+    /** 아티스트 1, 앨범 1, LP 1 (블랙 42,000원, 5장), 티셔츠 1 (M 35,000원, 3장) */
     private Shop shop() {
         long artistId = ingest.upsertArtists(List.of(new ArtistUpsert("crawler", "shop-artist", "h", "파란노을",
                 List.of(Genre.SHOEGAZE), "인디레이블", 2018, null, null, null, List.of(tshirt("shop-goods", opt("M", null, OptionSize.M, 35000, 3))), null))).get(0).id();
@@ -744,7 +744,7 @@ class CatalogFlowTest extends PostgresTest {
         return new Shop(artistId, albumId, lpId, optionId(lpId), goodsId, optionId(goodsId));
     }
 
-    /** 같은 아티스트의 굿즈 n 개 — 옵션 id 들 */
+    /** 같은 아티스트의 굿즈 n 개 - 옵션 id 들 */
     private long[] extraOptions(long artistId, int n) {
         long[] ids = new long[n];
         for (int i = 0; i < n; i++) {

@@ -14,19 +14,19 @@ repositories { mavenCentral() }
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    // QueryDSL (OpenFeign 포크 · member 와 같은 버전). 6.x = Hibernate 6 · JPA 3.1 라인 (7.x 는 Hibernate 7 · Boot 4 용)
+    // QueryDSL (OpenFeign 포크, member 와 같은 버전). 6.x = Hibernate 6, JPA 3.1 라인 (7.x 는 Hibernate 7, Boot 4 용)
     implementation 'io.github.openfeign.querydsl:querydsl-jpa:6.12'
     annotationProcessor 'io.github.openfeign.querydsl:querydsl-apt:6.12:jpa'
     annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'   // 조회 캐시 (캐시용 Redis)
-    implementation 'com.github.ben-manes.caffeine:caffeine'                   // ✏️ 11/25 공개 목록 · 상세 Pod 캐시 3초 (PublicProductCache)
+    implementation 'com.github.ben-manes.caffeine:caffeine'                   // 공개 목록, 상세 Pod 캐시 3초 (PublicProductCache)
     implementation 'org.springframework.kafka:spring-kafka'
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
     runtimeOnly 'org.postgresql:postgresql'
 
-    implementation 'com.nimbusds:nimbus-jose-jwt:9.40'      // 내부토큰 검증 · Payment 호출용 발급
+    implementation 'com.nimbusds:nimbus-jose-jwt:9.40'      // 내부토큰 검증, Payment 호출용 발급
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
     implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
@@ -40,6 +40,6 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
-    // Docker 29 는 API 1.44 미만을 거부합니다 — Testcontainers(docker-java) 기본값이 더 낮아 컨테이너를 못 띄웁니다
+    // Docker 29 는 API 1.44 미만을 거부합니다 - Testcontainers(docker-java) 기본값이 더 낮아 컨테이너를 못 띄웁니다
     systemProperty 'api.version', '1.44'
 }

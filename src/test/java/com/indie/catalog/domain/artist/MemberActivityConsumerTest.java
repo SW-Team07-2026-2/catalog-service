@@ -18,7 +18,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** 11/24 member.activity — FOLLOW · UNFOLLOW 만 그 아티스트를 다시 받음 · Member 불통이면 커밋하지 않고 예외 (재시도 → DLT) */
+/** member.activity - FOLLOW, UNFOLLOW 만 그 아티스트를 다시 받음, Member 불통이면 커밋하지 않고 예외 (재시도 -> DLT) */
 class MemberActivityConsumerTest {
 
     private final FollowerCountSync sync = mock(FollowerCountSync.class);
