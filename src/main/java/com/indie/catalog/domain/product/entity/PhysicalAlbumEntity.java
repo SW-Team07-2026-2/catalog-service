@@ -12,8 +12,8 @@ import java.time.OffsetDateTime;
 import java.util.Objects;
 
 /**
- * physical_album — 앨범의 실물 음반 (LP · CD · 카세트). 한 앨범에 같은 매체가 여러 개일 수 있습니다
- * (초판 · 재판 · N차 — 상품 이름으로 구분). 판 색 같은 선택지는 product_option 입니다.
+ * physical_album - 앨범의 실물 음반 (LP, CD, 카세트). 한 앨범에 같은 매체가 여러 개일 수 있습니다
+ * (초판, 재판, N차 - 상품 이름으로 구분). 판 색 같은 선택지는 product_option 입니다.
  */
 @Entity
 @Table(name = "physical_album")

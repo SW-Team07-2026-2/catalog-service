@@ -8,8 +8,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 11/24 artist.follower_count 전체 다시 맞추기 — 기동 1분 뒤 · 그 뒤 1시간마다 (로직은 FollowerCountSync.refreshAll).
- * 이벤트로 못 맞추는 것: 탈퇴(follow 가 CASCADE 로 지워져 UNFOLLOW 가 안 나감) · Member 불통 중 DLT 로 간 이벤트 · 첫 배포.
+ * artist.follower_count 전체 다시 맞추기 - 기동 1분 뒤, 그 뒤 1시간마다 (로직은 FollowerCountSync.refreshAll).
+ * 이벤트로 못 맞추는 것: 탈퇴(follow 가 CASCADE 로 지워져 UNFOLLOW 가 안 나감), Member 불통 중 DLT 로 간 이벤트, 첫 배포.
  * replica 마다 돌아도 덮어쓰기라 결과가 같습니다.
  */
 @Component

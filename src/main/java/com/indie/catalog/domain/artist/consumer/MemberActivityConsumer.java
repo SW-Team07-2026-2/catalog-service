@@ -12,8 +12,8 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * member.activity (Member) — FOLLOW · UNFOLLOW 이면 그 아티스트의 팔로워 수를 다시 받아 artist.follower_count 에 덮어씀 (11/24).
- * 멱등 — 수를 더하지 않고 Member 의 지금 수로 덮어씁니다. Member 불통이면 재시도 2회 뒤 DLT · 1시간마다 전체 다시 맞추기가 메웁니다.
+ * Member -> Kafka member.activity -> Catalog 팔로워 수 갱신.
+ * FOLLOW와 UNFOLLOW 이벤트에서 Member의 현재 수로 덮어써 중복 수신을 처리합니다.
  */
 @Component
 public class MemberActivityConsumer {
@@ -26,6 +26,12 @@ public class MemberActivityConsumer {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * 팔로우 변경 이벤트를 받아 해당 아티스트의 팔로워 수를 갱신합니다.
+     *
+     * @param record Kafka에서 수신한 이벤트 레코드
+     * @param ack 처리 완료 후 오프셋을 커밋할 승인 객체
+     */
     @KafkaListener(topics = "member.activity")
     public void onActivity(ConsumerRecord<String, String> record, Acknowledgment ack) throws JsonProcessingException {
         EventEnvelope e = EventEnvelope.parse(objectMapper, record.value());

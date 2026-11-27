@@ -26,7 +26,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.List;
 
-/** 아티스트 조회 (C2 · C3) */
+/** 아티스트 조회 (C2, C3) */
 @Service
 public class ArtistService {
 
@@ -45,14 +45,36 @@ public class ArtistService {
         this.cache = cache;
     }
 
-    /** C2 — 이름 · 장르(여러 개) · ids 필터 (FR-CAT-01 · 02). 기본 이름순 · 11/19 sort. 관련도 검색은 C1 */
+    /**
+     * C2 - 이름, 장르(여러 개), ids 필터 (FR-CAT-01, 02). 기본 이름순, sort. 관련도 검색은 C1
+     *
+     * @param q 검색어
+     * @param genres 장르 필터 목록
+     * @param genders 아티스트 성별 필터 목록
+     * @param compositions 아티스트 구성 필터 목록
+     * @param ids 아티스트 ID 목록
+     * @param sort 목록 정렬 기준
+     * @param page 0부터 시작하는 페이지 번호
+     * @param size 페이지당 조회 개수
+     */
     @Transactional(readOnly = true)
     public PageResult<ArtistItem> list(String q, List<Genre> genres, List<ArtistGender> genders, List<ArtistComposition> compositions,
                                        List<Long> ids, ListSort sort, int page, int size) {
         return listOf(q, genres, genders, compositions, ListFilters.artistIds(ids, sort), sort, page, size);
     }
 
-    /** 검증을 마친 아티스트 ID 목록으로 — 팔로우 탭은 Member 에서 받은 순서를 그대로 넘깁니다 (상한 200 은 쿼리 문자열용) */
+    /**
+     * 지정한 아티스트 범위에서 조건에 맞는 목록을 조회합니다.
+     *
+     * @param q 검색어
+     * @param genres 장르 필터 목록
+     * @param genders 아티스트 성별 필터 목록
+     * @param compositions 아티스트 구성 필터 목록
+     * @param artistIds 대상 아티스트 ID 목록
+     * @param sort 목록 정렬 기준
+     * @param page 0부터 시작하는 페이지 번호
+     * @param size 페이지당 조회 개수
+     */
     @Transactional(readOnly = true)
     public PageResult<ArtistItem> listOf(String q, List<Genre> genres, List<ArtistGender> genders, List<ArtistComposition> compositions,
                                          List<Long> artistIds, ListSort sort, int page, int size) {
@@ -60,13 +82,21 @@ public class ArtistService {
                 artists -> artists.stream().map(ArtistService::item).toList());
     }
 
-    /** 11/19 팔로우 탭 업데이트순 — 아티스트별 가장 최근 콘텐츠 날짜 (앨범 · 피지컬 발매일 · 굿즈 등록 시각) */
+    /**
+     * 팔로우 탭 업데이트순 - 아티스트별 가장 최근 콘텐츠 날짜 (앨범, 피지컬 발매일, 굿즈 등록 시각)
+     *
+     * @param artistIds 대상 아티스트 ID 목록
+     */
     @Transactional(readOnly = true)
     public Map<Long, OffsetDateTime> latestContentAt(Collection<Long> artistIds) {
         return artistRepository.findLatestContentAt(artistIds);
     }
 
-    /** C3 — 프로필 + 앨범 · 피지컬 앨범 · 굿즈. 캐시 10분 (재고 제외) */
+    /**
+     * C3 - 프로필 + 앨범, 피지컬 앨범, 굿즈. 캐시 10분 (재고 제외)
+     *
+     * @param id 아티스트 ID
+     */
     public ArtistDetail detail(long id) {
         return cache.get(id).orElseGet(() -> {
             ArtistDetail detail = load(id);

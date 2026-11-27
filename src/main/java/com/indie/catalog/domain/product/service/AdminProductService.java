@@ -38,9 +38,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 관리자(Studio)가 직접 넣는 상품 · 옵션 · 재고. 옵션 규칙(OptionRule)과 발매 알림 이벤트는 수집 적재(IngestService)와 같습니다.
- * 직접 넣은 상품의 출처는 source = "studio" 이고 external_id 는 여기서 만듭니다 — 수집기가 같은 상품을 덮어쓰지 않습니다.
- * 🔴 수집으로 들어온 상품을 여기서 고치면, 수집기가 그 상품의 원본이 바뀐 것을 다음에 가져올 때 다시 덮어씁니다.
+ * 관리자가 상품, 옵션, 재고를 등록하고 수정합니다.
+ * 직접 등록은 source=studio를 사용합니다. 수집 상품을 수정하면 다음 수집에서 덮어쓸 수 있습니다.
  */
 @Service
 public class AdminProductService {
@@ -80,7 +79,11 @@ public class AdminProductService {
         this.clock = clock;
     }
 
-    /** 상품 등록 — 굿즈는 goods.released, 피지컬 앨범은 발매일이 최근이거나 없을 때 physical_album.released 를 냅니다 (수집과 같은 규칙) */
+    /**
+     * 상품 등록 - 굿즈는 goods.released, 피지컬 앨범은 발매일이 최근이거나 없을 때 physical_album.released 를 냅니다 (수집과 같은 규칙)
+     *
+     * @param r 등록할 상품 정보
+     */
     @Transactional
     public ProductDetail create(AdminProductCreate r) {
         OffsetDateTime now = OffsetDateTime.now(clock);
@@ -109,7 +112,7 @@ public class AdminProductService {
             PhysicalAlbumEntity physicalAlbum = new PhysicalAlbumEntity(SOURCE, externalId);
             physicalAlbum.apply(album.getId(), r.format(), r.releasedAt(), r.name().strip(),
                     r.thumbnailUrl() == null ? album.getThumbnailUrl() : r.thumbnailUrl(), null, now);
-            physicalAlbum.applyDescription(r.description(), now);   // 11/26 판 상세 설명 (앨범 소개 글과 따로)
+            physicalAlbum.applyDescription(r.description(), now);   // 판 상세 설명 (앨범 소개 글과 따로)
             physicalAlbum = physicalAlbumRepository.save(physicalAlbum);
             ProductService.OptionsResult created = productService.upsertOptions(physicalAlbum.getId(), r.format(), options);
             if (r.releasedAt() == null || !r.releasedAt().isBefore(LocalDate.now(clock).minusDays(releaseWindowDays))) {
@@ -121,7 +124,12 @@ public class AdminProductService {
         return productService.product(id);
     }
 
-    /** 상품 수정 — 보낸 값만. 매체(format) · 연결된 앨범 · 아티스트는 바꾸지 않습니다 (옵션 규칙과 주문 이력이 거기에 묶여 있습니다) */
+    /**
+     * 상품 수정 - 보낸 값만. 매체(format), 연결된 앨범, 아티스트는 바꾸지 않습니다 (옵션 규칙과 주문 이력이 거기에 묶여 있습니다)
+     *
+     * @param id 상품 ID
+     * @param r 수정할 상품 정보
+     */
     @Transactional
     public ProductDetail update(long id, AdminProductUpdate r) {
         OffsetDateTime now = OffsetDateTime.now(clock);
@@ -139,12 +147,17 @@ public class AdminProductService {
                     r.releasedAt() == null ? physicalAlbum.getReleasedAt() : r.releasedAt(), name, thumbnailUrl,
                     physicalAlbum.getSourceHash(), now);
         }
-        product.applyDescription(r.description(), now);       // 11/26 null 은 그대로 · 빈 글은 지움 (굿즈 · 판본 공통)
+        product.applyDescription(r.description(), now);       // null 은 그대로, 빈 글은 지움 (굿즈, 판본 공통)
         artistCache.evictAfterCommit(artistIdOf(product));
         return productService.product(id);
     }
 
-    /** 옵션 추가 · 수정 — 요청에 없는 옵션은 그대로 둡니다 (주문 · 보유 음반이 가리킬 수 있어 지우지 않습니다). 새 옵션의 재고는 0 입니다 */
+    /**
+     * 옵션 추가, 수정 - 요청에 없는 옵션은 그대로 둡니다 (주문, 보유 음반이 가리킬 수 있어 지우지 않습니다). 새 옵션의 재고는 0 입니다
+     *
+     * @param id 상품 ID
+     * @param options 추가하거나 수정할 옵션 목록
+     */
     @Transactional
     public ProductDetail options(long id, List<AdminOption> options) {
         ProductEntity product = product(id);
@@ -155,7 +168,14 @@ public class AdminProductService {
         return productService.product(id);
     }
 
-    /** 재고 조정 — 주문 차감과 같은 조건부 UPDATE 라 동시에 주문이 들어와도 0 아래로 내려가지 않습니다 (모자라면 409 OUT_OF_STOCK) */
+    /**
+     * 재고 조정 - 주문 차감과 같은 조건부 UPDATE 라 동시에 주문이 들어와도 0 아래로 내려가지 않습니다 (모자라면 409 OUT_OF_STOCK)
+     *
+     * @param optionId 상품 옵션 ID
+     * @param delta 재고 증감량
+     * @param reason 취소 또는 재고 변경 사유
+     * @param adminId 작업을 수행한 관리자 ID
+     */
     @Transactional
     public StockView adjustStock(long optionId, int delta, String reason, String adminId) {
         if (delta == 0) throw new GeneralException(CommonErrorCode.INVALID_REQUEST, "delta 는 0 일 수 없습니다");
@@ -167,7 +187,14 @@ public class AdminProductService {
         return new StockView(optionId, stock.getQty(), stock.getUpdatedAt());
     }
 
-    /** 재고 설정 — 수량을 qty 개로 맞춥니다. 수집 입고와 같은 행 락이라 주문 차감과 엇갈리지 않습니다 */
+    /**
+     * 재고 설정 - 수량을 qty 개로 맞춥니다. 수집 입고와 같은 행 락이라 주문 차감과 엇갈리지 않습니다
+     *
+     * @param optionId 상품 옵션 ID
+     * @param qty 설정할 수량
+     * @param reason 취소 또는 재고 변경 사유
+     * @param adminId 작업을 수행한 관리자 ID
+     */
     @Transactional
     public StockView setStock(long optionId, int qty, String reason, String adminId) {
         optionRepository.findById(optionId).orElseThrow(() -> new GeneralException(ProductErrorCode.OPTION_NOT_FOUND));

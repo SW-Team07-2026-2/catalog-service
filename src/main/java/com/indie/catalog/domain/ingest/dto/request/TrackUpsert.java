@@ -14,7 +14,7 @@ import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
-/** 장르 · 메타데이터는 정해진 값만 — null 이면 저장된 값 그대로(새 트랙은 빈 값) · 빈 배열이면 지움 (11/18: 관리자가 넣는 값) */
+/** 장르, 메타데이터는 정해진 값만 - null 이면 저장된 값 그대로(새 트랙은 빈 값), 빈 배열이면 지움 (: 관리자가 넣는 값) */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record TrackUpsert(@NotNull @Positive Integer trackNo,
                           @NotBlank @Size(max = 200) String title,

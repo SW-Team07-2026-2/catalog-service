@@ -3,24 +3,31 @@ package com.indie.catalog.domain.order.client;
 import java.time.OffsetDateTime;
 
 /**
- * Payment 호출 포트 — 구현은 HttpPaymentClient (내부 토큰 · 타임아웃 3초).
- * 불통 · 5xx · 타임아웃은 전부 Unavailable — 호출자가 보상(재고 복구)합니다.
+ * Catalog -> Payment 결제 준비와 취소 포트. 구현은 HttpPaymentClient입니다.
+ * 연결 실패, 5xx, 타임아웃은 Unavailable로 전달하고 호출자가 보상을 처리합니다.
  */
 public interface PaymentClient {
 
     /**
-     * 결제 준비 — 🔴 금액은 서버가 옵션 가격으로 계산한 값입니다. Payment 는 이 금액을 그대로 믿고,
-     * 프론트가 보낸 confirm 금액을 이 값과 대조합니다. 금액 검증의 책임은 Catalog 에 있습니다 (13 §1-①).
+     * 서버에서 계산한 주문 금액으로 Payment에 결제 준비를 요청합니다.
+     *
+     * @param orderId Catalog 주문 ID
+     * @param userId 조회하거나 처리할 회원 ID
+     * @param amount 결제 금액(원)
      */
     Prepared prepare(long orderId, long userId, int amount);
 
     /**
-     * 결제 취소 — refundApproved=false 면 승인 전(PENDING)만 무효화합니다 (만료 처리용: 방금 결제된 건을 환불하지 않게).
-     * 결제 행이 없으면 NOT_FOUND (준비가 실패했던 주문). 그 외는 결제의 최종 상태 (CANCELLED · DECLINED · APPROVED).
+     * Payment에 취소를 요청합니다. 환불 허용 여부에 따라 승인된 결제도 취소합니다.
+     * 결제가 없으면 NOT_FOUND, 그 외에는 최종 결제 상태를 반환합니다.
+     *
+     * @param orderId Catalog 주문 ID
+     * @param reason 취소 또는 재고 변경 사유
+     * @param refundApproved 이미 승인된 결제의 환불 허용 여부
      */
     String cancel(long orderId, String reason, boolean refundApproved);
 
-    /** pgOrderId — 토스 결제창(SDK)의 orderId. paymentKey 는 결제창 인증 뒤 토스가 프론트에 줍니다 */
+    /** pgOrderId - 토스 결제창(SDK)의 orderId. paymentKey 는 결제창 인증 뒤 토스가 프론트에 줍니다 */
     record Prepared(String pgOrderId, String status, OffsetDateTime expiresAt) {}
 
     class Unavailable extends RuntimeException {

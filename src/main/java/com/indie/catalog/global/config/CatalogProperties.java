@@ -8,7 +8,7 @@ import java.util.List;
 public record CatalogProperties(Internal internal, InternalToken internalToken, Payment payment, Member member, Concert concert, Order order,
                                 Page page, Cache cache, Outbox outbox, Event event) {
 
-    /** adminIssuers — /internal/admin/** 를 부를 수 있는 발급자(studio). ingestIssuer · ingestPaths — Gateway 수집 토큰을 받는 곳 (docs/22 S1) */
+    /** adminIssuers - /internal/admin/** 를 부를 수 있는 발급자(studio). ingestIssuer, ingestPaths - Gateway 수집 토큰을 받는 곳 (docs/22 S1) */
     public record Internal(String expectedAudience, List<String> adminIssuers, long clockSkewSeconds,
                            String ingestIssuer, List<String> ingestPaths) {}
 
@@ -16,10 +16,10 @@ public record CatalogProperties(Internal internal, InternalToken internalToken, 
 
     public record Payment(String baseUrl, int connectTimeoutMs, int readTimeoutMs) {}
 
-    /** 11/19 팔로우 탭 — 회원의 팔로우 목록 (GET /internal/members/{userId}/follows) */
+    /** 팔로우 탭 - 회원의 팔로우 목록 (GET /internal/members/{userId}/follows) */
     public record Member(String baseUrl, int connectTimeoutMs, int readTimeoutMs) {}
 
-    /** 11/19 팔로우 탭 업데이트순 — 아티스트별 가장 최근 공연 등록 · 수정 시각 (POST /internal/concerts/artists/latest) */
+    /** 팔로우 탭 업데이트순 - 아티스트별 가장 최근 공연 등록, 수정 시각 (POST /internal/concerts/artists/latest) */
     public record Concert(String baseUrl, int connectTimeoutMs, int readTimeoutMs) {}
 
     public record Order(int maxItems, int maxQty, long pendingTtlMinutes, long expiryIntervalMs) {}
@@ -30,6 +30,6 @@ public record CatalogProperties(Internal internal, InternalToken internalToken, 
 
     public record Outbox(long relayIntervalMs, int batchSize) {}
 
-    /** releaseWindowDays — 발매일이 이 기간 안일 때만 발매 알림 이벤트를 냅니다 (옛 음반을 처음 수집할 때 알림이 가지 않게) */
+    /** releaseWindowDays - 발매일이 이 기간 안일 때만 발매 알림 이벤트를 냅니다 (옛 음반을 처음 수집할 때 알림이 가지 않게) */
     public record Event(int releaseWindowDays) {}
 }

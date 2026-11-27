@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/** 앨범 · 트랙 조회 (C4 · C5) */
+/** 앨범, 트랙 조회 (C4, C5) */
 @Service
 public class AlbumService {
 
@@ -36,13 +36,23 @@ public class AlbumService {
         this.productService = productService;
     }
 
-    /** C4 — 신보순 (FR-CAT-10 · 14) */
+    /**
+     * 유형별 앨범 목록을 조회합니다.
+     *
+     * @param type 앨범 유형 필터
+     * @param page 0부터 시작하는 페이지 번호
+     * @param size 페이지당 조회 개수
+     */
     @Transactional(readOnly = true)
     public PageResult<AlbumItem> list(AlbumEntity.Type type, int page, int size) {
         return PageResult.of(albumRepository.findLatest(type, (long) page * size, size + 1), page, size, this::albumItems);
     }
 
-    /** C5 — 트랙(장르 · 메타데이터) · 피지컬 앨범 포함 */
+    /**
+     * 앨범 상세와 트랙을 조회합니다.
+     *
+     * @param id 앨범 ID
+     */
     @Transactional(readOnly = true)
     public AlbumDetail detail(long id) {
         AlbumEntity album = albumRepository.findById(id).orElseThrow(() -> new GeneralException(CommonErrorCode.NOT_FOUND));
@@ -55,6 +65,11 @@ public class AlbumService {
                 productService.physicalAlbumsOfAlbums(List.of(id)));
     }
 
+    /**
+     * 아티스트의 앨범 목록을 조회합니다.
+     *
+     * @param artistId 아티스트 ID
+     */
     @Transactional(readOnly = true)
     public List<AlbumItem> albumsOfArtist(long artistId) {
         return albumItems(albumRepository.findByArtistId(artistId));

@@ -12,9 +12,8 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 
 /**
- * 11/26 관리자 아티스트 등록 — 공연 라인업에 있는데 수집되지 않은 팀 (MusicBrainz 에 없음 · 크롤러가 못 찾음).
- * name 만 꼭 · 나머지는 null 이면 빈 값. genres 는 정해진 값만 (Genre) · profileUrl 은 Studio 가 올린 이미지 주소 (주소 확인은 Studio).
- * 같은 이름(앞뒤 공백 · 대소문자 무시)의 아티스트가 있으면 409 — 같은 이름의 다른 팀이면 allowSameName: true.
+ * 관리자 아티스트 등록 요청. 이름은 필수이고 장르는 정해진 값만 허용합니다.
+ * 동일 이름이 있으면 409를 반환하며 allowSameName=true이면 중복 이름을 허용합니다.
  */
 public record AdminArtistCreate(@NotBlank @Size(max = 100) String name,
                                 List<@NotNull Genre> genres,

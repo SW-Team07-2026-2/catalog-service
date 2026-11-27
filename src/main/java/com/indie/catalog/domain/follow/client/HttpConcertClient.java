@@ -17,7 +17,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Catalog → Concert 내부 호출 (X-Internal-Token · iss=catalog · aud=concert) — POST /internal/concerts/artists/latest (ID 가 많아 본문으로) */
+/**
+ * Catalog -> Concert POST /internal/concerts/artists/latest 호출.
+ * 내부 토큰으로 인증하고 아티스트 ID 목록을 본문에 전달합니다.
+ */
 @Component
 public class HttpConcertClient implements ConcertClient {
 

@@ -50,15 +50,9 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
- * 수집 · 시드 적재 (I4 · I5 · I15). 남의 스키마에 직접 쓰지 않고 이 API 를 거치므로 이벤트 발행도 여기서 함께 됩니다 (02 ⑤).
- * <ul>
- *   <li>(source, external_id) 기준 멱등 upsert — 같은 요청을 다시 보내도 결과가 같습니다</li>
- *   <li>항목마다 트랜잭션 — 한 건이 실패해도 나머지는 적재되고, 결과에 FAILED 로 표시합니다</li>
- *   <li>이벤트는 실제로 값이 바뀐 경우에만 — 같은 값을 다시 넣으면 아무것도 나가지 않습니다</li>
- *   <li>발매 알림 이벤트는 새로 생긴 것만 · 음반은 발매일이 최근(app.event.release-window-days)일 때만</li>
- *   <li>이미지(profile_url · thumbnail_url) · 트랙 태그(genres · tempo · moods · emotions · styles)는 null 이면 저장된 값을 그대로 둡니다
- *       — 11/18 결정: 관리자가 넣는 값이라, 크롤러 후보를 다시 승인해도 지워지지 않게. 지우려면 태그는 빈 배열을 보냅니다</li>
- * </ul>
+ * 수집 데이터를 (source, external_id) 기준으로 항목별 트랜잭션에서 적재합니다.
+ * 실제 변경에만 이벤트를 발행하며 신규 발매 알림은 발매 기간 설정을 따릅니다.
+ * 이미지와 트랙 태그가 null이면 기존 값을 유지하고 빈 태그 배열이면 삭제합니다.
  */
 @Service
 public class IngestService {
@@ -96,15 +90,29 @@ public class IngestService {
         this.clock = clock;
     }
 
+    /**
+     * 아티스트를 항목별로 적재하고 처리 결과를 반환합니다.
+     *
+     * @param items 적재할 아티스트 목록
+     */
     public List<ItemResult> upsertArtists(List<ArtistUpsert> items) {
         return items.stream().map(item -> eachInTx(item.externalId(), () -> upsertArtist(item))).toList();
     }
 
+    /**
+     * 앨범을 항목별로 적재하고 처리 결과를 반환합니다.
+     *
+     * @param items 적재할 앨범 목록
+     */
     public List<ItemResult> upsertAlbums(List<AlbumUpsert> items) {
         return items.stream().map(item -> eachInTx(item.externalId(), () -> upsertAlbum(item))).toList();
     }
 
-    /** I15 — 수집기는 "뭐가 새로운지"만 묻고, 판정 기준(해시 비교)은 여기 한 곳에만 둡니다 */
+    /**
+     * I15 - 수집기는 "뭐가 새로운지"만 묻고, 판정 기준(해시 비교)은 여기 한 곳에만 둡니다
+     *
+     * @param request 저장된 해시와 비교할 수집 항목
+     */
     public DiffResult diff(DiffRequest request) {
         List<String> ids = request.items().stream().map(DiffItem::externalId).distinct().toList();
         List<SourceHash> rows = switch (request.type()) {
@@ -132,7 +140,7 @@ public class IngestService {
         } catch (GeneralException e) {
             return ItemResult.failed(externalId, e.getMessage());
         } catch (DataIntegrityViolationException e) {
-            // 같은 external_id 를 두 요청이 동시에 처음 넣은 경우 — 다시 보내면 UPDATE 경로로 성공합니다
+            // 같은 external_id 를 두 요청이 동시에 처음 넣은 경우 - 다시 보내면 UPDATE 경로로 성공합니다
             log.warn("ingest_conflict externalId={} error={}", externalId, e.getMostSpecificCause().getClass().getSimpleName());
             return ItemResult.failed(externalId, "동시 적재 충돌 — 다시 시도하세요");
         }
@@ -150,7 +158,7 @@ public class IngestService {
                 .orElseGet(() -> labelRepository.save(new LabelEntity(u.label().strip()))).getId();
         boolean changed = artist.apply(u.name().strip(), distinct(u.genres()), labelId, u.debutYear(),
                 keep(u.profileUrl(), artist.getProfileUrl()), u.gender(), u.composition(), u.sourceHash(), now);
-        changed |= artist.getBio() == null && artist.applyBio(u.bio(), now);   // 11/25 비어 있을 때만 채움 (관리자가 쓴 글은 수집으로 안 바뀜)
+        changed |= artist.getBio() == null && artist.applyBio(u.bio(), now);   // 비어 있을 때만 채움 (관리자가 쓴 글은 수집으로 안 바뀜)
         artist = artistRepository.save(artist);
         if (created || changed) events.artistUpdated(artist);
 
@@ -192,7 +200,7 @@ public class IngestService {
         Long previousArtistId = album.getArtistId();
         List<String> changed = album.apply(artist.getId(), u.title().strip(), u.type(), distinct(u.genres()), u.releasedAt(),
                 keep(u.thumbnailUrl(), album.getThumbnailUrl()), u.sourceHash(), now);
-        if (album.getDescription() == null && album.applyDescription(u.description(), now)) changed.add("description");   // 11/25 비어 있을 때만 채움
+        if (album.getDescription() == null && album.applyDescription(u.description(), now)) changed.add("description");   // 비어 있을 때만 채움
         album = albumRepository.save(album);
 
         if (u.tracks() != null && syncTracks(album.getId(), u.tracks())) changed.add("tracks");
@@ -216,7 +224,7 @@ public class IngestService {
     }
 
     /**
-     * 트랙을 track_no 기준으로 맞춥니다 — 같은 번호는 행을 유지한 채 값만 바꾸고, 요청에 없는 번호는 지우고, 새 번호는 넣습니다.
+     * 트랙을 track_no 기준으로 맞춥니다 - 같은 번호는 행을 유지한 채 값만 바꾸고, 요청에 없는 번호는 지우고, 새 번호는 넣습니다.
      * 통째로 지우고 다시 넣지 않는 이유: 트랙 id 를 Member 행동 메트릭이 들고 있습니다.
      */
     private boolean syncTracks(long albumId, List<TrackUpsert> tracks) {
@@ -251,13 +259,13 @@ public class IngestService {
         changed |= fillDetail(physicalAlbum, u.description(), now);
         physicalAlbum = physicalAlbumRepository.save(physicalAlbum);
         ProductService.OptionsResult options = productService.upsertOptions(physicalAlbum.getId(), u.format(), inputs(u.options()));
-        // 새 상품은 발매일이 최근이거나 모를 때만 · 이미 있던 상품에 옵션(컬러반 등)이 새로 생기면 그 옵션만 실어 보냅니다
+        // 새 상품은 발매일이 최근이거나 모를 때만, 이미 있던 상품에 옵션(컬러반 등)이 새로 생기면 그 옵션만 실어 보냅니다
         boolean announce = created ? u.releasedAt() == null || recent(u.releasedAt()) : !options.created().isEmpty();
         if (announce) events.physicalAlbumReleased(physicalAlbum, album, artist, options.created());
         return created || changed || options.changed();
     }
 
-    /** 11/26 상세 설명 — 저장된 값이 없을 때만 채움 (관리자가 쓴 값 · 지운 뒤 다시 쓴 값은 수집으로 바뀌지 않음) */
+    /** 상세 설명 - 저장된 값이 없을 때만 채움 (관리자가 쓴 값, 지운 뒤 다시 쓴 값은 수집으로 바뀌지 않음) */
     private static boolean fillDetail(ProductEntity product, String description, OffsetDateTime now) {
         return product.getDescription() == null && description != null && !description.isBlank()
                 && product.applyDescription(description, now);
@@ -274,17 +282,17 @@ public class IngestService {
                 .toList();
     }
 
-    /** 배열 값 — null 은 빈 배열로, 같은 값이 두 번 오면 하나로 (순서는 유지 · 첫 값이 대표) */
+    /** 배열 값 - null 은 빈 배열로, 같은 값이 두 번 오면 하나로 (순서는 유지, 첫 값이 대표) */
     private static <E> List<E> distinct(List<E> values) {
         return values == null ? List.of() : values.stream().distinct().toList();
     }
 
-    /** 관리자가 넣는 값 — null 이면 저장된 값 그대로 (새 행이면 저장된 값도 null) */
+    /** 관리자가 넣는 값 - null 이면 저장된 값 그대로 (새 행이면 저장된 값도 null) */
     private static <T> T keep(T incoming, T stored) {
         return incoming != null ? incoming : stored;
     }
 
-    /** 트랙 태그 — null 이면 그대로, 빈 배열이면 지움, 값이 있으면 중복을 빼고 그 값으로 */
+    /** 트랙 태그 - null 이면 그대로, 빈 배열이면 지움, 값이 있으면 중복을 빼고 그 값으로 */
     private static <E> List<E> tags(List<E> incoming, List<E> stored) {
         return incoming == null ? (stored == null ? List.of() : stored) : distinct(incoming);
     }

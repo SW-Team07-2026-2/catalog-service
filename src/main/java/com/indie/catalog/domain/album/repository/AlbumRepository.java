@@ -7,7 +7,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-/** 앨범 저장소 포트 — 구현은 AlbumRepositoryAdapter */
+/** 앨범 저장소 포트 - 구현은 AlbumRepositoryAdapter */
 public interface AlbumRepository {
 
     Optional<AlbumEntity> findById(Long id);
@@ -16,10 +16,10 @@ public interface AlbumRepository {
 
     Optional<AlbumEntity> findBySourceAndExternalId(String source, String externalId);
 
-    /** 신보순 — 발매일 없는 항목은 뒤로. type 은 선택(null) */
+    /** 신보순 - 발매일 없는 항목은 뒤로. type 은 선택(null) */
     List<AlbumEntity> findLatest(AlbumEntity.Type type, long offset, int limit);
 
-    /** 한 아티스트의 앨범 — 신보순 */
+    /** 한 아티스트의 앨범 - 신보순 */
     List<AlbumEntity> findByArtistId(Long artistId);
 
     List<SourceHash> findHashes(String source, Collection<String> externalIds);

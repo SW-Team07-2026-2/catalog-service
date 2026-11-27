@@ -13,8 +13,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 내부 I4 · I5 · I15 — 수집 CronJob · 시드 스크립트 전용 (X-Internal-Token · Gateway 라우트 없음 → 외부에서는 404).
- * 🔴 X-User-Id 를 보지 않습니다. 운영자 입력(FR-ING-07)도 이 경로로 넣어야 이벤트 발행 · 캐시 삭제가 함께 됩니다.
+ * 내부 수집 작업 또는 시드 스크립트 -> Catalog IngestService.
+ * 내부 토큰으로 인증하며 적재 시 이벤트 발행과 캐시 삭제를 함께 처리합니다.
  */
 @RestController
 public class InternalIngestController {
@@ -25,16 +25,31 @@ public class InternalIngestController {
         this.ingestService = ingestService;
     }
 
+    /**
+     * 아티스트 묶음을 적재합니다.
+     *
+     * @param batch 적재할 아티스트 묶음
+     */
     @PostMapping("/internal/catalog/artists")
     public ApiResponse<BatchResult> upsertArtists(@Valid @RequestBody ArtistBatch batch) {
         return ApiResponse.onSuccess(new BatchResult(ingestService.upsertArtists(batch.items())));
     }
 
+    /**
+     * 앨범 묶음을 적재합니다.
+     *
+     * @param batch 적재할 앨범 묶음
+     */
     @PostMapping("/internal/catalog/albums")
     public ApiResponse<BatchResult> upsertAlbums(@Valid @RequestBody AlbumBatch batch) {
         return ApiResponse.onSuccess(new BatchResult(ingestService.upsertAlbums(batch.items())));
     }
 
+    /**
+     * 수집 해시와 저장된 해시를 비교합니다.
+     *
+     * @param request 저장된 해시와 비교할 수집 항목
+     */
     @PostMapping("/internal/catalog/ingest/diff")
     public ApiResponse<DiffResult> diff(@Valid @RequestBody DiffRequest request) {
         return ApiResponse.onSuccess(ingestService.diff(request));

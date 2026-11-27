@@ -25,10 +25,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * 장바구니 — 옵션과 수량을 담아 둡니다. 재고는 읽기만 하고, 차감은 주문 생성(OrderService) 때만 합니다.
- * 장바구니는 주문의 입력이라 상한도 주문과 같습니다 (옵션 가짓수 app.order.max-items · 옵션당 수량 app.order.max-qty).
- * 주문이 확정되면 그 옵션들이 빠지고(OrderService.confirm), 회원이 탈퇴하면 전부 지웁니다.
- * 11/24 회원이 바꾼 수량은 user.metric(CART_ADD · CART_REMOVE)으로 남깁니다 — 주문 확정 · 탈퇴로 빠지는 것은 남기지 않습니다.
+ * 옵션별 장바구니 수량을 관리하고 사용자 변경을 행동 메트릭으로 기록합니다.
+ * 재고는 조회만 하며 주문 생성 시 차감합니다. 주문 확정 시 해당 옵션을, 탈퇴 시 전체를 삭제합니다.
  */
 @Service
 public class CartService {
@@ -53,6 +51,11 @@ public class CartService {
         this.clock = clock;
     }
 
+    /**
+     * 회원의 장바구니와 현재 가격, 재고를 조회합니다.
+     *
+     * @param userId 조회하거나 처리할 회원 ID
+     */
     @Transactional(readOnly = true)
     public CartView get(long userId) {
         List<CartItemEntity> items = cartItemRepository.findByUserId(userId);
@@ -63,7 +66,7 @@ public class CartService {
         int total = 0;
         List<CartLine> lines = new ArrayList<>();
         for (CartItemEntity item : items) {
-            ProductService.Sellable s = sellables.get(item.getOptionId());   // cart_item.option_id 는 FK — 항상 있습니다
+            ProductService.Sellable s = sellables.get(item.getOptionId());   // cart_item.option_id 는 FK - 항상 있습니다
             int stockQty = stocks.getOrDefault(item.getOptionId(), 0);
             lines.add(new CartLine(item.getOptionId(), s.product().getId(), s.product().getProductType(), s.product().getName(),
                     s.option().getName(), s.option().getVinylColor(), s.option().getSize(), s.product().getThumbnailUrl(),
@@ -73,7 +76,13 @@ public class CartService {
         return new CartView(lines, total);
     }
 
-    /** 담기 · 수량 바꾸기 — 같은 요청을 다시 보내도 결과가 같습니다 (수량은 더하지 않고 덮어씀) */
+    /**
+     * 담기, 수량 바꾸기 - 같은 요청을 다시 보내도 결과가 같습니다 (수량은 더하지 않고 덮어씀)
+     *
+     * @param userId 조회하거나 처리할 회원 ID
+     * @param optionId 상품 옵션 ID
+     * @param qty 설정할 수량
+     */
     @Transactional
     public CartView put(long userId, long optionId, int qty) {
         if (qty > limits.maxQty()) {
@@ -92,7 +101,12 @@ public class CartService {
         return after;
     }
 
-    /** 담겨 있지 않아도 성공 — 두 번 눌러도 결과가 같습니다 */
+    /**
+     * 담겨 있지 않아도 성공 - 두 번 눌러도 결과가 같습니다
+     *
+     * @param userId 조회하거나 처리할 회원 ID
+     * @param optionId 상품 옵션 ID
+     */
     @Transactional
     public CartView remove(long userId, long optionId) {
         List<CartLine> removed = get(userId).items().stream().filter(l -> l.optionId() == optionId).toList();
@@ -101,7 +115,11 @@ public class CartService {
         return get(userId);
     }
 
-    /** 회원이 비우기 (DELETE /api/cart) — 뺀 수량을 메트릭으로 남깁니다 */
+    /**
+     * 회원이 비우기 (DELETE /api/cart) - 뺀 수량을 메트릭으로 남깁니다
+     *
+     * @param userId 조회하거나 처리할 회원 ID
+     */
     @Transactional
     public void empty(long userId) {
         List<CartLine> removed = get(userId).items();
@@ -109,7 +127,11 @@ public class CartService {
         removed.forEach(l -> removedMetric(userId, l));
     }
 
-    /** 탈퇴 정리 (user.withdrawn) — 회원이 뺀 것이 아니라 메트릭을 남기지 않습니다 */
+    /**
+     * 탈퇴 정리 (user.withdrawn) - 회원이 뺀 것이 아니라 메트릭을 남기지 않습니다
+     *
+     * @param userId 조회하거나 처리할 회원 ID
+     */
     @Transactional
     public void clear(long userId) {
         cartItemRepository.deleteByUserId(userId);

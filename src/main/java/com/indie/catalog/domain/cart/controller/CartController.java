@@ -15,8 +15,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 공개 API — 장바구니 (Member 위시리스트 대체). 조회까지 모두 로그인 필요 (Gateway 가 X-User-Id 를 붙임 · 변경은 CSRF 도).
- * 변경 응답은 바뀐 뒤의 장바구니 전체입니다 — 프론트가 다시 조회하지 않아도 됩니다.
+ * 로그인한 프론트 -> Gateway -> Catalog CartService의 장바구니 API.
+ * 변경 후 장바구니 전체를 반환합니다.
  */
 @RestController
 public class CartController {
@@ -27,24 +27,45 @@ public class CartController {
         this.cartService = cartService;
     }
 
+    /**
+     * 회원의 장바구니를 조회합니다.
+     *
+     * @param userId 조회하거나 처리할 회원 ID
+     */
     @GetMapping("/api/cart")
     public ApiResponse<CartView> get(@CurrentUser Long userId) {
         return ApiResponse.onSuccess(cartService.get(userId));
     }
 
-    /** 담기 · 수량 바꾸기 — qty 는 그 옵션의 최종 수량 */
+    /**
+     * 옵션 수량을 설정하고 장바구니를 반환합니다.
+     *
+     * @param userId 조회하거나 처리할 회원 ID
+     * @param optionId 상품 옵션 ID
+     * @param request 장바구니에 설정할 수량
+     */
     @PutMapping("/api/cart/items/{optionId}")
     public ApiResponse<CartView> put(@CurrentUser Long userId, @PathVariable @Positive long optionId,
                                      @Valid @RequestBody CartPutRequest request) {
         return ApiResponse.onSuccess(cartService.put(userId, optionId, request.qty()));
     }
 
+    /**
+     * 옵션을 삭제하고 장바구니를 반환합니다.
+     *
+     * @param userId 조회하거나 처리할 회원 ID
+     * @param optionId 상품 옵션 ID
+     */
     @DeleteMapping("/api/cart/items/{optionId}")
     public ApiResponse<CartView> remove(@CurrentUser Long userId, @PathVariable @Positive long optionId) {
         return ApiResponse.onSuccess(cartService.remove(userId, optionId));
     }
 
-    /** 비우기 */
+    /**
+     * 장바구니를 비우고 결과를 반환합니다.
+     *
+     * @param userId 조회하거나 처리할 회원 ID
+     */
     @DeleteMapping("/api/cart")
     public ApiResponse<Void> clear(@CurrentUser Long userId) {
         cartService.empty(userId);

@@ -13,16 +13,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 수집 적재가 발행하는 이벤트 5종 — 모두 업무 데이터와 같은 트랜잭션에서 (EventPublisher = outbox).
- * <pre>
- * artist.updated           아티스트 생성 · 변경                       → Concert · AI
- * album.released           앨범 신규 등록 (최근 발매만)                → Member(알림) · AI
- * album.updated            앨범 · 트랙 · 피지컬 앨범 변경              → AI
- * physical_album.released  피지컬 앨범 신규 등록 · 새 옵션 추가         → Member(알림)
- * goods.released           굿즈 신규 등록                             → Member(알림)
- * </pre>
- * 🔴 전부 수집 적재에서만 나갑니다. 주문 차감 · 보상 복구로 재고가 바뀌는 건 이벤트가 아닙니다.
- * 주문 이벤트(order.confirmed · order.refunded)는 OrderEvents.
+ * Catalog 변경 -> Outbox -> Kafka -> Concert, Member, AI 연동 이벤트.
+ * 업무 데이터와 같은 트랜잭션에서 저장합니다. 주문 이벤트는 OrderEvents에서 정의합니다.
  */
 @Component
 public class CatalogEvents {
@@ -33,7 +25,7 @@ public class CatalogEvents {
         this.publisher = publisher;
     }
 
-    /** genre 는 대표 장르 1개(genres 의 첫 값 · 없으면 null) — Concert 가 복제해 두는 값이라 남깁니다 */
+    /** genre 는 대표 장르 1개(genres 의 첫 값, 없으면 null) - Concert 가 복제해 두는 값이라 남깁니다 */
     public void artistUpdated(ArtistEntity a) {
         Map<String, Object> p = new LinkedHashMap<>();
         p.put("artistId", a.getId());
@@ -54,7 +46,7 @@ public class CatalogEvents {
         publisher.publish("album.updated", p);
     }
 
-    /** options — 이번에 새로 생긴 옵션만 (같은 수집에서 여러 개가 생기면 1건으로 묶음) */
+    /** options - 이번에 새로 생긴 옵션만 (같은 수집에서 여러 개가 생기면 1건으로 묶음) */
     public void physicalAlbumReleased(PhysicalAlbumEntity physicalAlbum, AlbumEntity album, ArtistEntity artist,
                                       List<ProductOptionEntity> newOptions) {
         Map<String, Object> p = new LinkedHashMap<>();
@@ -77,7 +69,7 @@ public class CatalogEvents {
         publisher.publish("physical_album.released", p);
     }
 
-    /** price — 옵션 중 가장 낮은 가격 */
+    /** price - 옵션 중 가장 낮은 가격 */
     public void goodsReleased(GoodsEntity goods, ArtistEntity artist, int price) {
         Map<String, Object> p = new LinkedHashMap<>();
         p.put("goodsId", goods.getId());

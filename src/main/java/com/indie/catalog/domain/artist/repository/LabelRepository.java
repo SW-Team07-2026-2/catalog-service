@@ -4,7 +4,7 @@ import com.indie.catalog.domain.artist.entity.LabelEntity;
 
 import java.util.Optional;
 
-/** 레이블 저장소 포트 — 구현은 LabelJpaRepository */
+/** 레이블 저장소 포트 - 구현은 LabelJpaRepository */
 public interface LabelRepository {
 
     Optional<LabelEntity> findById(Long id);

@@ -18,7 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/** album — 아티스트와 트랙 사이. 한 앨범은 한 아티스트, 한 트랙은 한 앨범에 속합니다 */
+/** album - 아티스트와 트랙 사이. 한 앨범은 한 아티스트, 한 트랙은 한 앨범에 속합니다 */
 @Entity
 @Table(name = "album", uniqueConstraints = @UniqueConstraint(name = "uq_album_source", columnNames = {"source", "external_id"}))
 public class AlbumEntity {
@@ -50,7 +50,7 @@ public class AlbumEntity {
         this.externalId = externalId;
     }
 
-    /** 값을 덮어쓰고 바뀐 필드 이름을 돌려줍니다 — album.updated 의 changedFields */
+    /** 값을 덮어쓰고 바뀐 필드 이름을 돌려줍니다 - album.updated 의 changedFields */
     public List<String> apply(Long artistId, String title, Type type, List<Genre> genres, LocalDate releasedAt,
                               String thumbnailUrl, String sourceHash, OffsetDateTime now) {
         List<String> changed = new ArrayList<>();
@@ -71,7 +71,7 @@ public class AlbumEntity {
         return changed;
     }
 
-    /** 11/25 소개 글 — null 은 그대로 · 빈 글은 지움. 바뀌었으면 true (수집은 비어 있을 때만 부름 — IngestService) */
+    /** 소개 글 - null 은 그대로, 빈 글은 지움. 바뀌었으면 true (수집은 비어 있을 때만 부름 - IngestService) */
     public boolean applyDescription(String description, OffsetDateTime now) {
         if (description == null) return false;
         String next = description.isBlank() ? null : description.strip();

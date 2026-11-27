@@ -14,12 +14,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * 관리자 상품 등록 — productType 에 따라 필요한 값이 다릅니다 (AdminProductService 가 검사).
- * <pre>
- * GOODS            artistId · category 필수
- * PHYSICAL_ALBUM   albumId · format 필수 · releasedAt 선택 · thumbnailUrl 이 없으면 앨범 이미지
- * 공통 (11/26)      description(상세 설명) 선택 · 11/27 상세 이미지는 받지 않습니다 (대표 이미지 thumbnailUrl 만)
- * </pre>
+ * 관리자 상품 등록 요청. GOODS는 artistId와 category, PHYSICAL_ALBUM은 albumId와 format이 필수입니다.
+ * 피지컬 앨범의 대표 이미지가 없으면 앨범 이미지를 사용합니다. 상세 설명은 선택입니다.
  */
 public record AdminProductCreate(@NotNull ProductEntity.Type productType,
                                  @NotBlank @Size(max = 255) String name,

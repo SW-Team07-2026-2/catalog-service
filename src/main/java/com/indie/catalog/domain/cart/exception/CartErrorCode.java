@@ -3,7 +3,7 @@ package com.indie.catalog.domain.cart.exception;
 import com.indie.catalog.global.common.exception.BaseErrorCode;
 import org.springframework.http.HttpStatus;
 
-/** 장바구니 에러 코드 — code 는 enum 이름 그대로 응답에 나갑니다 */
+/** 장바구니 에러 코드 - code 는 enum 이름 그대로 응답에 나갑니다 */
 public enum CartErrorCode implements BaseErrorCode {
 
     CART_FULL(HttpStatus.CONFLICT, "장바구니가 가득 찼습니다");

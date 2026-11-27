@@ -16,9 +16,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 관리자(Studio)가 넣는 값 — 아티스트 이미지 · 성별 · 구성(11/22) · 앨범 이미지 · 트랙 태그 (11/18). 상품 이미지는 PATCH /internal/admin/catalog/products/{productId}.
- * 11/26 아티스트 등록 — 공연 라인업에 있는데 수집되지 않은 팀을 관리자가 직접 (source = studio).
- * 토큰 규칙은 다른 /internal/admin/** 와 같습니다 (iss=studio).
+ * Studio -> Catalog 내부 관리자 API -> AdminEditService.
+ * 아티스트 등록과 아티스트, 앨범 정보 수정을 처리합니다.
  */
 @RestController
 public class InternalAdminEditController {
@@ -29,16 +28,33 @@ public class InternalAdminEditController {
         this.adminEditService = adminEditService;
     }
 
+    /**
+     * 관리자가 입력한 아티스트를 등록합니다.
+     *
+     * @param request 등록할 아티스트 정보
+     */
     @PostMapping("/internal/admin/catalog/artists")
     public ApiResponse<ArtistDetail> createArtist(@Valid @RequestBody AdminArtistCreate request) {
         return ApiResponse.onSuccess(adminEditService.createArtist(request));
     }
 
+    /**
+     * 아티스트 정보를 수정합니다.
+     *
+     * @param artistId 아티스트 ID
+     * @param request 수정할 아티스트 정보
+     */
     @PatchMapping("/internal/admin/catalog/artists/{artistId}")
     public ApiResponse<ArtistDetail> updateArtist(@PathVariable @Positive long artistId, @Valid @RequestBody AdminArtistUpdate request) {
         return ApiResponse.onSuccess(adminEditService.updateArtist(artistId, request));
     }
 
+    /**
+     * 앨범과 트랙 정보를 수정합니다.
+     *
+     * @param albumId 앨범 ID
+     * @param request 수정할 앨범과 트랙 정보
+     */
     @PatchMapping("/internal/admin/catalog/albums/{albumId}")
     public ApiResponse<AlbumDetail> updateAlbum(@PathVariable @Positive long albumId, @Valid @RequestBody AdminAlbumUpdate request) {
         return ApiResponse.onSuccess(adminEditService.updateAlbum(albumId, request));

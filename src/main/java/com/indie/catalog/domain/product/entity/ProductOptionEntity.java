@@ -14,8 +14,8 @@ import java.time.OffsetDateTime;
 import java.util.Objects;
 
 /**
- * product_option — 판매 단위. 가격이 여기 있고 재고(stock) · 장바구니 · 주문이 이 id 를 가리킵니다.
- * (product_id, name) 이 수집 갱신 기준 — 이름이 바뀌면 새 옵션이고, 예전 옵션은 주문 · 보유 음반이 가리켜 남습니다.
+ * product_option - 판매 단위. 가격이 여기 있고 재고(stock), 장바구니, 주문이 이 id 를 가리킵니다.
+ * (product_id, name) 이 수집 갱신 기준 - 이름이 바뀌면 새 옵션이고, 예전 옵션은 주문, 보유 음반이 가리켜 남습니다.
  * vinyl_color 는 LP 옵션에만, size 는 굿즈 옵션에만 씁니다 (OptionRule 이 적재 때 검사).
  */
 @Entity
@@ -43,7 +43,7 @@ public class ProductOptionEntity {
         this.createdAt = now;
     }
 
-    /** 관리자가 옵션 이름을 바꿀 때 — 수집은 이름이 식별자라 쓰지 않습니다 */
+    /** 관리자가 옵션 이름을 바꿀 때 - 수집은 이름이 식별자라 쓰지 않습니다 */
     public void rename(String name) {
         this.name = name;
     }

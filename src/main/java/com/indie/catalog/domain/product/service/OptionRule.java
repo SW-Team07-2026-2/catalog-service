@@ -7,19 +7,21 @@ import com.indie.catalog.domain.product.exception.ProductErrorCode;
 import com.indie.catalog.global.common.exception.GeneralException;
 
 /**
- * 옵션 값 규칙 — 상품과 옵션이 다른 테이블이라 DB CHECK 로 걸 수 없어 여기서 막습니다 (V1__catalog_schema.sql 주석).
- * <pre>
- * LP            vinyl_color 필수 (BLACK · COLOR) · size 없음
- * CD · 카세트    둘 다 없음 (옵션 이름만 — "기본" 등)
- * 굿즈           size 필수 (사이즈가 없는 품목은 FREE) · vinyl_color 없음
- * </pre>
- * 옵션이 들어오는 길은 ProductService.upsertOptions 하나입니다 (수집 적재 · 관리자 등록이 모두 거칩니다).
+ * 상품 매체에 맞는 옵션 값을 검증합니다.
+ * LP는 색상 필수, 굿즈는 크기 필수이며 CD와 카세트는 두 값 모두 사용하지 않습니다.
  */
 public final class OptionRule {
 
     private OptionRule() {}
 
-    /** format 이 null 이면 굿즈 */
+    /**
+     * format 이 null 이면 굿즈
+     *
+     * @param format 피지컬 앨범 매체, 굿즈는 null
+     * @param optionName 옵션 이름
+     * @param vinylColor LP 색상
+     * @param size 굿즈 크기, 크기가 없는 품목은 FREE
+     */
     public static void check(PhysicalFormat format, String optionName, VinylColor vinylColor, OptionSize size) {
         if (format == null) {
             require(vinylColor == null, optionName, "굿즈 옵션에는 vinyl_color 를 쓸 수 없습니다");
