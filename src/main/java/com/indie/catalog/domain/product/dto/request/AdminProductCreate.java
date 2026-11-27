@@ -18,7 +18,7 @@ import java.util.List;
  * <pre>
  * GOODS            artistId · category 필수
  * PHYSICAL_ALBUM   albumId · format 필수 · releasedAt 선택 · thumbnailUrl 이 없으면 앨범 이미지
- * 공통 (11/26)      description(상세 설명) · detailImageUrls(상세 이미지 · 보여 줄 순서 · 우리 이미지 버킷 주소) 선택
+ * 공통 (11/26)      description(상세 설명) 선택 · 11/27 상세 이미지는 받지 않습니다 (대표 이미지 thumbnailUrl 만)
  * </pre>
  */
 public record AdminProductCreate(@NotNull ProductEntity.Type productType,
@@ -30,5 +30,4 @@ public record AdminProductCreate(@NotNull ProductEntity.Type productType,
                                  PhysicalFormat format,
                                  LocalDate releasedAt,
                                  @NotEmpty List<@Valid @NotNull AdminOption> options,
-                                 @Size(max = 1000) String description,
-                                 @Size(max = 10) List<@NotBlank @Size(max = 512) String> detailImageUrls) {}
+                                 @Size(max = 1000) String description) {}
