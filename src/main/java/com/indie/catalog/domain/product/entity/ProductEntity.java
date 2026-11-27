@@ -1,25 +1,16 @@
 package com.indie.catalog.domain.product.entity;
 
-import jakarta.persistence.CollectionTable;
-import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorColumn;
-import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
-import org.hibernate.annotations.BatchSize;
-
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -45,12 +36,6 @@ public abstract class ProductEntity {
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
     private String description;                       // 11/26 상세 설명 (굿즈 · 판본 공통)
-    @ElementCollection
-    @CollectionTable(name = "product_detail_image", joinColumns = @JoinColumn(name = "product_id"))
-    @OrderColumn(name = "sort_order")
-    @BatchSize(size = 100)                            // ?ids= 여러 상품 상세 — 상품마다 한 번씩 읽지 않게
-    @Column(name = "url")
-    private List<String> detailImageUrls = new ArrayList<>();   // 11/26 상세 이미지 (보여 줄 순서)
 
     protected ProductEntity() {}
 
@@ -81,21 +66,10 @@ public abstract class ProductEntity {
         return applyCommon(name, thumbnailUrl, sourceHash, true, now);
     }
 
-    /** 11/26 상세 이미지 — null 은 그대로 · [] 는 지움 · 같은 주소는 한 번. 바뀌었으면 true */
-    public boolean applyDetailImages(List<String> urls, OffsetDateTime now) {
-        if (urls == null) return false;
-        List<String> next = urls.stream().map(String::strip).distinct().toList();
-        if (detailImageUrls.equals(next)) return false;
-        detailImageUrls.clear();
-        detailImageUrls.addAll(next);
-        return applyCommon(name, thumbnailUrl, sourceHash, true, now);
-    }
-
     public Long getId() { return id; }
     public String getName() { return name; }
     public String getThumbnailUrl() { return thumbnailUrl; }
     public String getSourceHash() { return sourceHash; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public String getDescription() { return description; }
-    public List<String> getDetailImageUrls() { return List.copyOf(detailImageUrls); }
 }
