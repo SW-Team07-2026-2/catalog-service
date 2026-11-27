@@ -32,7 +32,7 @@ import static com.indie.catalog.domain.artist.entity.QArtistEntity.artistEntity;
 import static com.indie.catalog.domain.product.entity.QGoodsEntity.goodsEntity;
 import static com.indie.catalog.domain.product.entity.QPhysicalAlbumEntity.physicalAlbumEntity;
 
-/** ArtistRepository 구현 — 단건 · 저장은 Spring Data, 목록 필터 · 해시 조회는 QueryDSL */
+/** ArtistRepository 구현 - 단건, 저장은 Spring Data, 목록 필터, 해시 조회는 QueryDSL */
 @Repository
 public class ArtistRepositoryAdapter implements ArtistRepository {
 
@@ -62,7 +62,7 @@ public class ArtistRepositoryAdapter implements ArtistRepository {
         return jpa.findBySourceAndExternalId(source, externalId);
     }
 
-    /** 이름은 idx_artist_name_trgm (lower(name)), 장르는 idx_artist_genres (genres @> …) 를 탑니다 */
+    /** 이름은 idx_artist_name_trgm (lower(name)), 장르는 idx_artist_genres (genres @> ...) 를 탑니다 */
     @Override
     public List<ArtistEntity> search(String nameContains, List<Genre> genres, List<ArtistGender> genders, List<ArtistComposition> compositions,
                                      List<Long> ids, ListSort sort, long offset, int limit) {
@@ -84,7 +84,7 @@ public class ArtistRepositoryAdapter implements ArtistRepository {
     private static OrderSpecifier<?>[] order(ListSort sort, List<Long> ids) {
         if (sort == ListSort.ARTIST_ORDER) return new OrderSpecifier<?>[]{ListFilters.rank(artistEntity.id, ids).asc()};
         if (sort == ListSort.UPDATED) return new OrderSpecifier<?>[]{artistEntity.updatedAt.desc().nullsLast(), artistEntity.id.desc()};
-        // 이름순은 유니코드 순(ucs_basic = 가나다순) — DB 기본 정렬(en_US.utf8 · glibc 2.28+)은 한글 순서가 깨집니다
+        // 이름순은 유니코드 순(ucs_basic = 가나다순) - DB 기본 정렬(en_US.utf8, glibc 2.28+)은 한글 순서가 깨집니다
         return new OrderSpecifier<?>[]{Expressions.stringTemplate("collate({0} as ucs_basic)", artistEntity.name).asc(), artistEntity.id.asc()};
     }
 

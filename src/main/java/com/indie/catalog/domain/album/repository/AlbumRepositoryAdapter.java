@@ -12,7 +12,7 @@ import java.util.Optional;
 
 import static com.indie.catalog.domain.album.entity.QAlbumEntity.albumEntity;
 
-/** AlbumRepository 구현 — 단건 · 저장은 Spring Data, 목록 · 해시 조회는 QueryDSL */
+/** AlbumRepository 구현 - 단건, 저장은 Spring Data, 목록, 해시 조회는 QueryDSL */
 @Repository
 public class AlbumRepositoryAdapter implements AlbumRepository {
 

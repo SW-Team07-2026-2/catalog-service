@@ -10,15 +10,9 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
 /**
- * Payment 이벤트 — Saga ② 의 결과 반영. orderType=GOODS 만 (TICKET 은 Concert 몫).
- * <pre>
- * payment.completed                  → 주문 CONFIRMED + order.confirmed
- * payment.failed                     → 주문 CANCELLED + 재고 복구 (보상)
- * payment.cancelled refunded=false   → 주문 CANCELLED + 재고 복구 (결제 전 무효화)
- * payment.cancelled refunded=true    → 주문 REFUNDED + 재고 복구 + order.refunded (승인된 결제를 환불 — 사용자가 Payment 쪽에서 환불한 경우 포함)
- * </pre>
- * 환불 여부는 Payment 가 판정합니다 (payload.refunded) — Catalog 는 그 값만 봅니다.
- * 멱등 — 상태 전이가 조건부 UPDATE 라 같은 이벤트가 두 번 와도 한 번만 반영됩니다 (별도 처리 테이블 불필요).
+ * Payment -> Kafka payment.completed, payment.failed, payment.cancelled -> Catalog 주문 반영.
+ * GOODS 주문만 처리하며 완료는 확정, 실패와 취소는 재고 복구, refunded=true는 환불로 반영합니다.
+ * 조건부 상태 변경으로 중복 이벤트에 따른 재고 이중 복구를 막습니다.
  */
 @Component
 public class PaymentEventConsumer {
@@ -31,6 +25,12 @@ public class PaymentEventConsumer {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * 굿즈 결제 이벤트를 받아 주문 확정, 취소 또는 환불을 반영합니다.
+     *
+     * @param record Kafka에서 수신한 이벤트 레코드
+     * @param ack 처리 완료 후 오프셋을 커밋할 승인 객체
+     */
     @KafkaListener(topics = {"payment.completed", "payment.failed", "payment.cancelled"})
     public void onPayment(ConsumerRecord<String, String> record, Acknowledgment ack) throws JsonProcessingException {
         EventEnvelope e = EventEnvelope.parse(objectMapper, record.value());
@@ -47,7 +47,7 @@ public class PaymentEventConsumer {
         ack.acknowledge();
     }
 
-    /** 형식이 틀리면 IllegalArgumentException → 재시도 없이 DLT */
+    /** 형식이 틀리면 IllegalArgumentException -> 재시도 없이 DLT */
     private static long orderId(String orderRef) {
         if (orderRef == null) throw new IllegalArgumentException("payment event without orderRef");
         return Long.parseLong(orderRef);

@@ -20,7 +20,7 @@ import static com.indie.catalog.domain.album.entity.QAlbumEntity.albumEntity;
 import static com.indie.catalog.domain.artist.entity.QArtistEntity.artistEntity;
 import static com.indie.catalog.domain.product.entity.QPhysicalAlbumEntity.physicalAlbumEntity;
 
-/** PhysicalAlbumRepository 구현 — 단건 · 저장은 Spring Data, 목록 · 해시 조회는 QueryDSL */
+/** PhysicalAlbumRepository 구현 - 단건, 저장은 Spring Data, 목록, 해시 조회는 QueryDSL */
 @Repository
 public class PhysicalAlbumRepositoryAdapter implements PhysicalAlbumRepository {
 
@@ -45,7 +45,7 @@ public class PhysicalAlbumRepositoryAdapter implements PhysicalAlbumRepository {
                 .fetch();
     }
 
-    /** 아티스트는 앨범에 있어 album 을 붙입니다 (album_id NOT NULL — 빠지는 행 없음) */
+    /** 아티스트는 앨범에 있어 album 을 붙입니다 (album_id NOT NULL - 빠지는 행 없음) */
     @Override
     public List<PhysicalAlbumEntity> search(Filter f, long offset, int limit) {
         return query.selectFrom(physicalAlbumEntity)

@@ -9,23 +9,23 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-/** 굿즈 저장소 포트 — 구현은 GoodsRepositoryAdapter */
+/** 굿즈 저장소 포트 - 구현은 GoodsRepositoryAdapter */
 public interface GoodsRepository {
 
     Optional<GoodsEntity> findBySourceAndExternalId(String source, String externalId);
 
-    /** 목록 — 조건은 모두 선택(null · 빈 목록). sort 없으면 최신 등록순 */
+    /** 목록 - 조건은 모두 선택(null, 빈 목록). sort 없으면 최신 등록순 */
     List<GoodsEntity> search(Filter filter, long offset, int limit);
 
-    /** 한 아티스트의 굿즈 전부 — 최신 등록순 */
+    /** 한 아티스트의 굿즈 전부 - 최신 등록순 */
     List<GoodsEntity> findByArtistId(Long artistId);
 
     List<SourceHash> findHashes(String source, Collection<String> externalIds);
 
     GoodsEntity save(GoodsEntity goods);
 
-    /** artistIds · categories 는 하나라도 맞으면 · q 는 굿즈 이름 · 아티스트 이름 · 가격은 최저가(원) 구간 */
-    /** excludeSoldOut — 11/22 품절 안 보기 (살 수 있는 옵션이 하나라도 있는 것만) */
+    /** artistIds, categories 는 하나라도 맞으면, q 는 굿즈 이름, 아티스트 이름, 가격은 최저가(원) 구간 */
+    /** excludeSoldOut - 품절 안 보기 (살 수 있는 옵션이 하나라도 있는 것만) */
     record Filter(List<Long> artistIds, List<GoodsCategory> categories, String q, Integer minPrice, Integer maxPrice,
                   boolean excludeSoldOut, ListSort sort) {}
 }

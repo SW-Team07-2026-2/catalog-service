@@ -8,7 +8,7 @@ import jakarta.persistence.Table;
 import java.io.Serializable;
 import java.util.Objects;
 
-/** order_item — 주문한 옵션과 수량. price 는 주문 시점 가격 고정 (옵션 가격이 바뀌어도 주문 금액은 그대로) */
+/** order_item - 주문한 옵션과 수량. price 는 주문 시점 가격 고정 (옵션 가격이 바뀌어도 주문 금액은 그대로) */
 @Entity
 @Table(name = "order_item")
 @IdClass(OrderItemEntity.Key.class)

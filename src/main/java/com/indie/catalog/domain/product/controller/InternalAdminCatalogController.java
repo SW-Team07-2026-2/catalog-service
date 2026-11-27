@@ -28,8 +28,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 관리자(Studio) 전용 내부 API — X-Internal-Token 의 iss 가 admin-issuers(studio)일 때만 (InternalTokenFilter).
- * 상품 · 옵션 · 재고(굿즈 관리자)와 회원 주문 조회 · 취소 대행(CS 관리자). 누가 했는지는 Studio 의 작업 기록에 남습니다.
+ * Studio -> Catalog 내부 관리자 API -> AdminProductService와 OrderService.
+ * 상품, 옵션, 재고 관리와 회원 주문 조회, 취소 대행을 처리합니다.
  */
 @RestController
 public class InternalAdminCatalogController {
@@ -44,34 +44,71 @@ public class InternalAdminCatalogController {
         this.pageSize = pageSize;
     }
 
+    /**
+     * 관리자 상품을 등록합니다.
+     *
+     * @param request 등록할 상품 정보
+     */
     @PostMapping("/internal/admin/catalog/products")
     public ApiResponse<ProductDetail> create(@Valid @RequestBody AdminProductCreate request) {
         return ApiResponse.onSuccess(adminProductService.create(request));
     }
 
+    /**
+     * 상품 정보를 수정합니다.
+     *
+     * @param productId 상품 ID
+     * @param request 수정할 상품 정보
+     */
     @PatchMapping("/internal/admin/catalog/products/{productId}")
     public ApiResponse<ProductDetail> update(@PathVariable @Positive long productId, @Valid @RequestBody AdminProductUpdate request) {
         return ApiResponse.onSuccess(adminProductService.update(productId, request));
     }
 
+    /**
+     * 상품 옵션을 추가하거나 수정합니다.
+     *
+     * @param productId 상품 ID
+     * @param request 추가하거나 수정할 옵션 목록
+     */
     @PutMapping("/internal/admin/catalog/products/{productId}/options")
     public ApiResponse<ProductDetail> options(@PathVariable @Positive long productId, @Valid @RequestBody AdminOptionsRequest request) {
         return ApiResponse.onSuccess(adminProductService.options(productId, request.options()));
     }
 
+    /**
+     * 옵션 재고를 증감합니다.
+     *
+     * @param optionId 상품 옵션 ID
+     * @param request 재고 증감량과 변경 사유
+     * @param adminId 작업을 수행한 관리자 ID
+     */
     @PostMapping("/internal/admin/catalog/options/{optionId}/stock")
     public ApiResponse<StockView> adjustStock(@PathVariable @Positive long optionId, @Valid @RequestBody AdminStockAdjust request,
                                               @RequestHeader(value = "X-Admin-Id", required = false) String adminId) {
         return ApiResponse.onSuccess(adminProductService.adjustStock(optionId, request.delta(), request.reason(), adminId));
     }
 
+    /**
+     * 옵션 재고를 지정 수량으로 설정합니다.
+     *
+     * @param optionId 상품 옵션 ID
+     * @param request 설정할 재고 수량과 변경 사유
+     * @param adminId 작업을 수행한 관리자 ID
+     */
     @PutMapping("/internal/admin/catalog/options/{optionId}/stock")
     public ApiResponse<StockView> setStock(@PathVariable @Positive long optionId, @Valid @RequestBody AdminStockSet request,
                                            @RequestHeader(value = "X-Admin-Id", required = false) String adminId) {
         return ApiResponse.onSuccess(adminProductService.setStock(optionId, request.qty(), request.reason(), adminId));
     }
 
-    /** 회원의 주문 목록 — 최신순 커서 (내 주문 목록 C10 과 같은 모양) */
+    /**
+     * 지정한 회원의 주문 목록을 최신순으로 조회합니다.
+     *
+     * @param userId 조회하거나 처리할 회원 ID
+     * @param cursor 다음 조회 시작점을 나타내는 커서
+     * @param size 페이지당 조회 개수
+     */
     @GetMapping("/internal/admin/catalog/users/{userId}/orders")
     public ApiResponse<CursorPage<OrderSummary>> orders(@PathVariable @Positive long userId,
                                                         @RequestParam(required = false) String cursor,
@@ -79,7 +116,11 @@ public class InternalAdminCatalogController {
         return ApiResponse.onSuccess(orderService.list(userId, Cursor.decode(cursor), pageSize.resolve(size)));
     }
 
-    /** 주문 취소 대행 — 결제 전이면 무효화, 결제 후면 환불까지 (C12 와 같음). 본문 { reason } 은 Studio 의 작업 기록용이라 여기서는 읽지 않습니다 */
+    /**
+     * 회원을 대신해 주문을 취소하고 필요한 환불을 처리합니다.
+     *
+     * @param orderId Catalog 주문 ID
+     */
     @PostMapping("/internal/admin/catalog/orders/{orderId}/cancel")
     public ApiResponse<OrderDetail> cancelOrder(@PathVariable @Positive long orderId) {
         return ApiResponse.onSuccess(orderService.cancelByAdmin(orderId));

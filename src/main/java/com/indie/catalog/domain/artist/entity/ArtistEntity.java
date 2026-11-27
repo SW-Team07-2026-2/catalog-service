@@ -15,7 +15,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Objects;
 
-/** artist — (source, external_id) 가 수집 멱등 upsert 기준입니다. 소속사는 label_id (여러 아티스트가 한 소속사) */
+/** artist - (source, external_id) 가 수집 멱등 upsert 기준입니다. 소속사는 label_id (여러 아티스트가 한 소속사) */
 @Entity
 @Table(name = "artist", uniqueConstraints = @UniqueConstraint(name = "uq_artist_source", columnNames = {"source", "external_id"}))
 public class ArtistEntity {
@@ -48,8 +48,8 @@ public class ArtistEntity {
     }
 
     /**
-     * 값을 덮어쓰고 바뀐 게 있으면 true — artist.updated 발행 판단.
-     * 11/22 성별 · 구성은 null 이면 저장된 값을 그대로 둡니다 (수집기는 모름 · 관리자가 넣은 값 유지)
+     * 값을 덮어쓰고 바뀐 게 있으면 true - artist.updated 발행 판단.
+     * 성별, 구성은 null 이면 저장된 값을 그대로 둡니다 (수집기는 모름, 관리자가 넣은 값 유지)
      */
     public boolean apply(String name, List<Genre> genres, Long labelId, Integer debutYear, String profileUrl,
                          ArtistGender gender, ArtistComposition composition, String sourceHash, OffsetDateTime now) {
@@ -71,7 +71,7 @@ public class ArtistEntity {
     }
 
     /**
-     * 11/25 소개 글 — null 은 그대로 · 빈 글은 지움. 바뀌었으면 true (수집은 비어 있을 때만 부름 — IngestService)
+     * 소개 글 - null 은 그대로, 빈 글은 지움. 바뀌었으면 true (수집은 비어 있을 때만 부름 - IngestService)
      */
     public boolean applyBio(String bio, OffsetDateTime now) {
         if (bio == null) return false;

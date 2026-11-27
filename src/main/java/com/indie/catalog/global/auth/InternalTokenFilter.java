@@ -33,16 +33,8 @@ import java.util.Date;
 import java.util.HexFormat;
 
 /**
- * /internal/** 전용 — X-Internal-Token (HS256 · 공유 시크릿) 검증 (Member 명세 §13 과 동일 · aud = catalog).
- * <pre>
- * ① 헤더 없음 → 401 INTERNAL_TOKEN_REQUIRED   ② 서명 · ③ iss/aud · exp 없음 → 401 INTERNAL_TOKEN_INVALID (사유는 로그)
- * ④ exp(+30초) 지남 → 401 INTERNAL_TOKEN_EXPIRED
- * ⑤ iss=gateway (수집 · docs/22 S1 · S2) — 수집 API 에서만 · sub=ingest:* · 본문 1 MiB 초과 413 PAYLOAD_TOO_LARGE ·
- *   본문 해시가 다르면 400 BODY_DIGEST_MISMATCH
- * ⑥ 그 밖의 발급자는 admin-issuers(studio)만, /internal/admin/** 에서만 — 관리자 토큰으로 수집 API 를 부를 수 없습니다
- * </pre>
- * 🔴 이 필터 없이 배포되면 클러스터 안의 누구든 카탈로그 · 재고를 덮어쓸 수 있습니다.
- * 🔴 X-User-Id 를 신뢰하지 않습니다 — 내부 API 의 사용자 식별은 요청 본문 값으로 합니다.
+ * 내부 API의 HS256 토큰 서명, 발급자, 대상(catalog), 만료 시각을 검증합니다.
+ * Gateway 수집 토큰은 본문 해시까지 확인하고 Studio 토큰은 관리자 경로만 허용합니다.
  */
 public class InternalTokenFilter extends OncePerRequestFilter {
 
@@ -93,11 +85,11 @@ public class InternalTokenFilter extends OncePerRequestFilter {
         chain.doFilter(request, response);
     }
 
-    /** ② 서명 · alg · ③ aud · ④ exp — 통과하면 클레임, 아니면 거절 사유. iss 는 호출하는 쪽이 봅니다 */
+    /** 토큰 서명, 알고리즘, 대상과 만료 시각을 검증합니다. 발급자는 호출부에서 검사합니다. */
     private Verified verify(String token) {
         try {
             SignedJWT jwt = SignedJWT.parse(token);
-            if (!JWSAlgorithm.HS256.equals(jwt.getHeader().getAlgorithm())) return Verified.rejected("alg");   // ★ alg 고정
+            if (!JWSAlgorithm.HS256.equals(jwt.getHeader().getAlgorithm())) return Verified.rejected("alg");   // alg 고정
             if (!jwt.verify(verifier)) return Verified.rejected("signature");
             JWTClaimsSet claims = jwt.getJWTClaimsSet();
             if (claims.getIssuer() == null) return Verified.rejected("issuer");
@@ -118,10 +110,7 @@ public class InternalTokenFilter extends OncePerRequestFilter {
         }
     }
 
-    /**
-     * ⑤ 수집 경로 (docs/22 S1 · S2) — Gateway /ingest/** 가 수집 서명을 확인하고 발급한 토큰.
-     * 본문 해시로 토큰이 본문에 묶여 있어, 가로챈 토큰을 다른 본문에 다시 쓸 수 없습니다.
-     */
+    /** Gateway가 서명을 확인한 수집 토큰의 본문 해시를 대조합니다. 토큰을 다른 본문에 재사용할 수 없습니다. */
     private void ingest(HttpServletRequest request, HttpServletResponse response, FilterChain chain, JWTClaimsSet claims)
             throws ServletException, IOException {
         if (!props.ingestPaths().contains(request.getRequestURI())) {

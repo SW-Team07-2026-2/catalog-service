@@ -11,9 +11,8 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
 /**
- * user.withdrawn (Member) — 탈퇴한 회원의 장바구니를 지우고 결제 대기(PENDING) 주문을 취소합니다.
- * 확정 · 환불된 주문과 배송 정보는 법정 보관(전자상거래법 5년) 대상이라 남깁니다.
- * 멱등 — 지울 게 없으면 0행, 취소할 주문이 없으면 아무것도 하지 않습니다.
+ * Member -> Kafka user.withdrawn -> Catalog 장바구니 삭제와 결제 대기 주문 취소.
+ * 확정 주문과 환불 주문은 보관합니다.
  */
 @Component
 public class UserEventConsumer {
@@ -28,6 +27,12 @@ public class UserEventConsumer {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * 회원 탈퇴 이벤트를 받아 장바구니와 결제 대기 주문을 정리합니다.
+     *
+     * @param record Kafka에서 수신한 이벤트 레코드
+     * @param ack 처리 완료 후 오프셋을 커밋할 승인 객체
+     */
     @KafkaListener(topics = "user.withdrawn")
     public void onUserWithdrawn(ConsumerRecord<String, String> record, Acknowledgment ack) throws JsonProcessingException {
         EventEnvelope e = EventEnvelope.parse(objectMapper, record.value());

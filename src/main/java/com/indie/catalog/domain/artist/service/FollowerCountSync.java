@@ -8,9 +8,8 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * 11/24 artist.follower_count — Member follow 행 수의 사본 (인기순 정렬용).
- * 더하고 빼지 않고 Member 의 지금 수로 덮어씁니다 — 같은 이벤트가 여러 번 와도 · 순서가 바뀌어도 결과가 같습니다.
- * 탈퇴(follow 가 CASCADE 로 지워져 UNFOLLOW 가 안 나감) · 놓친 이벤트 · 첫 배포 채우기는 refreshAll (FollowerCountSyncJob).
+ * Member의 팔로워 수를 조회해 Catalog의 artist.follower_count를 갱신합니다.
+ * 증감 대신 현재 수로 덮어쓰며 전체 동기화로 탈퇴나 누락 이벤트를 보완합니다.
  */
 @Service
 public class FollowerCountSync {
@@ -26,12 +25,16 @@ public class FollowerCountSync {
         this.artistRepository = artistRepository;
     }
 
-    /** 이 아티스트들의 팔로워 수를 Member 에서 받아 덮어씀. 바뀐 행 수 · Member 불통이면 MemberClient.Unavailable */
+    /**
+     * 이 아티스트들의 팔로워 수를 Member 에서 받아 덮어씀. 바뀐 행 수, Member 불통이면 MemberClient.Unavailable
+     *
+     * @param artistIds 대상 아티스트 ID 목록
+     */
     public int refresh(Collection<Long> artistIds) {
         return artistRepository.updateFollowerCounts(memberClient.followerCounts(artistIds));
     }
 
-    /** 전체 — id 순 BATCH 개씩. 바뀐 행 수 */
+    /** 전체 - id 순 BATCH 개씩. 바뀐 행 수 */
     public int refreshAll() {
         int changed = 0;
         long afterId = 0;

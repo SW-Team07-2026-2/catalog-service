@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * track — (album_id, track_no) 가 수집 갱신 기준입니다. 같은 번호면 행을 유지하고 값만 바꿉니다
+ * track - (album_id, track_no) 가 수집 갱신 기준입니다. 같은 번호면 행을 유지하고 값만 바꿉니다
  * (트랙 id 를 Member 메트릭이 들고 있어, 지우고 다시 넣으면 끊깁니다).
  */
 @Entity

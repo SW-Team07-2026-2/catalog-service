@@ -7,7 +7,7 @@ import com.indie.catalog.global.common.exception.GeneralException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 키워드 검색 (C1 · FR-CAT-08) — AI 자연어 검색(주경로)의 폴백 최종단. 아티스트 · 앨범 · 트랙 이름을 직접 조회합니다 */
+/** 키워드 검색 (C1, FR-CAT-08) - AI 자연어 검색(주경로)의 폴백 최종단. 아티스트, 앨범, 트랙 이름을 직접 조회합니다 */
 @Service
 public class SearchService {
 
@@ -19,6 +19,12 @@ public class SearchService {
         this.searchRepository = searchRepository;
     }
 
+    /**
+     * 검색어를 검증하고 아티스트, 앨범, 트랙 검색 결과를 반환합니다.
+     *
+     * @param rawQuery 검증 전 검색어
+     * @param size 페이지당 조회 개수
+     */
     @Transactional(readOnly = true)
     public SearchResult search(String rawQuery, int size) {
         String q = rawQuery == null ? "" : rawQuery.strip();

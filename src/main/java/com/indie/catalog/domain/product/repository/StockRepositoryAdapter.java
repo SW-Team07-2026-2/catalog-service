@@ -12,7 +12,7 @@ import java.util.Optional;
 
 import static com.indie.catalog.domain.product.entity.QStockEntity.stockEntity;
 
-/** StockRepository 구현 — 차감 · 복구는 QueryDSL 조건부 UPDATE (엔티티를 읽지 않고 DB 에서 바로 계산) */
+/** StockRepository 구현 - 차감, 복구는 QueryDSL 조건부 UPDATE (엔티티를 읽지 않고 DB 에서 바로 계산) */
 @Repository
 public class StockRepositoryAdapter implements StockRepository {
 

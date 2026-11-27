@@ -9,10 +9,8 @@ import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 /**
- * 판매 단위 — 한 상품 안에서 name 이 식별자입니다 (같은 이름이면 갱신 · 새 이름이면 새 옵션).
- * vinyl_color 는 LP 옵션에 필수 · size 는 굿즈 옵션에 필수(사이즈가 없으면 FREE) · CD 와 카세트는 둘 다 비웁니다 (OptionRule).
- * qty 는 입고 수량(절대값) · null 이면 수량은 그대로 둡니다 (새 옵션이면 0).
- * price 가 null 이면 저장된 판매가를 그대로 둡니다 — 새 옵션은 판매가가 있어야 합니다 (11/18: 판매가는 관리자가 넣는 값).
+ * 옵션 수집 요청. 상품 안에서 이름으로 식별하고 LP는 색상, 굿즈는 크기가 필수입니다.
+ * 수량은 절대값이며 null이면 유지합니다. 가격이 null이면 기존 값을 유지하고 신규 옵션은 거절합니다.
  */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record OptionUpsert(@NotBlank @Size(max = 100) String name,

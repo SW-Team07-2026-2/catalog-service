@@ -33,11 +33,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 관리자(Studio)가 이미 들어간 아티스트 · 앨범에 넣는 값 — 이미지 · 트랙 태그 (11/18 결정: 크롤러는 비워 두고 관리자가 넣음) · 아티스트 성별 · 구성 (11/22).
- * 11/26 관리자 아티스트 등록 — 출처는 상품 직접 등록과 같이 source = "studio" · external_id 는 여기서 만듭니다 (수집기가 덮어쓰지 않음).
- * 수집 적재와 같은 엔티티 apply · 같은 이벤트(artist.updated · album.updated) · 같은 캐시 삭제를 씁니다.
- * 수집 출처의 해시(source_hash)는 그대로 둡니다 — 다음 수집이 이 값을 지우지 않는 건 적재의 "null 이면 그대로" 규칙 덕분입니다.
- * 응답은 커밋 뒤에 다시 읽습니다 (캐시를 커밋 뒤에 지우므로).
+ * 관리자 아티스트 등록과 아티스트, 앨범 정보 수정을 처리합니다.
+ * 수집 해시는 유지하고 변경 이벤트와 캐시 삭제를 수행합니다. 응답은 커밋 뒤 다시 조회합니다.
  */
 @Service
 public class AdminEditService {
@@ -71,7 +68,11 @@ public class AdminEditService {
     static final String SOURCE = "studio";
     private static final int SAME_NAME_SCAN = 50;
 
-    /** 같은 이름이 있으면 409 (그 아티스트 id 를 메시지에) — 이미 있는 팀을 또 만들지 않게. allowSameName = 같은 이름의 다른 팀 */
+    /**
+     * 같은 이름이 있으면 409 (그 아티스트 id 를 메시지에) - 이미 있는 팀을 또 만들지 않게. allowSameName = 같은 이름의 다른 팀
+     *
+     * @param r 등록할 아티스트 정보
+     */
     public ArtistDetail createArtist(AdminArtistCreate r) {
         String name = r.name().strip();
         if (!Boolean.TRUE.equals(r.allowSameName())) {
@@ -98,14 +99,20 @@ public class AdminEditService {
         return artistService.detail(id);
     }
 
+    /**
+     * 아티스트 정보를 수정하고 캐시를 삭제합니다.
+     *
+     * @param id 아티스트 ID
+     * @param r 수정할 아티스트 정보
+     */
     public ArtistDetail updateArtist(long id, AdminArtistUpdate r) {
         tx.executeWithoutResult(s -> {
             ArtistEntity a = artistRepository.findById(id).orElseThrow(() -> new GeneralException(CommonErrorCode.NOT_FOUND));
             String profileUrl = r.profileUrl() != null ? r.profileUrl() : a.getProfileUrl();
             OffsetDateTime now = OffsetDateTime.now(clock);
-            boolean changed = a.apply(a.getName(), a.getGenres(), a.getLabelId(), a.getDebutYear(), profileUrl, r.gender(), r.composition(),   // 성별 · 구성 null = 그대로
+            boolean changed = a.apply(a.getName(), a.getGenres(), a.getLabelId(), a.getDebutYear(), profileUrl, r.gender(), r.composition(),   // 성별, 구성 null = 그대로
                     a.getSourceHash(), now);
-            changed |= a.applyBio(r.bio(), now);                    // 11/25 소개 글 null = 그대로
+            changed |= a.applyBio(r.bio(), now);                    // 소개 글 null = 그대로
             if (changed) {
                 artistRepository.save(a);
                 events.artistUpdated(a);
@@ -115,6 +122,12 @@ public class AdminEditService {
         return artistService.detail(id);
     }
 
+    /**
+     * 앨범과 트랙 정보를 수정하고 변경 이벤트를 저장합니다.
+     *
+     * @param id 앨범 ID
+     * @param r 수정할 앨범과 트랙 정보
+     */
     public AlbumDetail updateAlbum(long id, AdminAlbumUpdate r) {
         tx.executeWithoutResult(s -> {
             AlbumEntity album = albumRepository.findById(id).orElseThrow(() -> new GeneralException(CommonErrorCode.NOT_FOUND));
@@ -124,7 +137,7 @@ public class AdminEditService {
                         album.getReleasedAt(), r.thumbnailUrl(), album.getSourceHash(), OffsetDateTime.now(clock)));
                 albumRepository.save(album);
             }
-            if (album.applyDescription(r.description(), OffsetDateTime.now(clock))) {   // 11/25 소개 글 null = 그대로
+            if (album.applyDescription(r.description(), OffsetDateTime.now(clock))) {   // 소개 글 null = 그대로
                 albumRepository.save(album);
                 changed.add("description");
             }

@@ -46,7 +46,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/** 상품(피지컬 앨범 · 굿즈) · 옵션 · 재고 조회와 옵션 입고 */
+/** 상품(피지컬 앨범, 굿즈), 옵션, 재고 조회와 옵션 입고 */
 @Service
 public class ProductService {
 
@@ -73,20 +73,41 @@ public class ProductService {
         this.clock = clock;
     }
 
-    /** C8 — 상품 + 옵션별 가격 · 재고. 🔴 캐시하지 않습니다 (재고는 주문마다 바뀜) */
+    /**
+     * 상품 상세와 옵션별 가격, 재고를 DB에서 조회합니다.
+     *
+     * @param id 상품 ID
+     */
     @Transactional(readOnly = true)
     public ProductDetail product(long id) {
         ProductEntity product = productRepository.findById(id).orElseThrow(() -> new GeneralException(CommonErrorCode.NOT_FOUND));
         return details(List.of(product)).get(0);
     }
 
-    /** ?ids= — 보유 음반 화면 (Member 콜렉션은 physicalAlbumId · optionId 만 들고 있음) · 챗봇 도구 */
+    /**
+     * 상품 상세를 일괄 조회합니다.
+     *
+     * @param ids 상품 ID 목록
+     */
     @Transactional(readOnly = true)
     public List<ProductDetail> products(List<Long> ids) {
         return details(productRepository.findAllById(ids));
     }
 
-    /** C7 — 굿즈 목록 (최신 등록순) */
+    /**
+     * C7 - 굿즈 목록 (최신 등록순)
+     *
+     * @param artistId 아티스트 ID
+     * @param artistIds 대상 아티스트 ID 목록
+     * @param categories 굿즈 품목 필터 목록
+     * @param q 검색어
+     * @param minPrice 상품 최저가의 하한(원)
+     * @param maxPrice 상품 최저가의 상한(원), 150000 이상이면 상한 없음
+     * @param excludeSoldOut 품절 상품 제외 여부
+     * @param sort 목록 정렬 기준
+     * @param page 0부터 시작하는 페이지 번호
+     * @param size 페이지당 조회 개수
+     */
     @Transactional(readOnly = true)
     public PageResult<GoodsItem> goods(Long artistId, List<Long> artistIds, List<GoodsCategory> categories, String q,
                                        Integer minPrice, Integer maxPrice, boolean excludeSoldOut, ListSort sort, int page, int size) {
@@ -96,18 +117,43 @@ public class ProductService {
                 page, size);
     }
 
-    /** 검증을 마친 필터로 — 팔로우 탭 */
+    /**
+     * 검증을 마친 필터로 - 팔로우 탭
+     *
+     * @param filter 검증된 조회 필터
+     * @param page 0부터 시작하는 페이지 번호
+     * @param size 페이지당 조회 개수
+     */
     @Transactional(readOnly = true)
     public PageResult<GoodsItem> goods(GoodsRepository.Filter filter, int page, int size) {
         return PageResult.of(goodsRepository.search(filter, (long) page * size, size + 1), page, size, this::goodsItems);
     }
 
+    /**
+     * 아티스트의 굿즈 목록을 조회합니다.
+     *
+     * @param artistId 아티스트 ID
+     */
     @Transactional(readOnly = true)
     public List<GoodsItem> goodsOfArtist(long artistId) {
         return goodsItems(goodsRepository.findByArtistId(artistId));
     }
 
-    /** C6 — 피지컬 앨범 발매 목록 (발매일 기준 · FR-CAT-12). 매체 · 구간을 안 주면 전체 */
+    /**
+     * C6 - 피지컬 앨범 발매 목록 (발매일 기준, FR-CAT-12). 매체, 구간을 안 주면 전체
+     *
+     * @param formats 피지컬 앨범 매체 필터 목록
+     * @param from 발매일 조회 시작일
+     * @param to 발매일 조회 종료일
+     * @param artistIds 대상 아티스트 ID 목록
+     * @param q 검색어
+     * @param minPrice 상품 최저가의 하한(원)
+     * @param maxPrice 상품 최저가의 상한(원), 150000 이상이면 상한 없음
+     * @param excludeSoldOut 품절 상품 제외 여부
+     * @param sort 목록 정렬 기준
+     * @param page 0부터 시작하는 페이지 번호
+     * @param size 페이지당 조회 개수
+     */
     @Transactional(readOnly = true)
     public PageResult<PhysicalAlbumItem> physicalAlbums(List<PhysicalFormat> formats, LocalDate from, LocalDate to, List<Long> artistIds,
                                                         String q, Integer minPrice, Integer maxPrice, boolean excludeSoldOut, ListSort sort,
@@ -120,19 +166,34 @@ public class ProductService {
                 minPrice, maxPrice, excludeSoldOut, sort), page, size);
     }
 
-    /** 검증을 마친 필터로 — 팔로우 탭 */
+    /**
+     * 검증을 마친 필터로 - 팔로우 탭
+     *
+     * @param filter 검증된 조회 필터
+     * @param page 0부터 시작하는 페이지 번호
+     * @param size 페이지당 조회 개수
+     */
     @Transactional(readOnly = true)
     public PageResult<PhysicalAlbumItem> physicalAlbums(PhysicalAlbumRepository.Filter filter, int page, int size) {
         return PageResult.of(physicalAlbumRepository.search(filter, (long) page * size, size + 1), page, size,
                 this::physicalAlbumItems);
     }
 
+    /**
+     * 앨범에 연결된 피지컬 상품을 조회합니다.
+     *
+     * @param albumIds 조회할 앨범 ID 목록
+     */
     @Transactional(readOnly = true)
     public List<PhysicalAlbumItem> physicalAlbumsOfAlbums(Collection<Long> albumIds) {
         return albumIds.isEmpty() ? List.of() : physicalAlbumItems(physicalAlbumRepository.findByAlbumIdIn(albumIds));
     }
 
-    /** 옵션 id → (옵션, 상품) — 장바구니 · 주문이 옵션에서 상품으로 거슬러 올라갈 때. 없는 옵션은 맵에 없습니다 */
+    /**
+     * 옵션 id -> (옵션, 상품) - 장바구니, 주문이 옵션에서 상품으로 거슬러 올라갈 때. 없는 옵션은 맵에 없습니다
+     *
+     * @param optionIds 조회할 옵션 ID 목록
+     */
     @Transactional(readOnly = true)
     public Map<Long, Sellable> sellables(Collection<Long> optionIds) {
         List<ProductOptionEntity> options = optionRepository.findAllById(optionIds);
@@ -144,12 +205,12 @@ public class ProductService {
     }
 
     /**
-     * 옵션 입고 — 수집 적재(IngestService)와 관리자 등록(AdminProductService)이 부릅니다. (product_id, 옵션 이름) 이 같으면 갱신, 새 이름이면 새 옵션.
-     * 관리자는 옵션 id 를 줄 수 있습니다 — 그 옵션을 고치고 이름도 바꿉니다 (다른 상품의 옵션이면 404 · 이미 있는 이름이면 400).
-     * 요청에 없는 옵션은 그대로 둡니다 (주문 · 보유 음반이 가리킬 수 있어 지우지 않습니다).
-     * qty 는 입고 수량(절대값) — null 이면 수량은 건드리지 않습니다. 새 옵션의 재고 행은 항상 만듭니다 (옵션과 1:1).
+     * 상품 옵션을 추가하거나 갱신합니다. ID가 없으면 이름으로 찾고 요청에 없는 옵션은 유지합니다.
+     * 재고 수량은 절대값으로 적용하며 null이면 유지합니다. 새 옵션은 재고 행도 생성합니다.
      *
-     * @param format 피지컬 앨범의 매체 · 굿즈면 null (OptionRule)
+     * @param productId 상품 ID
+     * @param format 피지컬 앨범 매체, 굿즈는 null
+     * @param inputs 추가하거나 갱신할 옵션 목록
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public OptionsResult upsertOptions(long productId, PhysicalFormat format, List<OptionInput> inputs) {
@@ -256,7 +317,7 @@ public class ProductService {
                 .collect(Collectors.groupingBy(ProductOptionEntity::getProductId));
     }
 
-    /** 목록 항목의 최저가 · 품절 — 옵션 · 재고를 한 번씩만 읽습니다. 품절 기준은 상세의 OptionView.soldOut(재고 0)과 같습니다 */
+    /** 목록 항목의 최저가, 품절 - 옵션, 재고를 한 번씩만 읽습니다. 품절 기준은 상세의 OptionView.soldOut(재고 0)과 같습니다 */
     private Map<Long, ListInfo> listInfos(List<? extends ProductEntity> products) {
         Map<Long, List<ProductOptionEntity>> options = optionsOf(products);
         if (options.isEmpty()) return Map.of();
@@ -270,12 +331,12 @@ public class ProductService {
         return infos;
     }
 
-    /** 옵션이 없으면 최저가 없음 · 살 수 있는 옵션이 없으니 품절 */
+    /** 옵션이 없으면 최저가 없음, 살 수 있는 옵션이 없으니 품절 */
     private record ListInfo(Integer minPrice, boolean soldOut) {
         static final ListInfo NO_OPTIONS = new ListInfo(null, true);
     }
 
-    /** 피지컬 앨범이 가리키는 앨범 — albumId → 앨범 */
+    /** 피지컬 앨범이 가리키는 앨범 - albumId -> 앨범 */
     private Map<Long, AlbumEntity> albumsOf(List<? extends ProductEntity> products) {
         List<Long> albumIds = products.stream().filter(PhysicalAlbumEntity.class::isInstance)
                 .map(p -> ((PhysicalAlbumEntity) p).getAlbumId()).distinct().toList();
@@ -283,7 +344,7 @@ public class ProductService {
         return albumRepository.findAllById(albumIds).stream().collect(Collectors.toMap(AlbumEntity::getId, Function.identity()));
     }
 
-    /** 굿즈는 아티스트를 바로, 피지컬 앨범은 앨범을 거쳐 — artistId → 이름 */
+    /** 굿즈는 아티스트를 바로, 피지컬 앨범은 앨범을 거쳐 - artistId -> 이름 */
     private Map<Long, String> artistNames(List<? extends ProductEntity> products, Map<Long, AlbumEntity> albums) {
         List<Long> artistIds = products.stream()
                 .map(p -> p instanceof GoodsEntity g ? g.getArtistId() : albums.get(((PhysicalAlbumEntity) p).getAlbumId()).getArtistId())
@@ -299,10 +360,10 @@ public class ProductService {
 
     public record Sellable(ProductOptionEntity option, ProductEntity product) {}
 
-    /** id — 관리자가 기존 옵션을 가리킬 때만 (수집은 null · 이름이 식별자) */
-    /** price null — 기존 옵션은 판매가 그대로 · 새 옵션이면 거절 (수집 적재만 null 을 보냄) */
+    /** id - 관리자가 기존 옵션을 가리킬 때만 (수집은 null, 이름이 식별자) */
+    /** price null - 기존 옵션은 판매가 그대로, 새 옵션이면 거절 (수집 적재만 null 을 보냄) */
     public record OptionInput(Long id, String name, VinylColor vinylColor, OptionSize size, Integer price, Integer qty) {}
 
-    /** created — 이번에 새로 생긴 옵션 (피지컬 앨범 발매 알림에 싣습니다) */
+    /** created - 이번에 새로 생긴 옵션 (피지컬 앨범 발매 알림에 싣습니다) */
     public record OptionsResult(boolean changed, List<ProductOptionEntity> created) {}
 }

@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 공개 API C1 — 키워드 검색 */
+/** 프론트 -> Gateway -> Catalog SearchService의 키워드 검색 API. */
 @RestController
 public class SearchController {
 
@@ -20,6 +20,12 @@ public class SearchController {
         this.pageSize = pageSize;
     }
 
+    /**
+     * 아티스트, 앨범과 트랙을 키워드로 검색합니다.
+     *
+     * @param q 검색어
+     * @param size 페이지당 조회 개수
+     */
     @GetMapping("/api/catalog/search")
     public ApiResponse<SearchResult> search(@RequestParam String q, @RequestParam(required = false) Integer size) {
         return ApiResponse.onSuccess(searchService.search(q, pageSize.resolve(size)));

@@ -19,7 +19,7 @@ import java.util.Optional;
 import static com.indie.catalog.domain.artist.entity.QArtistEntity.artistEntity;
 import static com.indie.catalog.domain.product.entity.QGoodsEntity.goodsEntity;
 
-/** GoodsRepository 구현 — 단건 · 저장은 Spring Data, 목록 · 해시 조회는 QueryDSL */
+/** GoodsRepository 구현 - 단건, 저장은 Spring Data, 목록, 해시 조회는 QueryDSL */
 @Repository
 public class GoodsRepositoryAdapter implements GoodsRepository {
 

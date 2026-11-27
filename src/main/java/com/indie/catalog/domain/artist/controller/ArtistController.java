@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** 공개 API C2 · C3 — 아티스트 */
+/** 프론트 -> Gateway -> Catalog ArtistService의 아티스트 조회 API. */
 @RestController
 public class ArtistController {
 
@@ -38,8 +38,16 @@ public class ArtistController {
     }
 
     /**
-     * q · genre(여러 개) · ids(그 아티스트만 · 최대 200) 를 함께 거르고 페이지로 — 11/19 팔로우 탭.
-     * 여러 값은 genre=A&genre=B 또는 genre=A,B. sort 없으면 가나다순 · ARTIST_ORDER 는 ids 순서 · UPDATED 는 최근 수정순
+     * 조건에 맞는 아티스트 목록을 조회합니다.
+     *
+     * @param q 검색어
+     * @param genre 장르 필터 목록
+     * @param gender 아티스트 성별 필터 목록
+     * @param composition 아티스트 구성 필터 목록
+     * @param ids 아티스트 ID 목록
+     * @param sort 목록 정렬 기준
+     * @param page 0부터 시작하는 페이지 번호
+     * @param size 페이지당 조회 개수
      */
     @GetMapping("/api/catalog/artists")
     public ApiResponse<PageResult<ArtistItem>> list(@RequestParam(required = false) @Size(max = 100) String q,
@@ -53,7 +61,17 @@ public class ArtistController {
         return ApiResponse.onSuccess(artistService.list(q, genre, gender, composition, ids, sort, page, pageSize.resolve(size)));
     }
 
-    /** 11/19 전체 검색 (프론트 요구 1-3 · 2-1) — 아티스트 이름 LIKE + 장르(여러 개 · OR). q 가 없으면 칩만으로 · 가나다순 · 11/24 로그인했으면 검색어를 user.metric 으로 */
+    /**
+     * 아티스트를 이름과 속성으로 검색하고 회원 검색어를 기록합니다.
+     *
+     * @param q 검색어
+     * @param genre 장르 필터 목록
+     * @param gender 아티스트 성별 필터 목록
+     * @param composition 아티스트 구성 필터 목록
+     * @param page 0부터 시작하는 페이지 번호
+     * @param size 페이지당 조회 개수
+     * @param userId 조회하거나 처리할 회원 ID
+     */
     @GetMapping("/api/catalog/search/artists")
     public ApiResponse<PageResult<ArtistItem>> search(@RequestParam(required = false) @Size(max = 100) String q,
                                                        @RequestParam(required = false) List<Genre> genre,
@@ -67,6 +85,11 @@ public class ArtistController {
         return ApiResponse.onSuccess(result);
     }
 
+    /**
+     * 아티스트 상세를 조회합니다.
+     *
+     * @param artistId 아티스트 ID
+     */
     @GetMapping("/api/catalog/artists/{artistId}")
     public ApiResponse<ArtistDetail> detail(@PathVariable @Positive long artistId) {
         return ApiResponse.onSuccess(artistService.detail(artistId));
