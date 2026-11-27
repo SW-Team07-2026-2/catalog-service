@@ -10,8 +10,8 @@ import java.time.OffsetDateTime;
 import java.util.Objects;
 
 /**
- * cart_item — 회원이 담아 둔 옵션과 수량. 재고는 읽기만 하고 차감은 주문 생성 때 합니다 (TTL 없음).
- * 쓰기는 CartItemRepository 의 put · delete 로만 합니다.
+ * cart_item - 회원이 담아 둔 옵션과 수량. 재고는 읽기만 하고 차감은 주문 생성 때 합니다 (TTL 없음).
+ * 쓰기는 CartItemRepository 의 put, delete 로만 합니다.
  */
 @Entity
 @Table(name = "cart_item")

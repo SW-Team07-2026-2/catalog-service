@@ -10,11 +10,8 @@ import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializer;
 
 /**
- * 캐시용 Redis 하나 (allkeys-lru) — 연결은 spring.data.redis.* (Boot 자동 설정).
- * <pre>
- * artistRedis   catalog:cache:artist:v3:{id}   → ArtistDetail JSON   TTL app.cache.artist-ttl-seconds
- * </pre>
- * 62B — 값 JSON 은 타입별 템플릿의 직렬화기가 맡습니다 (ObjectMapper 직접 호출 없음)
+ * 아티스트 상세를 캐시용 Redis에 JSON으로 저장합니다.
+ * 키는 catalog:cache:artist:v3:{id}, 보관 시간은 app.cache.artist-ttl-seconds를 사용합니다.
  */
 @Configuration
 public class RedisConfig {

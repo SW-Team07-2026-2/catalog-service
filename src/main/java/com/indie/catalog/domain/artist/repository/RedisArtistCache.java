@@ -13,14 +13,14 @@ import java.time.Duration;
 import java.util.Optional;
 
 /**
- * 캐시용 Redis(allkeys-lru)는 죽을 수 있습니다 — 모든 실패는 로그만 남기고 넘어갑니다 (fail-open).
- * 값 JSON 은 artistRedis 템플릿의 직렬화기가 맡습니다 (62B) — 깨진 값도 읽기 실패로 보고 DB 로 갑니다.
+ * 캐시용 Redis(allkeys-lru)는 죽을 수 있습니다 - 모든 실패는 로그만 남기고 넘어갑니다 (fail-open).
+ * 값 JSON 은 artistRedis 템플릿의 직렬화기가 맡습니다 (62B) - 깨진 값도 읽기 실패로 보고 DB 로 갑니다.
  */
 @Component
 public class RedisArtistCache implements ArtistCache {
 
     private static final Logger log = LoggerFactory.getLogger(RedisArtistCache.class);
-    private static final String PREFIX = "catalog:cache:artist:v3:";   // v3 — 응답 모양이 바뀌어 옛 값과 섞이지 않게 (11/25 bio)
+    private static final String PREFIX = "catalog:cache:artist:v3:";   // v3 - 응답 모양이 바뀌어 옛 값과 섞이지 않게 (bio)
 
     private final RedisTemplate<String, ArtistDetail> artistRedis;
     private final Duration ttl;

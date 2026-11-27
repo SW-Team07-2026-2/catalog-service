@@ -14,12 +14,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 주문 이벤트 2종 — 상태 전이와 같은 트랜잭션에서 (EventPublisher = outbox). 받는 쪽은 Member (알림 · 보유 음반 자동 추가).
- * <pre>
- * order.confirmed   결제 완료로 주문 확정   userId · orderId · totalPrice · items[optionId · physicalAlbumId 또는 goodsId · name · qty]
- * order.refunded    결제된 주문을 환불      userId · orderId · itemName(대표 상품) · itemCount · refundAmount
- * </pre>
- * payment 이벤트에는 상품 이름이 없어 Member 가 알림 문장을 만들 수 없습니다 — 그래서 Catalog 가 따로 보냅니다.
+ * Catalog 주문 확정과 환불 -> Outbox -> Kafka -> Member 알림과 보유 음반 반영.
+ * 주문 상태 변경과 같은 트랜잭션에서 상품 정보를 포함해 저장합니다.
  */
 @Component
 public class OrderEvents {
@@ -49,7 +45,7 @@ public class OrderEvents {
         publisher.publish("order.confirmed", p);
     }
 
-    /** 환불은 전액만 있습니다 (Payment) — refundAmount 는 주문 금액 */
+    /** 환불은 전액만 있습니다 (Payment) - refundAmount 는 주문 금액 */
     public void refunded(PurchaseOrderEntity order, String itemName, int itemCount) {
         Map<String, Object> p = new LinkedHashMap<>();
         p.put("userId", order.getUserId());

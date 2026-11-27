@@ -27,8 +27,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * 공개 API C6 · C7 · C8 — 피지컬 앨범 · 굿즈 · 상품(옵션별 가격 · 재고).
- * 피지컬 앨범과 굿즈는 상품 id 를 공유하므로 상세는 /products/{productId} 하나입니다.
+ * 프론트 -> Gateway -> Catalog의 피지컬 앨범, 굿즈, 상품 조회 API.
+ * 공개 검색과 상세는 PublicProductCache를 사용하고 로그인한 회원의 검색어는 메트릭으로 기록합니다.
  */
 @RestController
 public class ProductController {
@@ -45,7 +45,21 @@ public class ProductController {
         this.userMetrics = userMetrics;
     }
 
-    /** 11/19 팔로우 탭 — format · artistIds 는 여러 개(format=LP&format=CD 또는 format=LP,CD) · 가격은 최저가(원) · sort 없으면 발매일 최신순 */
+    /**
+     * 매체, 발매일, 아티스트와 가격 조건으로 피지컬 앨범을 조회합니다.
+     *
+     * @param format 피지컬 앨범 매체 필터 목록
+     * @param from 발매일 조회 시작일
+     * @param to 발매일 조회 종료일
+     * @param artistIds 대상 아티스트 ID 목록
+     * @param q 검색어
+     * @param minPrice 상품 최저가의 하한(원)
+     * @param maxPrice 상품 최저가의 상한(원), 150000 이상이면 상한 없음
+     * @param excludeSoldOut 품절 상품 제외 여부
+     * @param sort 목록 정렬 기준
+     * @param page 0부터 시작하는 페이지 번호
+     * @param size 페이지당 조회 개수
+     */
     @GetMapping("/api/catalog/physical-albums")
     public ApiResponse<PageResult<PhysicalAlbumItem>> physicalAlbums(
             @RequestParam(required = false) List<PhysicalFormat> format,
@@ -63,7 +77,20 @@ public class ProductController {
                 page, pageSize.resolve(size)));
     }
 
-    /** 11/19 팔로우 탭 — category · artistIds 는 여러 개 · artistId(하나)는 기존 그대로 · 가격은 최저가(원) · sort 없으면 최신 등록순 */
+    /**
+     * 아티스트, 품목과 가격 조건으로 굿즈를 조회합니다.
+     *
+     * @param artistId 아티스트 ID
+     * @param artistIds 대상 아티스트 ID 목록
+     * @param category 굿즈 품목 필터 목록
+     * @param q 검색어
+     * @param minPrice 상품 최저가의 하한(원)
+     * @param maxPrice 상품 최저가의 상한(원), 150000 이상이면 상한 없음
+     * @param excludeSoldOut 품절 상품 제외 여부
+     * @param sort 목록 정렬 기준
+     * @param page 0부터 시작하는 페이지 번호
+     * @param size 페이지당 조회 개수
+     */
     @GetMapping("/api/catalog/goods")
     public ApiResponse<PageResult<GoodsItem>> goods(@RequestParam(required = false) @Positive Long artistId,
                                                     @RequestParam(required = false) List<Long> artistIds,
@@ -79,7 +106,18 @@ public class ProductController {
                 page, pageSize.resolve(size)));
     }
 
-    /** 11/19 전체 검색 (프론트 요구 1-3 · 2-3) — 상품명 · 앨범 제목 · 아티스트 이름 LIKE + 매체(여러 개) + 가격대. q 가 없으면 칩만으로 · 발매일 최신순 · 11/24 로그인했으면 검색어를 user.metric 으로 */
+    /**
+     * 공개 피지컬 앨범 검색 결과를 반환하고 회원 검색어를 기록합니다.
+     *
+     * @param q 검색어
+     * @param format 피지컬 앨범 매체 필터 목록
+     * @param minPrice 상품 최저가의 하한(원)
+     * @param maxPrice 상품 최저가의 상한(원), 150000 이상이면 상한 없음
+     * @param excludeSoldOut 품절 상품 제외 여부
+     * @param page 0부터 시작하는 페이지 번호
+     * @param size 페이지당 조회 개수
+     * @param userId 조회하거나 처리할 회원 ID
+     */
     @GetMapping("/api/catalog/search/physical-albums")
     public ApiResponse<PageResult<PhysicalAlbumItem>> searchPhysicalAlbums(@RequestParam(required = false) @Size(max = 100) String q,
                                                                           @RequestParam(required = false) List<PhysicalFormat> format,
@@ -90,12 +128,23 @@ public class ProductController {
                                                                           @RequestParam(required = false) Integer size,
                                                                           @RequestHeader(value = CurrentUserArgumentResolver.HEADER, required = false) Long userId) {
         PageResult<PhysicalAlbumItem> result = publicCache.searchPhysicalAlbums(format, q, minPrice, maxPrice, excludeSoldOut, page,
-                pageSize.resolve(size));   // ✏️ 11/25 Pod 캐시 3초 (PublicProductCache)
+                pageSize.resolve(size));   // Pod 캐시 3초 (PublicProductCache)
         userMetrics.searched(userId, "PHYSICAL_ALBUM", q, page);
         return ApiResponse.onSuccess(result);
     }
 
-    /** 11/19 전체 검색 (프론트 요구 1-3 · 2-4) — 굿즈명 · 아티스트 이름 LIKE + 품목(여러 개) + 가격대. q 가 없으면 칩만으로 · 최신 등록순 · 11/24 로그인했으면 검색어를 user.metric 으로 */
+    /**
+     * 공개 굿즈 검색 결과를 반환하고 회원 검색어를 기록합니다.
+     *
+     * @param q 검색어
+     * @param category 굿즈 품목 필터 목록
+     * @param minPrice 상품 최저가의 하한(원)
+     * @param maxPrice 상품 최저가의 상한(원), 150000 이상이면 상한 없음
+     * @param excludeSoldOut 품절 상품 제외 여부
+     * @param page 0부터 시작하는 페이지 번호
+     * @param size 페이지당 조회 개수
+     * @param userId 조회하거나 처리할 회원 ID
+     */
     @GetMapping("/api/catalog/search/goods")
     public ApiResponse<PageResult<GoodsItem>> searchGoods(@RequestParam(required = false) @Size(max = 100) String q,
                                                           @RequestParam(required = false) List<GoodsCategory> category,
@@ -106,17 +155,26 @@ public class ProductController {
                                                           @RequestParam(required = false) Integer size,
                                                           @RequestHeader(value = CurrentUserArgumentResolver.HEADER, required = false) Long userId) {
         PageResult<GoodsItem> result = publicCache.searchGoods(category, q, minPrice, maxPrice, excludeSoldOut, page,
-                pageSize.resolve(size));   // ✏️ 11/25 Pod 캐시 3초 (PublicProductCache)
+                pageSize.resolve(size));   // Pod 캐시 3초 (PublicProductCache)
         userMetrics.searched(userId, "GOODS", q, page);
         return ApiResponse.onSuccess(result);
     }
 
+    /**
+     * 상품 상세와 옵션별 가격, 재고를 조회합니다. 재고 표시는 캐시로 최대 3초 늦을 수 있습니다.
+     *
+     * @param productId 상품 ID
+     */
     @GetMapping("/api/catalog/products/{productId}")
     public ApiResponse<ProductDetail> product(@PathVariable @Positive long productId) {
-        return ApiResponse.onSuccess(publicCache.product(productId));   // ✏️ 11/25 Pod 캐시 3초 — 재고 수량 · 품절은 최대 3초 늦음 (주문이 다시 확인)
+        return ApiResponse.onSuccess(publicCache.product(productId));   // Pod 캐시 3초 - 재고 수량, 품절은 최대 3초 늦음 (주문이 다시 확인)
     }
 
-    /** ?ids=1,2,3 — 보유 음반 화면 · 챗봇 도구의 일괄 조회 */
+    /**
+     * 보유 음반 화면과 챗봇에서 사용할 상품을 일괄 조회합니다.
+     *
+     * @param ids 상품 ID 목록
+     */
     @GetMapping("/api/catalog/products")
     public ApiResponse<PageResult<ProductDetail>> products(@RequestParam List<Long> ids) {
         pageSize.checkIds(ids);

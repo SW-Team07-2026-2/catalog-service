@@ -19,8 +19,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Catalog → Member 내부 호출 (X-Internal-Token · iss=catalog · aud=member) — 팔로우 전용 포트(8181)
- * GET /internal/members/{userId}/follows · GET /internal/artists/follower-counts (11/24)
+ * Catalog -> Member 팔로우 전용 포트(8181)의 내부 API 호출.
+ * 회원 팔로우 목록과 아티스트별 팔로워 수를 내부 토큰으로 조회합니다.
  */
 @Component
 public class HttpMemberClient implements MemberClient {

@@ -14,8 +14,8 @@ import java.time.OffsetDateTime;
 import java.util.Objects;
 
 /**
- * product — 상품 부모. physical_album · goods 가 상속하고 id 를 공유합니다 (JOINED).
- * 가격 · 재고는 여기에 없습니다 — 판매 단위는 product_option 이고, 주문 · 장바구니는 옵션을 가리킵니다.
+ * product - 상품 부모. physical_album, goods 가 상속하고 id 를 공유합니다 (JOINED).
+ * 가격, 재고는 여기에 없습니다 - 판매 단위는 product_option 이고, 주문, 장바구니는 옵션을 가리킵니다.
  */
 @Entity
 @Table(name = "product", uniqueConstraints = @UniqueConstraint(name = "uq_product_source", columnNames = {"source", "external_id"}))
@@ -35,7 +35,7 @@ public abstract class ProductEntity {
     private String sourceHash;
     private OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
-    private String description;                       // 11/26 상세 설명 (굿즈 · 판본 공통)
+    private String description;                       // 상세 설명 (굿즈, 판본 공통)
 
     protected ProductEntity() {}
 
@@ -57,7 +57,7 @@ public abstract class ProductEntity {
         return changed;
     }
 
-    /** 11/26 상세 설명 — null 은 그대로 · 빈 글은 지움. 바뀌었으면 true */
+    /** 상세 설명 - null 은 그대로, 빈 글은 지움. 바뀌었으면 true */
     public boolean applyDescription(String description, OffsetDateTime now) {
         if (description == null) return false;
         String next = description.isBlank() ? null : description.strip();

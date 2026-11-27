@@ -10,7 +10,7 @@ import static com.indie.catalog.global.outbox.QOutboxEntity.outboxEntity;
 
 public class OutboxQueriesImpl implements OutboxQueries {
 
-    /** JPA 잠금 대기 시간 힌트 — -2 는 Hibernate 의 SKIP LOCKED (LockOptions.SKIP_LOCKED) */
+    /** JPA 잠금 대기 시간 힌트 - -2 는 Hibernate 의 SKIP LOCKED (LockOptions.SKIP_LOCKED) */
     private static final String LOCK_TIMEOUT = "jakarta.persistence.lock.timeout";
     private static final int SKIP_LOCKED = -2;
 

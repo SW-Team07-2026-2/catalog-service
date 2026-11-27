@@ -12,7 +12,7 @@ import java.util.Optional;
 
 import static com.indie.catalog.domain.order.entity.QPurchaseOrderEntity.purchaseOrderEntity;
 
-/** OrderRepository 구현 — 단건 · 저장은 Spring Data, 상태 전이 · 목록은 QueryDSL */
+/** OrderRepository 구현 - 단건, 저장은 Spring Data, 상태 전이, 목록은 QueryDSL */
 @Repository
 public class OrderRepositoryAdapter implements OrderRepository {
 

@@ -32,10 +32,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 팔로우 탭 (11/19 · 프론트 요구 1-1 · 1-2 · 1-3) — 로그인 회원이 팔로우한 아티스트(의 앨범 · 굿즈)만, 칩 · 검색어 · 가격대를 함께.
- * 팔로우 목록은 Member 내부 API 로 받고(최근 팔로우순 · 팔로워 수), 정렬은 아티스트 순서(ARTIST_ORDER)나 최근 수정순(UPDATED)으로 바꿔
- * 같은 목록 쿼리에 넘깁니다. 팔로우가 없으면 DB 를 부르지 않고 빈 페이지.
- * 아티스트 목록 업데이트순은 아티스트별 가장 최근 새소식 날짜 — 앨범 · 피지컬 발매일 · 굿즈 등록 시각(Catalog)과 공연 등록 · 수정 시각(Concert) 중 가장 늦은 것.
+ * Member의 팔로우 목록을 기준으로 아티스트, 음반, 굿즈를 조회합니다.
+ * 새소식순은 Catalog와 Concert의 최신 시각을 합쳐 정렬하며 팔로우가 없으면 빈 페이지를 반환합니다.
  */
 @Service
 public class FollowingService {
@@ -55,6 +53,18 @@ public class FollowingService {
         this.productService = productService;
     }
 
+    /**
+     * 팔로우 목록을 조회하고 조건과 정렬을 적용합니다.
+     *
+     * @param userId 조회하거나 처리할 회원 ID
+     * @param q 검색어
+     * @param genres 장르 필터 목록
+     * @param genders 아티스트 성별 필터 목록
+     * @param compositions 아티스트 구성 필터 목록
+     * @param sort 목록 정렬 기준
+     * @param page 0부터 시작하는 페이지 번호
+     * @param size 페이지당 조회 개수
+     */
     public PageResult<ArtistItem> artists(long userId, String q, List<Genre> genres, List<ArtistGender> genders,
                                           List<ArtistComposition> compositions, FollowSort sort, int page, int size) {
         List<Long> ids = artistOrder(follows(userId), sort);
@@ -63,6 +73,19 @@ public class FollowingService {
         return artistService.listOf(q, genres, genders, compositions, ids, ListSort.ARTIST_ORDER, page, size);
     }
 
+    /**
+     * 팔로우한 아티스트의 피지컬 앨범을 조건별로 조회합니다.
+     *
+     * @param userId 조회하거나 처리할 회원 ID
+     * @param q 검색어
+     * @param formats 피지컬 앨범 매체 필터 목록
+     * @param minPrice 상품 최저가의 하한(원)
+     * @param maxPrice 상품 최저가의 상한(원), 150000 이상이면 상한 없음
+     * @param excludeSoldOut 품절 상품 제외 여부
+     * @param sort 목록 정렬 기준
+     * @param page 0부터 시작하는 페이지 번호
+     * @param size 페이지당 조회 개수
+     */
     public PageResult<PhysicalAlbumItem> physicalAlbums(long userId, String q, List<PhysicalFormat> formats, Integer minPrice,
                                                         Integer maxPrice, boolean excludeSoldOut, FollowSort sort, int page, int size) {
         ListFilters.checkPrice(minPrice, maxPrice);
@@ -72,6 +95,19 @@ public class FollowingService {
                 excludeSoldOut, itemSort(sort)), page, size);
     }
 
+    /**
+     * 팔로우한 아티스트의 굿즈를 조건별로 조회합니다.
+     *
+     * @param userId 조회하거나 처리할 회원 ID
+     * @param q 검색어
+     * @param categories 굿즈 품목 필터 목록
+     * @param minPrice 상품 최저가의 하한(원)
+     * @param maxPrice 상품 최저가의 상한(원), 150000 이상이면 상한 없음
+     * @param excludeSoldOut 품절 상품 제외 여부
+     * @param sort 목록 정렬 기준
+     * @param page 0부터 시작하는 페이지 번호
+     * @param size 페이지당 조회 개수
+     */
     public PageResult<GoodsItem> goods(long userId, String q, List<GoodsCategory> categories, Integer minPrice, Integer maxPrice,
                                        boolean excludeSoldOut, FollowSort sort, int page, int size) {
         ListFilters.checkPrice(minPrice, maxPrice);
@@ -80,14 +116,14 @@ public class FollowingService {
         return productService.goods(new GoodsRepository.Filter(ids, categories, q, minPrice, maxPrice, excludeSoldOut, itemSort(sort)), page, size);
     }
 
-    /** Member 는 최근 팔로우순으로 줍니다 — 팔로워순만 다시 정렬 (같은 수면 최근 팔로우순 유지) */
+    /** Member 는 최근 팔로우순으로 줍니다 - 팔로워순만 다시 정렬 (같은 수면 최근 팔로우순 유지) */
     private static List<Long> artistOrder(List<FollowedArtist> follows, FollowSort sort) {
         return (sort == FollowSort.FOLLOWERS
                 ? follows.stream().sorted(Comparator.comparingLong(FollowedArtist::followerCount).reversed())
                 : follows.stream()).map(FollowedArtist::artistId).toList();
     }
 
-    /** 새소식 최신순 — 소식이 없는 아티스트는 뒤 (같으면 최근 팔로우순 유지). Concert 가 불통이면 공연 없이 정렬합니다 */
+    /** 새소식 최신순 - 소식이 없는 아티스트는 뒤 (같으면 최근 팔로우순 유지). Concert 가 불통이면 공연 없이 정렬합니다 */
     private List<Long> byLatestNews(List<Long> ids) {
         Map<Long, OffsetDateTime> latest = new HashMap<>(artistService.latestContentAt(ids));
         try {

@@ -14,7 +14,10 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 
-/** Catalog → Payment 내부 호출 (X-Internal-Token · iss=catalog · aud=payment). 타임아웃 3초 */
+/**
+ * Catalog -> Payment 내부 API로 결제 준비와 취소를 요청합니다.
+ * 내부 토큰의 발급자는 catalog, 대상은 payment이며 요청 추적 ID를 전달합니다.
+ */
 @Component
 public class HttpPaymentClient implements PaymentClient {
 

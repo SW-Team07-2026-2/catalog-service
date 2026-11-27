@@ -11,12 +11,12 @@ import jakarta.persistence.Table;
 
 import java.time.OffsetDateTime;
 
-/** purchase_order — 상태 전이는 OrderRepository 의 조건부 UPDATE 로만 합니다 (중복 이벤트에도 한 번만 전이) */
+/** purchase_order - 상태 전이는 OrderRepository 의 조건부 UPDATE 로만 합니다 (중복 이벤트에도 한 번만 전이) */
 @Entity
 @Table(name = "purchase_order")
 public class PurchaseOrderEntity {
 
-    /** CANCELLED = 결제 전 취소 · 만료 · 결제 실패 · REFUNDED = 결제된 주문을 환불 (payment.cancelled 의 refunded) */
+    /** CANCELLED = 결제 전 취소, 만료, 결제 실패, REFUNDED = 결제된 주문을 환불 (payment.cancelled 의 refunded) */
     public enum Status { PENDING, CONFIRMED, CANCELLED, REFUNDED }
 
     @Id

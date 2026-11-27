@@ -10,7 +10,7 @@ import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 import java.util.Objects;
 
-/** goods — 아티스트 굿즈 (아티스트에 바로 매핑). 색상은 상품 이름에 넣고 선택지는 사이즈(product_option)만 둡니다 */
+/** goods - 아티스트 굿즈 (아티스트에 바로 매핑). 색상은 상품 이름에 넣고 선택지는 사이즈(product_option)만 둡니다 */
 @Entity
 @Table(name = "goods")
 @DiscriminatorValue("GOODS")
