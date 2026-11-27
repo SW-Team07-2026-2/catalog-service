@@ -31,7 +31,7 @@ class PublicProductCacheTest {
 
     @Test
     void sameProductIsLoadedOnce() {
-        ProductDetail detail = new ProductDetail(7L, null, "굿즈", null, 1L, "아티스트", null, null, null, null, null, null, List.of(), null);
+        ProductDetail detail = new ProductDetail(7L, null, "굿즈", null, 1L, "아티스트", null, null, null, null, null, null, List.of());
         when(service.product(7L)).thenReturn(detail);
 
         assertThat(cache.product(7L)).isSameAs(detail);

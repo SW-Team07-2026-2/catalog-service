@@ -169,7 +169,7 @@ public class IngestService {
         boolean created = goods.getId() == null;
         boolean changed = goods.apply(artist.getId(), g.category(), g.name().strip(), keep(g.thumbnailUrl(), goods.getThumbnailUrl()),
                 g.sourceHash(), now);
-        changed |= fillDetail(goods, g.description(), g.detailImageUrls(), now);
+        changed |= fillDetail(goods, g.description(), now);
         goods = goodsRepository.save(goods);
         ProductService.OptionsResult options = productService.upsertOptions(goods.getId(), null, inputs(g.options()));
         if (created) {
@@ -248,7 +248,7 @@ public class IngestService {
         boolean created = physicalAlbum.getId() == null;
         boolean changed = physicalAlbum.apply(album.getId(), u.format(), u.releasedAt(), u.name().strip(),
                 keep(u.thumbnailUrl(), keep(physicalAlbum.getThumbnailUrl(), album.getThumbnailUrl())), u.sourceHash(), now);
-        changed |= fillDetail(physicalAlbum, u.description(), u.detailImageUrls(), now);
+        changed |= fillDetail(physicalAlbum, u.description(), now);
         physicalAlbum = physicalAlbumRepository.save(physicalAlbum);
         ProductService.OptionsResult options = productService.upsertOptions(physicalAlbum.getId(), u.format(), inputs(u.options()));
         // 새 상품은 발매일이 최근이거나 모를 때만 · 이미 있던 상품에 옵션(컬러반 등)이 새로 생기면 그 옵션만 실어 보냅니다
@@ -257,14 +257,10 @@ public class IngestService {
         return created || changed || options.changed();
     }
 
-    /** 11/26 상세 설명 · 상세 이미지 — 저장된 값이 없을 때만 채움 (관리자가 쓴 값 · 지운 뒤 다시 쓴 값은 수집으로 바뀌지 않음) */
-    private static boolean fillDetail(ProductEntity product, String description, List<String> detailImageUrls, OffsetDateTime now) {
-        boolean changed = product.getDescription() == null && description != null && !description.isBlank()
+    /** 11/26 상세 설명 — 저장된 값이 없을 때만 채움 (관리자가 쓴 값 · 지운 뒤 다시 쓴 값은 수집으로 바뀌지 않음) */
+    private static boolean fillDetail(ProductEntity product, String description, OffsetDateTime now) {
+        return product.getDescription() == null && description != null && !description.isBlank()
                 && product.applyDescription(description, now);
-        if (product.getDetailImageUrls().isEmpty() && detailImageUrls != null && !detailImageUrls.isEmpty()) {
-            changed |= product.applyDetailImages(detailImageUrls, now);
-        }
-        return changed;
     }
 
     /** 미래 발매일(예약 판매)도 최근으로 봅니다. 발매일을 모르는 앨범은 알리지 않습니다 */

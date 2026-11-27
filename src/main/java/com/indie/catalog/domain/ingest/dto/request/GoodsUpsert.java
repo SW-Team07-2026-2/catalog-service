@@ -13,7 +13,7 @@ import java.util.List;
 
 /**
  * 굿즈 — 색상은 이름에 넣고(색상마다 상품 1개) 옵션은 사이즈만 둡니다. category 는 정해진 값만 (목록 밖은 ETC).
- * 11/26 description(상세 설명) · detail_image_urls(상세 이미지)는 저장된 값이 없을 때만 채웁니다 — 관리자가 쓴 값은 수집으로 바뀌지 않음.
+ * 11/26 description(상세 설명)은 저장된 값이 없을 때만 채웁니다 — 관리자가 쓴 값은 수집으로 바뀌지 않음. 11/27 상세 이미지는 받지 않습니다.
  */
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record GoodsUpsert(@NotBlank @Size(max = 128) String externalId,
@@ -22,5 +22,4 @@ public record GoodsUpsert(@NotBlank @Size(max = 128) String externalId,
                           @NotNull GoodsCategory category,
                           @Size(max = 512) String thumbnailUrl,
                           @NotEmpty List<@Valid @NotNull OptionUpsert> options,
-                          @Size(max = 1000) String description,
-                          @Size(max = 10) List<@NotBlank @Size(max = 512) String> detailImageUrls) {}
+                          @Size(max = 1000) String description) {}

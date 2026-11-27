@@ -83,14 +83,6 @@ CREATE TABLE product (
     CONSTRAINT uq_product_source UNIQUE (source, external_id)
 );
 
--- 11/26 상세 이미지 (보여 줄 순서대로 · 우리 이미지 버킷 주소만 — Studio 가 승인할 때 옮김)
-CREATE TABLE product_detail_image (
-    product_id BIGINT       NOT NULL REFERENCES product(id),
-    sort_order INTEGER      NOT NULL,
-    url        VARCHAR(512) NOT NULL,
-    PRIMARY KEY (product_id, sort_order)
-);
-
 -- 한 앨범에 같은 포맷이 여러 개일 수 있습니다 (초판 · 재판 · N차 — 이름으로 구분)
 CREATE TABLE physical_album (
     id          BIGINT PRIMARY KEY REFERENCES product(id),

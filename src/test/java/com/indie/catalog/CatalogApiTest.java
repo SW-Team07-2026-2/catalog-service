@@ -104,12 +104,12 @@ class CatalogApiTest {
         long artistId = ingest.upsertArtists(List.of(new ArtistUpsert("crawler", "api-artist", "h", "파란노을",
                 List.of(Genre.SHOEGAZE, Genre.EMO), "인디레이블", 2018, null, null, null,
                 List.of(new GoodsUpsert("api-goods", "h", "로고 티셔츠", GoodsCategory.TSHIRT, null,
-                        List.of(new OptionUpsert("M", null, OptionSize.M, 35000, 3)), null, null)), "2018년 시작한 1인 프로젝트입니다."))).get(0).id();
+                        List.of(new OptionUpsert("M", null, OptionSize.M, 35000, 3)), null)), "2018년 시작한 1인 프로젝트입니다."))).get(0).id();
         long albumId = ingest.upsertAlbums(List.of(new AlbumUpsert("crawler", "api-album", "h", artistId, "슬로우 다이브",
                 AlbumEntity.Type.EP, List.of(Genre.SHOEGAZE), LocalDate.now(), null,
                 List.of(new TrackUpsert(1, "아름다운 세상", List.of(Genre.SHOEGAZE), Tempo.MID, List.of(Mood.DREAMY), null, null)),
                 List.of(new PhysicalAlbumUpsert("api-lp", "h", PhysicalFormat.LP, "슬로우 다이브 LP", LocalDate.now(), null,
-                        List.of(new OptionUpsert("블랙", VinylColor.BLACK, null, 42000, 5)), null, null)), "첫 EP 입니다."))).get(0).id();
+                        List.of(new OptionUpsert("블랙", VinylColor.BLACK, null, 42000, 5)), null)), "첫 EP 입니다."))).get(0).id();
         long lpId = jdbc.queryForObject("SELECT id FROM product WHERE external_id = 'api-lp'", Long.class);
         long lpOption = jdbc.queryForObject("SELECT id FROM product_option WHERE product_id = ?", Long.class, lpId);
 
@@ -201,15 +201,19 @@ class CatalogApiTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.result.items[0].result").value("CREATED"));
 
         // 11/18 — 숫자 사이즈는 JSON 값 "0" 그대로 · 적재 때 qty 를 안 보내면 재고 0 → 관리자가 설정
+        // 11/27 — 상세 이미지는 받지 않습니다: 옛 본문의 detail_image_urls 는 무시하고, 상품 상세에도 칸이 없습니다
         mvc.perform(post("/internal/admin/catalog/ingest/artists").header("X-Internal-Token", studio).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"items\":[{\"source\":\"crawler\",\"external_id\":\"adm-1\",\"source_hash\":\"h3\",\"name\":\"새소년\",\"genres\":[\"SHOEGAZE\"],"
-                                + "\"goods\":[{\"external_id\":\"adm-tee\",\"name\":\"로고 티셔츠\",\"category\":\"TSHIRT\",\"options\":[{\"name\":\"0\",\"size\":\"0\",\"price\":59000}]}]}]}"))
+                                + "\"goods\":[{\"external_id\":\"adm-tee\",\"name\":\"로고 티셔츠\",\"category\":\"TSHIRT\",\"options\":[{\"name\":\"0\",\"size\":\"0\",\"price\":59000}],"
+                                + "\"description\":\"## 상품 정보\\n- 소재: 면 100%\",\"detail_image_urls\":[\"https://img.indig.co.kr/goods/2026/11/a.jpg\"]}]}]}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.result.items[0].result").value("UPDATED"));
         long teeId = jdbc.queryForObject("SELECT id FROM product WHERE external_id = 'adm-tee'", Long.class);
         long teeOption = jdbc.queryForObject("SELECT id FROM product_option WHERE product_id = ?", Long.class, teeId);
         mvc.perform(get("/api/catalog/products/" + teeId)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.options[0].size").value("0"))
-                .andExpect(jsonPath("$.result.options[0].qty").value(0));
+                .andExpect(jsonPath("$.result.options[0].qty").value(0))
+                .andExpect(jsonPath("$.result.description").value("## 상품 정보\n- 소재: 면 100%"))
+                .andExpect(jsonPath("$.result.detailImageUrls").doesNotExist());
         mvc.perform(put("/internal/admin/catalog/options/" + teeOption + "/stock").header("X-Internal-Token", studio)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"qty\":15,\"reason\":\"첫 입고\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.result.qty").value(15));
@@ -232,17 +236,17 @@ class CatalogApiTest {
     @Test
     void followTabFiltersAndSorts() throws Exception {
         long a = artist("ft-a", "에이밴드", Genre.SHOEGAZE, new GoodsUpsert("ft-a-tee", "h", "에이 티셔츠", GoodsCategory.TSHIRT, null,
-                List.of(new OptionUpsert("M", null, OptionSize.M, 30000, 1)), null, null));
+                List.of(new OptionUpsert("M", null, OptionSize.M, 30000, 1)), null));
         long b = artist("ft-b", "비밴드", Genre.EMO, new GoodsUpsert("ft-b-cap", "h", "비 모자", GoodsCategory.HAT, null,
-                List.of(new OptionUpsert("FREE", null, OptionSize.FREE, 20000, 1)), null, null));
+                List.of(new OptionUpsert("FREE", null, OptionSize.FREE, 20000, 1)), null));
         long c = artist("ft-c", "씨밴드", Genre.INDIE_ROCK, new GoodsUpsert("ft-c-bag", "h", "씨 에코백", GoodsCategory.BAG, null,
-                List.of(new OptionUpsert("기본", null, OptionSize.FREE, 60000, 1)), null, null));
+                List.of(new OptionUpsert("기본", null, OptionSize.FREE, 60000, 1)), null));
         album(a, "ft-a-album", "첫 노을", new PhysicalAlbumUpsert("ft-a-lp", "h", PhysicalFormat.LP, "첫 노을 LP", LocalDate.parse("2024-01-01"), null,
-                List.of(new OptionUpsert("블랙", VinylColor.BLACK, null, 40000, 1)), null, null));
+                List.of(new OptionUpsert("블랙", VinylColor.BLACK, null, 40000, 1)), null));
         album(b, "ft-b-album", "두번째 비", new PhysicalAlbumUpsert("ft-b-cd", "h", PhysicalFormat.CD, "두번째 비 CD", LocalDate.parse("2025-01-01"), null,
-                List.of(new OptionUpsert("기본", null, null, 15000, 1)), null, null));
+                List.of(new OptionUpsert("기본", null, null, 15000, 1)), null));
         album(c, "ft-c-album", "세번째 길", new PhysicalAlbumUpsert("ft-c-tape", "h", PhysicalFormat.CASSETTE, "세번째 길 카세트", LocalDate.parse("2023-01-01"), null,
-                List.of(new OptionUpsert("기본", null, null, 10000, 1)), null, null));
+                List.of(new OptionUpsert("기본", null, null, 10000, 1)), null));
 
         // 아티스트 — 장르 여러 개(반복 · 쉼표) · ids 순서대로 · ids 와 장르 함께
         mvc.perform(get("/api/catalog/artists").param("genre", "SHOEGAZE").param("genre", "EMO")).andExpect(status().isOk())
@@ -323,19 +327,19 @@ class CatalogApiTest {
     @Test
     void searchAndFollowingApis() throws Exception {
         long a = artist("fw-a", "에이밴드", Genre.SHOEGAZE, new GoodsUpsert("fw-a-tee", "h", "에이 티셔츠", GoodsCategory.TSHIRT, null,
-                List.of(new OptionUpsert("M", null, OptionSize.M, 30000, 1)), null, null));
+                List.of(new OptionUpsert("M", null, OptionSize.M, 30000, 1)), null));
         long b = artist("fw-b", "비밴드", Genre.EMO, new GoodsUpsert("fw-b-cap", "h", "비 모자", GoodsCategory.HAT, null,
-                List.of(new OptionUpsert("FREE", null, OptionSize.FREE, 20000, 1)), null, null));
+                List.of(new OptionUpsert("FREE", null, OptionSize.FREE, 20000, 1)), null));
         long c = artist("fw-c", "씨밴드", Genre.INDIE_ROCK, new GoodsUpsert("fw-c-bag", "h", "씨 에코백", GoodsCategory.BAG, null,
-                List.of(new OptionUpsert("기본", null, OptionSize.FREE, 160000, 1)), null, null));
+                List.of(new OptionUpsert("기본", null, OptionSize.FREE, 160000, 1)), null));
         long d = artist("fw-d", "디밴드", Genre.EMO, new GoodsUpsert("fw-d-tee", "h", "디 티셔츠", GoodsCategory.TSHIRT, null,
-                List.of(new OptionUpsert("M", null, OptionSize.M, 25000, 1)), null, null));   // 팔로우 안 함
+                List.of(new OptionUpsert("M", null, OptionSize.M, 25000, 1)), null));   // 팔로우 안 함
         album(a, "fw-a-album", "첫 노을", new PhysicalAlbumUpsert("fw-a-lp", "h", PhysicalFormat.LP, "첫 노을 LP", LocalDate.parse("2024-01-01"), null,
-                List.of(new OptionUpsert("블랙", VinylColor.BLACK, null, 40000, 1)), null, null));
+                List.of(new OptionUpsert("블랙", VinylColor.BLACK, null, 40000, 1)), null));
         album(b, "fw-b-album", "두번째 비", new PhysicalAlbumUpsert("fw-b-cd", "h", PhysicalFormat.CD, "두번째 비 CD", LocalDate.parse("2025-01-01"), null,
-                List.of(new OptionUpsert("기본", null, null, 15000, 1)), null, null));
+                List.of(new OptionUpsert("기본", null, null, 15000, 1)), null));
         album(d, "fw-d-album", "디 앨범", new PhysicalAlbumUpsert("fw-d-cd", "h", PhysicalFormat.CD, "디 앨범 CD", LocalDate.parse("2025-06-01"), null,
-                List.of(new OptionUpsert("기본", null, null, 18000, 1)), null, null));
+                List.of(new OptionUpsert("기본", null, null, 18000, 1)), null));
 
         // 전체 검색 — q(LIKE) 는 선택 · 칩 여러 개(OR) · 다른 칩끼리 AND · 15만원 이상은 상한 없음
         mvc.perform(get("/api/catalog/search/artists").param("q", "밴드").param("genre", "EMO,SHOEGAZE"))

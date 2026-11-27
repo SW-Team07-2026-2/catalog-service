@@ -95,7 +95,6 @@ public class AdminProductService {
             GoodsEntity goods = new GoodsEntity(SOURCE, externalId);
             goods.apply(artist.getId(), r.category(), r.name().strip(), r.thumbnailUrl(), null, now);
             goods.applyDescription(r.description(), now);
-            goods.applyDetailImages(r.detailImageUrls(), now);
             goods = goodsRepository.save(goods);
             productService.upsertOptions(goods.getId(), null, options);
             events.goodsReleased(goods, artist, r.options().stream().mapToInt(AdminOption::price).min().orElseThrow());
@@ -111,7 +110,6 @@ public class AdminProductService {
             physicalAlbum.apply(album.getId(), r.format(), r.releasedAt(), r.name().strip(),
                     r.thumbnailUrl() == null ? album.getThumbnailUrl() : r.thumbnailUrl(), null, now);
             physicalAlbum.applyDescription(r.description(), now);   // 11/26 판 상세 설명 (앨범 소개 글과 따로)
-            physicalAlbum.applyDetailImages(r.detailImageUrls(), now);
             physicalAlbum = physicalAlbumRepository.save(physicalAlbum);
             ProductService.OptionsResult created = productService.upsertOptions(physicalAlbum.getId(), r.format(), options);
             if (r.releasedAt() == null || !r.releasedAt().isBefore(LocalDate.now(clock).minusDays(releaseWindowDays))) {
@@ -142,7 +140,6 @@ public class AdminProductService {
                     physicalAlbum.getSourceHash(), now);
         }
         product.applyDescription(r.description(), now);       // 11/26 null 은 그대로 · 빈 글은 지움 (굿즈 · 판본 공통)
-        product.applyDetailImages(r.detailImageUrls(), now);  // null 은 그대로 · [] 는 지움
         artistCache.evictAfterCommit(artistIdOf(product));
         return productService.product(id);
     }
