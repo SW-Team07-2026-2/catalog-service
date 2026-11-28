@@ -118,8 +118,10 @@ class CatalogApiTest {
                 .andExpect(jsonPath("$.result.items", hasSize(1)))
                 .andExpect(jsonPath("$.result.items[0].genres[0]").value("SHOEGAZE"));
         mvc.perform(get("/api/catalog/artists").param("genre", "TROT")).andExpect(status().isBadRequest());
+        jdbc.update("UPDATE artist SET follower_count = 2 WHERE id = ?", artistId);   // FollowerCountSync 가 채운 값
         mvc.perform(get("/api/catalog/artists/" + artistId)).andExpect(status().isOk())   // Redis 가 없어도 응답
                 .andExpect(jsonPath("$.result.label").value("인디레이블"))
+                .andExpect(jsonPath("$.result.followerCount").value(2))
                 .andExpect(jsonPath("$.result.bio").value("2018년 시작한 1인 프로젝트입니다."))
                 .andExpect(jsonPath("$.result.albums[0].type").value("EP"))
                 .andExpect(jsonPath("$.result.physicalAlbums[0].format").value("LP"))
