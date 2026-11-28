@@ -37,8 +37,8 @@ public interface ArtistRepository {
 
     ArtistEntity save(ArtistEntity artist);
 
-    /** 팔로워 수 사본 갱신 (artistId -> 팔로워 수) - 값이 바뀐 아티스트만, updated_at 은 그대로. 바뀐 행 수 */
-    int updateFollowerCounts(Map<Long, Long> counts);
+    /** 팔로워 수 사본 갱신 (artistId -> 팔로워 수) - 값이 바뀐 아티스트만, updated_at 은 그대로. 바뀐 아티스트 ID */
+    List<Long> updateFollowerCounts(Map<Long, Long> counts);
 
     /** 전체 다시 맞추기용 - id 오름차순, afterId 다음부터 limit 개 */
     List<Long> findIdsAfter(long afterId, int limit);

@@ -22,11 +22,13 @@ class FollowerCountSyncTest extends PostgresTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired FollowerCountSync sync;
     @Autowired FakeMember member;
+    @Autowired FakeArtistCache cache;
 
     @BeforeEach
     void resetMember() {
         member.counts.clear();
         member.down = false;
+        cache.evicted.clear();
     }
 
     @Test
@@ -43,7 +45,9 @@ class FollowerCountSyncTest extends PostgresTest {
         assertThat(sync.refresh(List.of(a, b))).isEqualTo(1);   // b 는 0 그대로 - 바뀐 행 아님
         assertThat(followerCount(a)).isEqualTo(3);
         assertThat(followerCount(b)).isZero();
+        assertThat(cache.evicted).containsExactly(a);           // 바뀐 아티스트만 상세 캐시를 지움
         assertThat(sync.refresh(List.of(a))).isZero();          // 같은 이벤트가 다시 와도 결과 같음
+        assertThat(cache.evicted).containsExactly(a);
         assertThat(jdbc.queryForObject("SELECT updated_at FROM artist WHERE id = ?", OffsetDateTime.class, a))
                 .isAtSameInstantAs(UPDATED);                    // 팔로우 탭 업데이트순 기준은 안 바뀜
     }

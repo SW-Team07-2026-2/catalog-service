@@ -96,13 +96,19 @@ public abstract class PostgresTest {
 
         /** 캐시 없음 - 항상 DB 로 */
         @Bean
-        ArtistCache artistCache() {
-            return new ArtistCache() {
-                @Override public Optional<ArtistDetail> get(long id) { return Optional.empty(); }
-                @Override public void put(ArtistDetail detail) {}
-                @Override public void evictAfterCommit(long id) {}
-            };
+        FakeArtistCache artistCache() {
+            return new FakeArtistCache();
         }
+    }
+
+    /** 아티스트 캐시 대역 - 담지 않고 지운 ID 만 evicted 에 남깁니다 */
+    public static class FakeArtistCache implements ArtistCache {
+
+        public final List<Long> evicted = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+        @Override public Optional<ArtistDetail> get(long id) { return Optional.empty(); }
+        @Override public void put(ArtistDetail detail) {}
+        @Override public void evictAfterCommit(long id) { evicted.add(id); }
     }
 
     /** Member 대역 - 팔로우 없음 (팔로우 탭은 CatalogApiTest 에서), 팔로워 수는 counts (없으면 0), down 이면 불통 */
