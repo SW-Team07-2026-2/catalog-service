@@ -1,5 +1,6 @@
 package com.indie.catalog.domain.artist.service;
 
+import com.indie.catalog.domain.artist.repository.ArtistCache;
 import com.indie.catalog.domain.artist.repository.ArtistRepository;
 import com.indie.catalog.domain.follow.client.MemberClient;
 import org.springframework.stereotype.Service;
@@ -10,6 +11,7 @@ import java.util.List;
 /**
  * Member의 팔로워 수를 조회해 Catalog의 artist.follower_count를 갱신합니다.
  * 증감 대신 현재 수로 덮어쓰며 전체 동기화로 탈퇴나 누락 이벤트를 보완합니다.
+ * 값이 바뀐 아티스트는 상세 캐시를 지워 C3 응답의 followerCount 가 바로 따라오게 합니다.
  */
 @Service
 public class FollowerCountSync {
@@ -19,10 +21,12 @@ public class FollowerCountSync {
 
     private final MemberClient memberClient;
     private final ArtistRepository artistRepository;
+    private final ArtistCache artistCache;
 
-    public FollowerCountSync(MemberClient memberClient, ArtistRepository artistRepository) {
+    public FollowerCountSync(MemberClient memberClient, ArtistRepository artistRepository, ArtistCache artistCache) {
         this.memberClient = memberClient;
         this.artistRepository = artistRepository;
+        this.artistCache = artistCache;
     }
 
     /**
@@ -31,7 +35,9 @@ public class FollowerCountSync {
      * @param artistIds 대상 아티스트 ID 목록
      */
     public int refresh(Collection<Long> artistIds) {
-        return artistRepository.updateFollowerCounts(memberClient.followerCounts(artistIds));
+        List<Long> changed = artistRepository.updateFollowerCounts(memberClient.followerCounts(artistIds));
+        changed.forEach(artistCache::evictAfterCommit);
+        return changed.size();
     }
 
     /** 전체 - id 순 BATCH 개씩. 바뀐 행 수 */

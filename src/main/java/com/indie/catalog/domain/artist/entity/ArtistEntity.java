@@ -1,5 +1,6 @@
 package com.indie.catalog.domain.artist.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -35,6 +36,9 @@ public class ArtistEntity {
     @Enumerated(EnumType.STRING)
     private ArtistComposition composition;
     private String bio;
+    /** 팔로워 수 사본 - FollowerCountSync 만 씁니다 (엔티티 저장은 이 값을 건드리지 않음) */
+    @Column(insertable = false, updatable = false)
+    private long followerCount;
     private String source;
     private String externalId;
     private String sourceHash;
@@ -89,6 +93,7 @@ public class ArtistEntity {
     public Integer getDebutYear() { return debutYear; }
     public String getProfileUrl() { return profileUrl; }
     public String getBio() { return bio; }
+    public long getFollowerCount() { return followerCount; }
     public String getExternalId() { return externalId; }
     public String getSourceHash() { return sourceHash; }
 }

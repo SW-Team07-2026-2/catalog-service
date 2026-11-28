@@ -242,7 +242,7 @@ Payment 는 바꾸지 않았습니다. Payment 가 내는 `payment.cancelled` �
 | 메서드 · 경로 | 변경 | 내용 |
 |---|---|---|
 | `GET /api/catalog/artists` | 변경 | `genre` 파라미터가 enum 값(`INDIE_ROCK` …). 응답 `genre`(문자열) → `genres`(배열) · ✏️ 11/19 팔로우 탭: `genre` 여러 개 · `ids`(최대 200)가 다른 조건 · 페이지와 함께 동작 · `sort=ARTIST_ORDER\|UPDATED` |
-| `GET /api/catalog/artists/{artistId}` | 변경 | `members` 삭제 · `genre` → `genres` · `lps` → `physicalAlbums` · `goods` 항목 모양 변경 |
+| `GET /api/catalog/artists/{artistId}` | 변경 | `members` 삭제 · `genre` → `genres` · `lps` → `physicalAlbums` · `goods` 항목 모양 변경 · ✏️ 11/28 `followerCount`(아래 「팔로워 수」) |
 | `GET /api/catalog/albums` | 변경 | 항목에 `genres` 추가 |
 | `GET /api/catalog/albums/{albumId}` | 변경 | `cd` · `lps` 삭제 → `physicalAlbums`. 트랙에 `genres` · `tempo` · `moods` · `emotions` · `styles` |
 | `GET /api/catalog/lps` | **삭제** | → `GET /api/catalog/physical-albums` |
@@ -372,6 +372,7 @@ enum 파라미터에 목록 밖 값을 주면 400 입니다. 장바구니는 조
 - 더하고 빼지 않고 Member `GET /internal/artists/follower-counts`(팔로우 전용 포트 8181)의 지금 수로 덮어씁니다 — 같은 이벤트가 여러 번 와도 · 순서가 바뀌어도 결과가 같습니다 (`FollowerCountSync`).
 - `FollowerCountSyncJob` 이 기동 1분 뒤 · 그 뒤 1시간마다 전체를 다시 맞춥니다 (`app.follower-count.*`). 이벤트로 못 맞추는 것 — 탈퇴(follow 가 CASCADE 로 지워져 UNFOLLOW 가 안 나감) · Member 불통 중 DLT 로 간 이벤트 · 첫 배포 채우기.
 - `updated_at` 은 바꾸지 않습니다 (팔로우 탭 업데이트순 기준).
+- ✏️ 11/28 아티스트 상세(`GET /api/catalog/artists/{artistId}`) 응답 `followerCount` 로 내보냅니다. 값이 바뀐 아티스트는 상세 캐시를 지웁니다 (캐시 키 `catalog:cache:artist:v4:{id}` · 응답 모양이 바뀌어 v3 → v4).
 
 **회원 행동 메트릭 (11/24)** — Member 가 `user.metric` 을 받아 `user_metric` 에 저장합니다 (추천 · 챗봇이 Member 메트릭 조회 API 로 읽음 · member 문서 6.5). `UserMetrics` 가 outbox 에 씁니다.
 

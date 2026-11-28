@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -131,10 +132,10 @@ public class ArtistRepositoryAdapter implements ArtistRepository {
 
     @Override
     @Transactional
-    public int updateFollowerCounts(Map<Long, Long> counts) {
-        int changed = 0;
+    public List<Long> updateFollowerCounts(Map<Long, Long> counts) {
+        List<Long> changed = new ArrayList<>();
         for (Map.Entry<Long, Long> e : counts.entrySet()) {
-            changed += jpa.updateFollowerCount(e.getKey(), e.getValue());
+            if (jpa.updateFollowerCount(e.getKey(), e.getValue()) > 0) changed.add(e.getKey());
         }
         return changed;
     }

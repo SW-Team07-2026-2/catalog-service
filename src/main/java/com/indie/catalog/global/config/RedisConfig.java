@@ -11,7 +11,7 @@ import org.springframework.data.redis.serializer.RedisSerializer;
 
 /**
  * 아티스트 상세를 캐시용 Redis에 JSON으로 저장합니다.
- * 키는 catalog:cache:artist:v3:{id}, 보관 시간은 app.cache.artist-ttl-seconds를 사용합니다.
+ * 키는 catalog:cache:artist:v4:{id}, 보관 시간은 app.cache.artist-ttl-seconds를 사용합니다.
  */
 @Configuration
 public class RedisConfig {
